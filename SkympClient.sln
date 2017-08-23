@@ -1,0 +1,65 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26430.13
+MinimumVisualStudioVersion = 12.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SkympClient", "SkympClient", "{0629E4D3-CF6F-4EFD-A1A7-11C25AC2F62C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkympClient", "SkympClient\SkympClient.vcxproj", "{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SKSE", "SKSE\SKSE.vcxproj", "{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Skyrim", "Skyrim\Skyrim.vcxproj", "{AD95F75E-FD79-4F2F-BC36-828D592A790A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RakNet", "RakNet\RakNet.vcxproj", "{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}.Debug|Win32.Build.0 = Debug|Win32
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}.Debug|x64.ActiveCfg = Debug|Win32
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}.Release|Win32.ActiveCfg = Release|Win32
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}.Release|Win32.Build.0 = Release|Win32
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}.Release|x64.ActiveCfg = Release|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Debug|Win32.Build.0 = Debug|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Debug|Win32.Deploy.0 = Debug|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Debug|x64.ActiveCfg = Debug|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Release|Win32.ActiveCfg = Release|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Release|Win32.Build.0 = Release|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Release|Win32.Deploy.0 = Release|Win32
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379}.Release|x64.ActiveCfg = Release|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Debug|Win32.Build.0 = Debug|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Debug|Win32.Deploy.0 = Debug|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Debug|x64.ActiveCfg = Debug|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Release|Win32.ActiveCfg = Release|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Release|Win32.Build.0 = Release|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Release|Win32.Deploy.0 = Release|Win32
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A}.Release|x64.ActiveCfg = Release|Win32
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Debug|Win32.Build.0 = Debug|Win32
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Debug|x64.ActiveCfg = Debug|x64
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Debug|x64.Build.0 = Debug|x64
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|Win32.ActiveCfg = Release|Win32
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|Win32.Build.0 = Release|Win32
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|x64.ActiveCfg = Release|x64
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{9FD62F8C-56AD-4EAA-9963-9D05449A78F6} = {0629E4D3-CF6F-4EFD-A1A7-11C25AC2F62C}
+		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
+		{AD95F75E-FD79-4F2F-BC36-828D592A790A} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
+		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
+	EndGlobalSection
+EndGlobal
