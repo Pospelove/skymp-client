@@ -1,0 +1,212 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{9FD62F8C-56AD-4EAA-9963-9D05449A78F6}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>plugin_example</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>..\RakNet\src\;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>..\RakNet\src\;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeaderFile />
+      <PrecompiledHeaderOutputFile />
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir)Skyrim\include;$(SolutionDir)SKSE\include;$(SolutionDir)mruby\include;$(SolutionDir)\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(SolutionDir)mruby\build\host\lib;$(SolutionDir)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>"$(SolutionDir)install_dll.bat" "$(TargetPath)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>Disabled</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile />
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir)Skyrim\include;$(SolutionDir)SKSE\include;$(SolutionDir)mruby\include;$(SolutionDir)\include</AdditionalIncludeDirectories>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <StringPooling>false</StringPooling>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)mruby\build\host\lib;$(SolutionDir)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>"$(SolutionDir)install_dll.bat" "$(TargetPath)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ClientLogic\ClientLogic.cpp" />
+    <ClCompile Include="Common\clip.cpp" />
+    <ClCompile Include="Common\clip_win.cpp" />
+    <ClCompile Include="CoreInterface\ciIActor.cpp" />
+    <ClCompile Include="CoreInterface\ciGUI.cpp" />
+    <ClCompile Include="CoreInterface\ciLocalPlayer.cpp" />
+    <ClCompile Include="CoreInterface\ciMain.cpp" />
+    <ClCompile Include="CoreInterface\ciObject.cpp" />
+    <ClCompile Include="CoreInterface\ciOther.cpp" />
+    <ClCompile Include="CoreInterface\ciRemotePlayer.cpp" />
+    <ClCompile Include="CoreInterface\ciTypes.cpp" />
+    <ClCompile Include="Costile\Costile2.cpp" />
+    <ClCompile Include="Costile\CostileDragon.cpp" />
+    <ClCompile Include="DInput\DInput.cpp" />
+    <ClCompile Include="DirectX\DirectXHook.cpp" />
+    <ClCompile Include="DirectX\MyDirect3D9.cpp" />
+    <ClCompile Include="DirectX\MyDirect3DDevice9.cpp" />
+    <ClCompile Include="Disasm\cpu.c" />
+    <ClCompile Include="Disasm\disasm.c" />
+    <ClCompile Include="Disasm\disasm_x86.c" />
+    <ClCompile Include="Disasm\misc.c" />
+    <ClCompile Include="GameUtility\LockTimer.cpp" />
+    <ClCompile Include="GameUtility\KeyboardManager.cpp" />
+    <ClCompile Include="GameUtility\MenuDisabler.cpp" />
+    <ClCompile Include="GameUtility\MiscUtility.cpp" />
+    <ClCompile Include="GameUtility\PauseDisabler.cpp" />
+    <ClCompile Include="GameUtility\PlayerControls.cpp" />
+    <ClCompile Include="GameUtility\Timer.cpp" />
+    <ClCompile Include="GameUtility\WorldCleaner.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Mhook\mhook.cpp" />
+    <ClCompile Include="Overlay\Chat.cpp" />
+    <ClCompile Include="Overlay\GUI.cpp" />
+    <ClCompile Include="Overlay\Input.cpp" />
+    <ClCompile Include="ScriptDragon\plugin.cpp" />
+    <ClCompile Include="SKSEOriginal\Utilities.cpp" />
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="Sync\LookData.cpp" />
+    <ClCompile Include="Sync\MovementData.cpp" />
+    <ClCompile Include="WinAPI\WinAPI.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ClientLogic\Config.h" />
+    <ClInclude Include="ClientLogic\Serialization.h" />
+    <ClInclude Include="Common\clip.h" />
+    <ClInclude Include="Common\clip_win.h" />
+    <ClInclude Include="Common\Signal.h" />
+    <ClInclude Include="CoreInterface\ciIActor.h" />
+    <ClInclude Include="CoreInterface\ciGUI.h" />
+    <ClInclude Include="CoreInterface\ciLocalPlayer.h" />
+    <ClInclude Include="CoreInterface\ciObject.h" />
+    <ClInclude Include="CoreInterface\ciTypes.h" />
+    <ClInclude Include="CoreInterface\ciMain.h" />
+    <ClInclude Include="CoreInterface\ciOther.h" />
+    <ClInclude Include="CoreInterface\ciRemotePlayer.h" />
+    <ClInclude Include="CoreInterface\CoreInterface.h" />
+    <ClInclude Include="Costile\Costile2.h" />
+    <ClInclude Include="Costile\CostileDragon.h" />
+    <ClInclude Include="Costile\CostileInvoke2.h" />
+    <ClInclude Include="Costile\Value.h" />
+    <ClInclude Include="DInput\DInput.hpp" />
+    <ClInclude Include="DirectX\DirectXHook.h" />
+    <ClInclude Include="DirectX\MyDirect3D9.h" />
+    <ClInclude Include="DirectX\MyDirect3DDevice9.h" />
+    <ClInclude Include="Disasm\cpu.h" />
+    <ClInclude Include="Disasm\disasm.h" />
+    <ClInclude Include="Disasm\disasm_x86.h" />
+    <ClInclude Include="Disasm\disasm_x86_tables.h" />
+    <ClInclude Include="Disasm\misc.h" />
+    <ClInclude Include="GameUtility\LockTimer.h" />
+    <ClInclude Include="GameUtility\KeyboardManager.h" />
+    <ClInclude Include="GameUtility\MenuDisabler.h" />
+    <ClInclude Include="GameUtility\MiscUtility.h" />
+    <ClInclude Include="GameUtility\PauseDisabler.h" />
+    <ClInclude Include="GameUtility\PlayerControls.h" />
+    <ClInclude Include="GameUtility\Timer.h" />
+    <ClInclude Include="GameUtility\WorldCleaner.h" />
+    <ClInclude Include="Mhook\mhook.h" />
+    <ClInclude Include="Overlay\Chat.h" />
+    <ClInclude Include="Overlay\GUI.h" />
+    <ClInclude Include="Overlay\Input.h" />
+    <ClInclude Include="Overlay\InputConverter.h" />
+    <ClInclude Include="ScriptDragon\enums.h" />
+    <ClInclude Include="ScriptDragon\invoke.h" />
+    <ClInclude Include="ScriptDragon\obscript.h" />
+    <ClInclude Include="ScriptDragon\plugin.h" />
+    <ClInclude Include="ScriptDragon\skyscript.h" />
+    <ClInclude Include="ScriptDragon\types.h" />
+    <ClInclude Include="SKSEOriginal\Utilities.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Sync\LookData.h" />
+    <ClInclude Include="Sync\MovementData.h" />
+    <ClInclude Include="WinAPI\WinAPI.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ScriptDragon\plugin.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RakNet\RakNet.vcxproj">
+      <Project>{6fd8cba3-1496-4143-8681-ee9cfc0dc713}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\SKSE\SKSE.vcxproj">
+      <Project>{e2bb26ec-2013-42cd-bca5-c9c566ba0379}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Skyrim\Skyrim.vcxproj">
+      <Project>{ad95f75e-fd79-4f2f-bc36-828d592a790a}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

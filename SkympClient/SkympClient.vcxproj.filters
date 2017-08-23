@@ -1,0 +1,332 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="ScriptDragon\plugin.cpp">
+      <Filter>core\ScriptDragon</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\DirectXHook.cpp">
+      <Filter>core\DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\MyDirect3D9.cpp">
+      <Filter>core\DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\MyDirect3DDevice9.cpp">
+      <Filter>core\DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="Disasm\cpu.c">
+      <Filter>core\Disasm</Filter>
+    </ClCompile>
+    <ClCompile Include="Disasm\disasm.c">
+      <Filter>core\Disasm</Filter>
+    </ClCompile>
+    <ClCompile Include="Disasm\disasm_x86.c">
+      <Filter>core\Disasm</Filter>
+    </ClCompile>
+    <ClCompile Include="Disasm\misc.c">
+      <Filter>core\Disasm</Filter>
+    </ClCompile>
+    <ClCompile Include="Mhook\mhook.cpp">
+      <Filter>core\Mhook</Filter>
+    </ClCompile>
+    <ClCompile Include="WinAPI\WinAPI.cpp">
+      <Filter>core\WinAPI</Filter>
+    </ClCompile>
+    <ClCompile Include="SKSEOriginal\Utilities.cpp">
+      <Filter>core\SKSEOriginal</Filter>
+    </ClCompile>
+    <ClCompile Include="Overlay\GUI.cpp">
+      <Filter>core\Overlay</Filter>
+    </ClCompile>
+    <ClCompile Include="DInput\DInput.cpp">
+      <Filter>core\DInput</Filter>
+    </ClCompile>
+    <ClCompile Include="Overlay\Chat.cpp">
+      <Filter>core\Overlay</Filter>
+    </ClCompile>
+    <ClCompile Include="Overlay\Input.cpp">
+      <Filter>core\Overlay</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\MenuDisabler.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\Timer.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\KeyboardManager.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\clip.cpp">
+      <Filter>core\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\clip_win.cpp">
+      <Filter>core\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\PauseDisabler.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciMain.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\ClientLogic.cpp">
+      <Filter>client_logic</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciGUI.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciOther.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\LockTimer.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="Costile\Costile2.cpp">
+      <Filter>core\Costile</Filter>
+    </ClCompile>
+    <ClCompile Include="Costile\CostileDragon.cpp">
+      <Filter>core\Costile</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\WorldCleaner.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\PlayerControls.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciIActor.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\MiscUtility.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciLocalPlayer.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRemotePlayer.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\LookData.cpp">
+      <Filter>core\Sync</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciTypes.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\MovementData.cpp">
+      <Filter>core\Sync</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciObject.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="core">
+      <UniqueIdentifier>{3ac688e5-2ab0-4577-a05d-e122370330d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Common">
+      <UniqueIdentifier>{a7410570-c30a-4290-9ea9-5cbfc25e8c10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\DInput">
+      <UniqueIdentifier>{a8592cc2-be74-4a16-a525-133f00a39a03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\DirectX">
+      <UniqueIdentifier>{a38b937e-fb2d-4f2b-9cd4-d97407d0f1b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Disasm">
+      <UniqueIdentifier>{6d9b3fcf-1eaa-4d95-b6f6-dfe7849f4bc6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\GameUtility">
+      <UniqueIdentifier>{45f247cc-a04e-42f7-987f-8494ce443e3d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Mhook">
+      <UniqueIdentifier>{026b8cbb-3058-4ce4-96e4-b917005c3af5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Overlay">
+      <UniqueIdentifier>{e4a14d2b-acd9-42fb-9b61-e8ddd65e6225}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\ScriptDragon">
+      <UniqueIdentifier>{d0407b97-303f-463f-b522-5cddc95067fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\SKSEOriginal">
+      <UniqueIdentifier>{ab8d12d8-69c2-4134-84b2-f40496212562}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\WinAPI">
+      <UniqueIdentifier>{872eb3c5-8176-43d9-afc0-5cebd8fc347a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core_interface">
+      <UniqueIdentifier>{b1862c18-cc5e-44d3-a730-3cd49499b8fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="client_logic">
+      <UniqueIdentifier>{a0102164-beec-4e9d-8e7c-1d2c812b1593}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Costile">
+      <UniqueIdentifier>{ce87365c-0f34-4942-a1cd-48a7120eff0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Sync">
+      <UniqueIdentifier>{ecfb9d90-c2a0-451a-8e81-bc3d17cb42d5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ScriptDragon\enums.h">
+      <Filter>core\ScriptDragon</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptDragon\invoke.h">
+      <Filter>core\ScriptDragon</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptDragon\obscript.h">
+      <Filter>core\ScriptDragon</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptDragon\plugin.h">
+      <Filter>core\ScriptDragon</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptDragon\skyscript.h">
+      <Filter>core\ScriptDragon</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptDragon\types.h">
+      <Filter>core\ScriptDragon</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\DirectXHook.h">
+      <Filter>core\DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\MyDirect3D9.h">
+      <Filter>core\DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\MyDirect3DDevice9.h">
+      <Filter>core\DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Signal.h">
+      <Filter>core\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Disasm\cpu.h">
+      <Filter>core\Disasm</Filter>
+    </ClInclude>
+    <ClInclude Include="Disasm\disasm.h">
+      <Filter>core\Disasm</Filter>
+    </ClInclude>
+    <ClInclude Include="Disasm\disasm_x86.h">
+      <Filter>core\Disasm</Filter>
+    </ClInclude>
+    <ClInclude Include="Disasm\disasm_x86_tables.h">
+      <Filter>core\Disasm</Filter>
+    </ClInclude>
+    <ClInclude Include="Disasm\misc.h">
+      <Filter>core\Disasm</Filter>
+    </ClInclude>
+    <ClInclude Include="Mhook\mhook.h">
+      <Filter>core\Mhook</Filter>
+    </ClInclude>
+    <ClInclude Include="WinAPI\WinAPI.hpp">
+      <Filter>core\WinAPI</Filter>
+    </ClInclude>
+    <ClInclude Include="SKSEOriginal\Utilities.h">
+      <Filter>core\SKSEOriginal</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\GUI.h">
+      <Filter>core\Overlay</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\InputConverter.h">
+      <Filter>core\Overlay</Filter>
+    </ClInclude>
+    <ClInclude Include="DInput\DInput.hpp">
+      <Filter>core\DInput</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\Chat.h">
+      <Filter>core\Overlay</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\Input.h">
+      <Filter>core\Overlay</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\MenuDisabler.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\Timer.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\KeyboardManager.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\clip.h">
+      <Filter>core\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\clip_win.h">
+      <Filter>core\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\PauseDisabler.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\CoreInterface.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciMain.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciGUI.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciOther.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\LockTimer.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="Costile\Value.h">
+      <Filter>core\Costile</Filter>
+    </ClInclude>
+    <ClInclude Include="Costile\CostileDragon.h">
+      <Filter>core\Costile</Filter>
+    </ClInclude>
+    <ClInclude Include="Costile\CostileInvoke2.h">
+      <Filter>core\Costile</Filter>
+    </ClInclude>
+    <ClInclude Include="Costile\Costile2.h">
+      <Filter>core\Costile</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\WorldCleaner.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\PlayerControls.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciIActor.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\MiscUtility.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciLocalPlayer.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRemotePlayer.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciTypes.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\LookData.h">
+      <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\MovementData.h">
+      <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientLogic\Serialization.h">
+      <Filter>client_logic</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientLogic\Config.h">
+      <Filter>client_logic</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciObject.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ScriptDragon\plugin.def">
+      <Filter>core\ScriptDragon</Filter>
+    </None>
+  </ItemGroup>
+</Project>
