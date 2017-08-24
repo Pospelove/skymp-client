@@ -64,7 +64,7 @@ public:
 
 struct CallState
 {
-	BSScript::BSScriptVariable result = {};
+	BSScript::BSScriptVariable result = BSScript::BSScriptVariable();
 	bool gotResult = false;
 };
 
