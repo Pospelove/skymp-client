@@ -13,3 +13,4 @@
 ### Установка ###
 1. Содержимое папки requirements в корень игры
 2. Release/SkympClient.dll в Skyrim/Data/skse/plugins
+3. Измените адрес сервера, порт, пароль и никнейм в skymp-config.ini
