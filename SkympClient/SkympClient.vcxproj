@@ -94,7 +94,8 @@
       <AdditionalLibraryDirectories>$(SolutionDir)mruby\build\host\lib;$(SolutionDir)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>"$(SolutionDir)install_dll.bat" "$(TargetPath)"</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
