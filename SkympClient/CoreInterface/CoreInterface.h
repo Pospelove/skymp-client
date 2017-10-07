@@ -11,10 +11,11 @@
 #include "ciGUI.h"
 #include "ciOther.h"
 #include "ciTypes.h"
+#include "ciObject.h"
+#include "ciItemType.h"
 #include "ciIActor.h"
 #include "ciLocalPlayer.h"
 #include "ciRemotePlayer.h"
-#include "ciObject.h"
 #include "ciMain.h"
 
 #endif

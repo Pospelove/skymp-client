@@ -29,7 +29,7 @@ std::vector<BSFixedString> menusWithChatDisabled =
 	"Sleep / Wait Menu",
 	"StatsMenu",
 	"Training Menu",
-	"TweenMenu"
+	"TweenMenu",
 };
 
 Chat *TheChat = nullptr;
@@ -42,7 +42,7 @@ Chat::Chat()
 		return;
 
 	mutex = &TheGUI->mutex;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	m_pGUI = TheGUI->myGUI;
 
@@ -79,7 +79,7 @@ Chat::~Chat()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	m_pEdit->eventEditTextChange -= MyGUI::newDelegate(this, &Chat::EditKeyPressEvent);
 }
 
@@ -87,7 +87,7 @@ void Chat::SetVisible(bool v)
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	if (m_pEdit == nullptr || m_pList == nullptr)
 		return;
 
@@ -119,7 +119,7 @@ void Chat::SetTyping(bool aForceHide)
 	if (isOpen)
 		aForceHide = true;
 
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	auto menuManager = MenuManager::GetSingleton();
 
@@ -156,7 +156,7 @@ bool Chat::IsTyping() const
 {
 	if (!TheGUI)
 		return false;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	return MyGUI::InputManager::getInstance().isFocusKey();
 }
 
@@ -164,7 +164,7 @@ bool Chat::IsVisible() const
 {
 	if (!TheGUI)
 		return false;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	return /*m_pEdit->isVisible() &&*/ m_pList->isVisible();
 }
 
@@ -172,7 +172,7 @@ void Chat::AddChatMessage(const MyGUI::UString& acString)
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	m_scrollBarPosition[0] = m_pList->getVScrollRange();
 	m_scrollBarPosition[1] = m_pList->getVScrollPosition();
@@ -182,19 +182,13 @@ void Chat::AddChatMessage(const MyGUI::UString& acString)
 
 	if (m_pList->getVScrollPosition() - m_scrollBarPosition[1] > m_pList->getVScrollRange() - m_scrollBarPosition[0])
 		m_pList->setVScrollPosition(m_scrollBarPosition[1]);
-
-	if (m_chatList.size() > 200)
-	{
-		m_pList->eraseText(0, m_chatList.front().length());
-		m_chatList.erase(m_chatList.begin());
-	}
 }
 
 void Chat::SendChatMessage()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	const auto len = m_pEdit->getTextLength();
 	if (len > 0)
@@ -215,7 +209,7 @@ void Chat::EditKeyPressEvent(MyGUI::EditBox* aSender)
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	if (aSender->getTextLength() > 256)
 		aSender->eraseText(aSender->getTextLength() - 1, 1);
 }
@@ -224,7 +218,7 @@ void Chat::InjectArrowPress(bool isUp)
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	const auto msgCount = m_myMessages.size();
 
@@ -262,7 +256,7 @@ void Chat::Cut()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	Copy();
 	m_pEdit->eraseText(m_pEdit->getTextSelectionStart(), m_pEdit->getTextSelectionLength());
@@ -272,7 +266,7 @@ void Chat::Copy()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	MyGUI::UString src = m_pEdit->getSelectedText();
 
@@ -288,7 +282,7 @@ void Chat::Paste()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	std::string txt;
 	clip::get_text(txt);
@@ -308,7 +302,7 @@ void Chat::ToggleScroll(bool show)
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	m_pList->showVScroll(show);
 }
 
@@ -316,7 +310,7 @@ void Chat::AddToEditBox(const MyGUI::UString &text)
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	if (IsTyping())
 	{
 		m_pEdit->addText(text);
@@ -327,14 +321,14 @@ void Chat::Update()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 }
 
 void Chat::Update_OT()
 {
 	if (!TheGUI)
 		return;
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	bool isOpen = false;
 	for (auto it = menusWithChatDisabled.begin(); it != menusWithChatDisabled.end(); ++it)
@@ -437,6 +431,6 @@ std::vector<std::wstring> Chat::GetMyMessages() const
 {
 	if (!TheGUI)
 		return std::vector<std::wstring>();
-	std::lock_guard<std::recursive_mutex> lck(*mutex);
+	std::lock_guard<dlf_mutex> lck(*mutex);
 	return m_myMessages;
 }

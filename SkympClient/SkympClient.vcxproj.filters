@@ -94,9 +94,6 @@
     <ClCompile Include="GameUtility\PlayerControls.cpp">
       <Filter>core\GameUtility</Filter>
     </ClCompile>
-    <ClCompile Include="CoreInterface\ciIActor.cpp">
-      <Filter>core_interface</Filter>
-    </ClCompile>
     <ClCompile Include="GameUtility\MiscUtility.cpp">
       <Filter>core\GameUtility</Filter>
     </ClCompile>
@@ -109,9 +106,6 @@
     <ClCompile Include="CoreInterface\ciRemotePlayer.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
-    <ClCompile Include="Sync\LookData.cpp">
-      <Filter>core\Sync</Filter>
-    </ClCompile>
     <ClCompile Include="CoreInterface\ciTypes.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
@@ -120,6 +114,33 @@
     </ClCompile>
     <ClCompile Include="CoreInterface\ciObject.cpp">
       <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciItemType.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\ErrorHandling.cpp">
+      <Filter>core\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\Equipment.cpp">
+      <Filter>core\Sync</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\HitData.cpp">
+      <Filter>core\Sync</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\GameSettings.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\SkyUILib.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="Costile\CDScript.cpp">
+      <Filter>core\Costile</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\LookSyncV17.cpp">
+      <Filter>core\Sync</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\LookSyncV16.cpp">
+      <Filter>core\Sync</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -308,9 +329,6 @@
     <ClInclude Include="CoreInterface\ciTypes.h">
       <Filter>core_interface</Filter>
     </ClInclude>
-    <ClInclude Include="Sync\LookData.h">
-      <Filter>core\Sync</Filter>
-    </ClInclude>
     <ClInclude Include="Sync\MovementData.h">
       <Filter>core\Sync</Filter>
     </ClInclude>
@@ -322,6 +340,30 @@
     </ClInclude>
     <ClInclude Include="CoreInterface\ciObject.h">
       <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciItemType.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\ErrorHandling.h">
+      <Filter>core\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\Equipment.h">
+      <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\HitData.h">
+      <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\GameSettings.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\SkyUILib.h">
+      <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="Costile\CDScript.h">
+      <Filter>core\Costile</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\LookData.h">
+      <Filter>core\Sync</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

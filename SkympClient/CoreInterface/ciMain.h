@@ -52,8 +52,15 @@ namespace ci
 		*/
 		virtual void OnRaceMenuExit() = 0;
 
+		/**
+		* Вызывается, когда игрок выбрасывает предмет(ы)
+		* @param itemType - тип предмета
+		* @param count - количество
+		*/
+		virtual void OnItemDropped(const ci::ItemType *itemType, uint32_t count) = 0;
+
 	protected:
 		 static IClientLogic *clientLogic;
-		 static std::mutex callbacksMutex;
+		 static Mutex callbacksMutex;
 	};
 }

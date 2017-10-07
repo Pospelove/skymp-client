@@ -5,14 +5,6 @@
 #include "LookData.h"
 #include "../CoreInterface/CoreInterface.h"
 
-template <typename I> std::string IntToHexStr(I w, size_t hex_len = sizeof(I) << 1) {
-	static const char* digits = "0123456789ABCDEF";
-	std::string rc(hex_len, '0');
-	for (size_t i = 0, j = (hex_len - 1) * 4; i<hex_len; ++i, j -= 4)
-		rc[i] = digits[(w >> j) & 0x0f];
-	return rc;
-}
-
 class CIAccess
 {
 public:
@@ -21,7 +13,7 @@ public:
 		auto &logic = ci::IClientLogic::clientLogic;
 		if (logic)
 		{
-			std::lock_guard<std::mutex> l(logic->callbacksMutex);
+			std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 			logic->OnRaceMenuExit();
 		}
 	}
@@ -29,7 +21,47 @@ public:
 
 namespace LookData_
 {
+	ci::LookData lookToReapply;
+	bool isReapply = false;
 	ci::LookData localPlLookData;
+	std::function<void()> afterApply;
+	clock_t lastApplyTintMasks = 0;
+	std::map<TESNPC *, std::vector<ci::LookData::TintMask>> appiedTintMasks;
+
+	void QueueNiNodeUpdate(Actor *actor, int32_t numCalls = 0)
+	{
+		return cd::QueueNiNodeUpdate(actor, {});
+		/*if (!actor)
+			return;
+		auto npc = (TESNPC *)actor->baseForm;
+		if (actor != g_thePlayer)
+		{
+			return cd::QueueNiNodeUpdate(actor);
+		}
+
+		if (npc->numHeadParts == 0)
+		{
+			//sd::PrintNote("No HPs");
+			if (numCalls < 3)
+			{
+				SET_TIMER(50, [=] {
+					QueueNiNodeUpdate(g_thePlayer, numCalls + 1);
+				});
+			}
+			else
+			{
+				isReapply = true;
+				Apply(lookToReapply, g_thePlayer);
+				//sd::PrintNote("Reapply");
+			}
+		}
+		else
+		{
+			const cd::Value<Actor> cdActor = actor;
+			cd::QueueNiNodeUpdate(cdActor, [cdActor] {
+			});
+		}*/
+	}
 
 #define PREFIX "actors\\character\\character assets\\tintmasks\\"
 #define POSTFIX ".dds"
@@ -262,20 +294,21 @@ namespace LookData_
 
 	__forceinline void Warning(std::string msg)
 	{
-		/*Timer::Set(0, [=] {
+		/*SET_TIMER(0, [=] {
 			char buf[512];
 			sprintf_s<sizeof buf>(buf, "Warning: %s", msg.data());
 			sd::PrintNote(buf);
 		});*/
+		//ErrorHandling::SendError("WARN:LookData %s", msg.data());
 	}
 
-	ci::LookData GetFromPlayerImpl()
+	ci::LookData GetFrom(TESNPC *pl)
 	{
 		ci::LookData result;
 
-		auto pl = (TESNPC *)sd::GetPlayer()->baseForm;
 		result.isFemale = sd::GetSex(pl) == 1;
-		result.raceID = pl->race->formID;
+		result.raceID = 
+			(pl == g_thePlayer->baseForm) ? sd::GetRace(g_thePlayer)->formID : pl->race->formID;
 		result.weight = UInt8(pl->weight) / 10;
 		result.skinColor = { pl->color.red, pl->color.green , pl->color.blue , 255 };
 		if (pl->headData && pl->headData->hairColor)
@@ -299,31 +332,37 @@ namespace LookData_
 			std::copy(pl->faceMorph->presets, pl->faceMorph->presets + pl->faceMorph->kNumPresets,
 				result.presets.begin());
 		}
-		for (auto it = g_thePlayer->tintMasks.begin(); it != g_thePlayer->tintMasks.end(); ++it)
+		if (pl == g_thePlayer->baseForm)
 		{
-			ci::LookData::TintMask m;
-			std::string texture_path = (*it)->texture->str.c_str();
-			std::transform(texture_path.begin(), texture_path.end(), texture_path.begin(), ::tolower);
-			m.alpha = (*it)->alpha;
-			m.color = { (*it)->color.red, (*it)->color.green, (*it)->color.blue, (*it)->color.alpha };
-			m.tintMaskTextureID = GetTintMaskTextureID(texture_path.data());
-			m.tintType = (*it)->tintType;
-			result.tintmasks.push_back(m);
+			for (auto it = g_thePlayer->tintMasks.begin(); it != g_thePlayer->tintMasks.end(); ++it)
+			{
+				ci::LookData::TintMask m;
+				std::string texture_path = (*it)->texture->str.c_str();
+				std::transform(texture_path.begin(), texture_path.end(), texture_path.begin(), ::tolower);
+				m.alpha = (*it)->alpha;
+				m.color = { (*it)->color.red, (*it)->color.green, (*it)->color.blue, (*it)->color.alpha };
+				m.tintMaskTextureID = GetTintMaskTextureID(texture_path.data());
+				m.tintType = (*it)->tintType;
+				result.tintmasks.push_back(m);
+			}
 		}
+		else
+			result.tintmasks = appiedTintMasks[pl];
 
 		return result;
 	}
 
-	void ClearPCTintMasks()
+	ci::LookData GetFromPlayerImpl()
 	{
-		//g_thePlayer->tintMasks.clear();
+		auto pl = (TESNPC *)sd::GetPlayer()->baseForm;
+		return GetFrom(pl);
 	}
-
-	std::function<void()> afterApply;
 
 	void ApplyTintMasks(TESNPC *npc, const std::vector<ci::LookData::TintMask> &result_tintmasks)
 	{
-		ClearPCTintMasks();
+		const auto lastApplied = appiedTintMasks[npc];
+		appiedTintMasks[npc] = result_tintmasks;
+		lastApplyTintMasks = clock();
 
 		const bool isPlayer =
 			(npc == g_thePlayer->baseForm);
@@ -335,7 +374,7 @@ namespace LookData_
 			goto fail;
 		}
 
-		if (npc->race && npc->race->chargenData && npc->race->chargenData[isFemale])
+		if (npc->race && npc->race->chargenData[isFemale])
 		{
 			auto &chargenData = *npc->race->chargenData[isFemale];
 			if (chargenData.tintData)
@@ -344,7 +383,6 @@ namespace LookData_
 
 				const size_t tintmask_count = result_tintmasks.size();
 				g_thePlayer->tintMasks.reserve(tintmask_count);
-				//g_thePlayer->tintMasks = BSTArray<TintMask *>(tintmask_count);
 
 				bool any_error = false;
 				TintMask *skintone = nullptr;
@@ -433,8 +471,9 @@ namespace LookData_
 		return Warning("Unable to get any CharGen data");
 
 	fail:
+		appiedTintMasks[npc] = lastApplied;
 		npc->color = { 167, 134, 122 };
-		if (npc->race && npc->race->chargenData && npc->race->chargenData[isFemale])
+		if (npc->race && npc->race->chargenData[isFemale])
 		{
 			auto &chargenData = *npc->race->chargenData[isFemale];
 			if (chargenData.presets && chargenData.presets->GetSize() && chargenData.presets->begin())
@@ -454,7 +493,6 @@ namespace LookData_
 					static UInt8 ApplyTintMasks_Calls = 0;
 					if (ApplyTintMasks_Calls++ < 5)
 					{
-						ClearPCTintMasks();
 						ApplyTintMasks(npc, { tM });
 					}
 					else
@@ -467,35 +505,24 @@ namespace LookData_
 		}
 	}
 
-	void _ApplyTintMasks(TESNPC *npc, const std::vector<ci::LookData::TintMask> &result_tintmasks)
+	void ApplyTintMasksPlayerAsync(const std::vector<ci::LookData::TintMask> &result_tintmasks, bool queueNiNodeUpdate = false, uint32_t delayMs = 0)
 	{
-		const size_t tintmask_count = result_tintmasks.size();
-		g_thePlayer->tintMasks.reserve(tintmask_count);
-
-		for (size_t i = 0; i != tintmask_count; ++i)
-		{
-			auto _new = FormHeap_Allocate<TintMask>();
-			_new->color = {
-				result_tintmasks[i].color.r, result_tintmasks[i].color.g, result_tintmasks[i].color.b, result_tintmasks[i].color.a
-			};
-			_new->color.alpha = 0;
-			_new->alpha = result_tintmasks[i].alpha;
-			_new->tintType = result_tintmasks[i].tintType;
-
-			auto texture = (TESTexture *)FormHeap_Allocate(sizeof TESTexture);
-			texture->str = GetTintMaskTexturePath(result_tintmasks[i].tintMaskTextureID);
-			if (strlen(texture->str.c_str()) < 4)
+		SET_TIMER(delayMs, [=] {
+			if (lastApplyTintMasks + 500 < clock())
 			{
-				sd::PrintNote("wtf %d", result_tintmasks[i].tintMaskTextureID);
+				auto npc = (TESNPC *)g_thePlayer->baseForm;
+				ApplyTintMasks(npc, result_tintmasks);
+				if (queueNiNodeUpdate)
+					QueueNiNodeUpdate(g_thePlayer);
 			}
-			_new->texture = texture;
-			g_thePlayer->tintMasks[i] = _new;
-		}
+			else
+				ApplyTintMasksPlayerAsync(result_tintmasks, true, 100);
+		});
 	}
 
 	void ApplyBodyData(TESNPC *npc, Actor *actor, UInt32 result_raceID, UInt8 isFemale, UInt8 weight, TESNPC::Color color)
 	{
-		if (weight > 10 || weight < 0)
+		if (weight > 10)
 		{
 			weight = 10;
 			Warning("Invalid weight");
@@ -539,13 +566,15 @@ namespace LookData_
 		{
 			const UInt32 refID = actor->formID;
 			afterApply = [refID, original_weight, new_weight, isPlayer, isFemale, isFemale_old] {
-				Timer::Set(0, [=] {
+				SET_TIMER(0, [=] {
 					const auto actor = cd::Value<Actor>(refID);
 					const auto neck_delta = (original_weight / 100.f) - (new_weight / 100.f);
 					if (neck_delta)
-						cd::UpdateWeight(actor, neck_delta);
+						cd::UpdateWeight(actor, neck_delta, [=] {
+							QueueNiNodeUpdate(actor);
+						});
 					else
-						cd::QueueNiNodeUpdate(actor);
+						QueueNiNodeUpdate(actor);
 					if (isPlayer)
 					{
 						if (isFemale_old != isFemale)
@@ -585,7 +614,15 @@ namespace LookData_
 					if (!valid)
 					{
 						std::string str = "Invalid HeadPart ";
-						str += IntToHexStr(headpart_id);
+						using I = uint32_t;
+						auto makeHexStr = [](I w, size_t hex_len) {
+							static const char* digits = "0123456789ABCDEF";
+							std::string rc(hex_len, '0');
+							for (size_t i = 0, j = (hex_len - 1) * 4; i<hex_len; ++i, j -= 4)
+								rc[i] = digits[(w >> j) & 0x0f];
+							return rc;
+						};
+						str += makeHexStr(headpart_id, sizeof(I) << 1);
 						Warning(str.data());
 						goto fail;
 					}
@@ -650,7 +687,7 @@ namespace LookData_
 				npc->headData->headTexture = nullptr;
 				npc->headData->hairColor = hair_color;
 				const UInt8 isFemale = sd::GetSex(npc) == 1;
-				if (npc->race && npc->race->chargenData && npc->race->chargenData[isFemale] && npc->race->chargenData[isFemale]->textureSet && npc->race->chargenData[isFemale]->colors)
+				if (npc->race && npc->race->chargenData[isFemale] && npc->race->chargenData[isFemale]->textureSet && npc->race->chargenData[isFemale]->colors)
 				{
 					auto &textureSet = *npc->race->chargenData[isFemale]->textureSet;
 					auto &colors = *npc->race->chargenData[isFemale]->colors;
@@ -722,15 +759,15 @@ namespace LookData_
 			if (!fixed)
 			{
 				fixed = true;
-				Timer::Set(0, [] {
-					Timer::Set(0, [] {
+				SET_TIMER(0, [] {
+					SET_TIMER(0, [] {
 						sd::ToggleMenus();
 						std::thread([] {
 							auto mm = MenuManager::GetSingleton();
 							mm->OpenMenu("RaceSex Menu");
 							Sleep(100);
 							mm->CloseMenu("RaceSex Menu");
-							Timer::Set(0, [] {
+							SET_TIMER(0, [] {
 								sd::ForceThirdPerson();
 								sd::ForceFirstPerson();
 								sd::ToggleMenus();
@@ -738,7 +775,7 @@ namespace LookData_
 						}).detach();
 					});
 				});
-				return Timer::Set(300, [=] {
+				return SET_TIMER(300, [=] {
 					ApplyImpl(lookData, npc, g_thePlayer);
 					std::thread([=] {
 						auto mm = MenuManager::GetSingleton();
@@ -747,9 +784,9 @@ namespace LookData_
 						while (mm->IsMenuOpen("Main Menu") == true)
 							Sleep(500);
 						fixed = false;
-						Timer::Set(0, [=] {
+						SET_TIMER(0, [=] {
 							ApplyImpl(playerBackup, npc, g_thePlayer);
-							Timer::Set(300, [] {
+							SET_TIMER(300, [] {
 								cd::SendAnimationEvent(g_thePlayer, "Skymp_Register");
 							});
 						});
@@ -765,7 +802,7 @@ namespace LookData_
 		const bool locked = applyImplLock.TryLock(isThePlayer ? g_thePlayer : any);
 		if (!locked && isThePlayer)
 		{
-			Timer::Set(500, [=] {
+			SET_TIMER(500, [=] {
 				ApplyImpl(lookData, npc, actor);
 			});
 			return;
@@ -786,13 +823,13 @@ namespace LookData_
 		hairColor.green = lookData.hairColor.g;
 		hairColor.blue = lookData.hairColor.b;
 
-		if (isThePlayer)
+		/*if (isThePlayer)
 		{
-			Timer::Set(750, [=] {
+			SET_TIMER(750, [=] {
 				npc->headparts = nullptr;
 				npc->numHeadParts = 0;
 			});
-		}
+		}*/
 
 		ApplyBodyData(npc, actor, lookData.raceID, lookData.isFemale, lookData.weight, skinColor);
 		ApplyHeadparts(npc, lookData.headpartIDs);
@@ -802,7 +839,10 @@ namespace LookData_
 		npc->TESActorBaseData::flags.dontAffectStealth = true;
 
 		if (isThePlayer)
-			ApplyTintMasks(npc, lookData.tintmasks);
+		{
+			//ApplyTintMasks(npc, lookData.tintmasks);
+			ApplyTintMasksPlayerAsync(lookData.tintmasks);
+		}
 
 		if (afterApply != nullptr)
 		{
@@ -865,29 +905,51 @@ namespace LookData_
 
 	void Apply(const ci::LookData &lookData, Actor *actor)
 	{
+		if (actor == g_thePlayer)
+			lookToReapply = lookData;
 		if (!actor)
 			return;
 		auto formID = actor->formID;
 		ApplyImpl(lookData, (TESNPC *)actor->baseForm, actor);
-		Timer::Set(400, [=] {
-			auto actor = (Actor *)LookupFormByID(formID);
-			if (actor)
-				ApplyImpl(lookData, (TESNPC *)actor->baseForm, actor);
-		});
+
+		if (actor == g_thePlayer)
+		{
+			if (!isReapply)
+			{
+				SET_TIMER(400, [=] {
+					auto actor = (Actor *)LookupFormByID(formID);
+					if (actor)
+						ApplyImpl(lookData, (TESNPC *)actor->baseForm, actor);
+				});
+			}
+			isReapply = false;
+		}
 	}
 
-	ci::LookData GetFromPlayer()
+	ci::LookData GetFromPlayer(bool noCach)
 	{
-		if (localPlLookData.isEmpty())
+		if (localPlLookData.isEmpty() || noCach)
 			localPlLookData = GetFromPlayerImpl();
 		return localPlLookData;
+	}
+
+	ci::LookData GetFromNPC(TESNPC *npc)
+	{
+		return npc != nullptr ? GetFrom(npc) : ci::LookData();
 	}
 
 	void ShowRaceMenu()
 	{
 		const auto name = ci::LocalPlayer::GetSingleton()->GetName();
-		ClearPCTintMasks();
 		sd::Wait(50);
+
+		g_thePlayer->GetActorBase()->numHeadParts = 0;
+		g_thePlayer->GetActorBase()->race = (TESRace *)LookupFormByID(NordRace);
+
+		static auto mod = (TESImageSpaceModifier *)sd::GetFormById(0x000434BB);
+
+		sd::Apply(mod, 33.0f);
+
 		sd::ShowRaceMenu();
 		std::thread([name] {
 			auto mm = MenuManager::GetSingleton();
@@ -899,9 +961,10 @@ namespace LookData_
 				{
 					if (!wasOpen)
 					{
-						if (appliedAny)
+						//if (appliedAny)
 						{
 							Sleep(600);
+							sd::ImageSpaceModifier::Remove(mod);
 							const bool isDarkElf = ((TESNPC *)g_thePlayer->baseForm)->race->formID == PlayableRace::DarkElfRace;
 							auto keys =
 								isDarkElf ? std::pair<SInt32, SInt32>{ DIK_W, DIK_S } : std::pair<SInt32, SInt32>{ DIK_S, DIK_W };
@@ -933,13 +996,13 @@ namespace LookData_
 					break;
 				Sleep(1);
 			}
-			return Timer::Set(0, [name] {
+			return SET_TIMER(0, [name] {
 				localPlLookData = GetFromPlayerImpl();
 				playerBackup = localPlLookData;
 				CIAccess::OnRaceMenuExit();
 				ci::LocalPlayer::GetSingleton()->SetName(name);
 				cd::SendAnimationEvent(g_thePlayer, "Skymp_Register");
-				Timer::Set(100, [] {
+				SET_TIMER(100, [] {
 					sd::Resurrect(g_thePlayer);
 				});
 			});
@@ -954,40 +1017,33 @@ namespace LookData_
 			npc->numHeadParts = 0;
 		}
 	}
+}
 
-	RefHandle FindNPCWithParams(TESRace *race, UInt8 isFemale, TESNPC::Color color)
+ILookSynchronizer *ILookSynchronizer::GetV17()
+{
+	class V17 : public ILookSynchronizer
 	{
-		if (race == nullptr)
-			return NULL;
-
-		static std::map<std::string, RefHandle> data;
-		
-		const auto key = std::to_string((size_t)race) + ' ' + 
-			std::to_string(!!isFemale) + ' ' + 
-			std::to_string(color.blue) + ' ' + 
-			std::to_string(color.green) + ' ' +
-			std::to_string(color.red);
-
-		if (data.find(key) == data.end())
-		{
-			data.insert({ key, NULL });
-			for (UInt32 id = 0x00000EA6; id != 0x0010FEEE; id++)
-			{
-				auto npc = (TESNPC *)LookupFormByID(id);
-				if (npc && npc->formType == FormType::NPC)
-				{
-					if (npc->race != race)
-						continue;
-					if (npc->TESActorBaseData::flags.female != !!isFemale)
-						continue;
-					if (npc->color.red != color.red || npc->color.green != color.green || npc->color.blue != color.blue)
-						continue;
-					data[key] = id;
-					break;
-				}
-			}
+	public:
+		TESNPC *Apply(const ci::LookData &lookData) override {
+			return LookData_::Apply(lookData);
 		}
+		void Apply(const ci::LookData &lookData, Actor *actor) override {
+			return LookData_::Apply(lookData, actor);
+		}
+		void ApplyTintMasks(TESNPC *npc, const std::vector<ci::LookData::TintMask> &result_tintmasks) override  {
+			return LookData_::ApplyTintMasks(npc, result_tintmasks);
+		}
+		ci::LookData GetFromPlayer(bool noCache = false) override {
+			return LookData_::GetFromPlayer(noCache);
+		}
+		ci::LookData GetFromNPC(TESNPC *npc) override {
+			return LookData_::GetFromNPC(npc);
+		}
+		void ShowRaceMenu() override {
+			return LookData_::ShowRaceMenu();
+		}
+	};
 
-		return data[key];
-	}
+	static auto synchronizer = new V17;
+	return synchronizer;
 }

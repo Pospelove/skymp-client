@@ -34,6 +34,7 @@
 #include "ScriptDragon\types.h"
 #include "ScriptDragon\plugin.h"
 #include "ScriptDragon\skyscript.h"
+#include "ScriptDragon\obscript.h"
 #include <shlobj.h>
 #include <process.h>
 #include <d3d9.h>
@@ -42,6 +43,8 @@
 #include <mutex>
 #include <thread>
 #include <functional>
+
+#include "Common\ErrorHandling.h"
 
 #include "../include/MyGUI/MyGUI_Precompiled.h"
 
@@ -55,10 +58,13 @@
 #include "GameUtility\LockTimer.h"
 #include "GameUtility\WorldCleaner.h"
 #include "GameUtility\PlayerControls.h"
+#include "GameUtility\GameSettings.h"
+#include "GameUtility\SkyUILib.h"
 #include "GameUtility\MiscUtility.h"
 
 std::string WstringToString(const std::wstring &wstring);
 std::wstring StringToWstring(const std::string &string);
 
 bool IsSkympDebug();
+
 #endif

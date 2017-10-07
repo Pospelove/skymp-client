@@ -593,7 +593,7 @@ namespace cd
 	void ForceThirdPerson(std::function<void(void)> callback = {});
 	void ForceFirstPerson(std::function<void(void)> callback = {});
 	void ShowFirstPersonGeometry(bool abShow, std::function<void(void)> callback = {});
-	//Value<TESForm> GetFormFromFile(UInt32 aiFormID, std::string asFilename, std::function<void(Value<TESForm>)> callback = {});
+	Value<TESForm> GetFormFromFile(UInt32 aiFormID, std::string asFilename, std::function<void(Value<TESForm>)> callback = {});
 	float GetGameSettingFloat(std::string asGameSetting, std::function<void(float)> callback = {});
 	SInt32 GetGameSettingInt(std::string asGameSetting, std::function<void(SInt32)> callback = {});
 	std::string GetGameSettingString(std::string asGameSetting, std::function<void(std::string)> callback = {});
@@ -1299,4 +1299,11 @@ namespace cd
 
 	FormType GetFormTypeID(Value<TESForm> self, std::function<void(FormType)> callback = {});
 	Value<TESForm> GetBaseObject(Value<TESObjectREFR> self, std::function<void(Value<TESForm>)> callback = {});
+
+	int32_t ShowList(int32_t dummy, std::function<void(int32_t)> callback = {});
+	int32_t ShowListResult(bool dummy, std::function<void(int32_t)> callback = {});
+	int32_t ShowInput(int32_t dummy, std::function<void(int32_t)> callback = {});
+	std::string ShowInputResult(bool dummy, std::function<void(std::string)> callback = {});
+	int32_t SetDataInput(int32_t dummy, std::function<void(int32_t)> callback = {});
+	int32_t SetDataList(int32_t dummy, std::function<void(int32_t)> callback = {});
 }

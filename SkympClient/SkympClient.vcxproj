@@ -72,9 +72,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <Optimization>Disabled</Optimization>
+      <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
@@ -85,6 +85,8 @@
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <ExceptionHandling>Async</ExceptionHandling>
       <StringPooling>false</StringPooling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -102,8 +104,9 @@
     <ClCompile Include="ClientLogic\ClientLogic.cpp" />
     <ClCompile Include="Common\clip.cpp" />
     <ClCompile Include="Common\clip_win.cpp" />
-    <ClCompile Include="CoreInterface\ciIActor.cpp" />
+    <ClCompile Include="Common\ErrorHandling.cpp" />
     <ClCompile Include="CoreInterface\ciGUI.cpp" />
+    <ClCompile Include="CoreInterface\ciItemType.cpp" />
     <ClCompile Include="CoreInterface\ciLocalPlayer.cpp" />
     <ClCompile Include="CoreInterface\ciMain.cpp" />
     <ClCompile Include="CoreInterface\ciObject.cpp" />
@@ -112,6 +115,7 @@
     <ClCompile Include="CoreInterface\ciTypes.cpp" />
     <ClCompile Include="Costile\Costile2.cpp" />
     <ClCompile Include="Costile\CostileDragon.cpp" />
+    <ClCompile Include="Costile\CDScript.cpp" />
     <ClCompile Include="DInput\DInput.cpp" />
     <ClCompile Include="DirectX\DirectXHook.cpp" />
     <ClCompile Include="DirectX\MyDirect3D9.cpp" />
@@ -120,9 +124,11 @@
     <ClCompile Include="Disasm\disasm.c" />
     <ClCompile Include="Disasm\disasm_x86.c" />
     <ClCompile Include="Disasm\misc.c" />
+    <ClCompile Include="GameUtility\GameSettings.cpp" />
     <ClCompile Include="GameUtility\LockTimer.cpp" />
     <ClCompile Include="GameUtility\KeyboardManager.cpp" />
     <ClCompile Include="GameUtility\MenuDisabler.cpp" />
+    <ClCompile Include="GameUtility\SkyUILib.cpp" />
     <ClCompile Include="GameUtility\MiscUtility.cpp" />
     <ClCompile Include="GameUtility\PauseDisabler.cpp" />
     <ClCompile Include="GameUtility\PlayerControls.cpp" />
@@ -136,7 +142,10 @@
     <ClCompile Include="ScriptDragon\plugin.cpp" />
     <ClCompile Include="SKSEOriginal\Utilities.cpp" />
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="Sync\LookData.cpp" />
+    <ClCompile Include="Sync\Equipment.cpp" />
+    <ClCompile Include="Sync\HitData.cpp" />
+    <ClCompile Include="Sync\LookSyncV16.cpp" />
+    <ClCompile Include="Sync\LookSyncV17.cpp" />
     <ClCompile Include="Sync\MovementData.cpp" />
     <ClCompile Include="WinAPI\WinAPI.cpp" />
   </ItemGroup>
@@ -145,9 +154,11 @@
     <ClInclude Include="ClientLogic\Serialization.h" />
     <ClInclude Include="Common\clip.h" />
     <ClInclude Include="Common\clip_win.h" />
+    <ClInclude Include="Common\ErrorHandling.h" />
     <ClInclude Include="Common\Signal.h" />
     <ClInclude Include="CoreInterface\ciIActor.h" />
     <ClInclude Include="CoreInterface\ciGUI.h" />
+    <ClInclude Include="CoreInterface\ciItemType.h" />
     <ClInclude Include="CoreInterface\ciLocalPlayer.h" />
     <ClInclude Include="CoreInterface\ciObject.h" />
     <ClInclude Include="CoreInterface\ciTypes.h" />
@@ -157,6 +168,7 @@
     <ClInclude Include="CoreInterface\CoreInterface.h" />
     <ClInclude Include="Costile\Costile2.h" />
     <ClInclude Include="Costile\CostileDragon.h" />
+    <ClInclude Include="Costile\CDScript.h" />
     <ClInclude Include="Costile\CostileInvoke2.h" />
     <ClInclude Include="Costile\Value.h" />
     <ClInclude Include="DInput\DInput.hpp" />
@@ -168,9 +180,11 @@
     <ClInclude Include="Disasm\disasm_x86.h" />
     <ClInclude Include="Disasm\disasm_x86_tables.h" />
     <ClInclude Include="Disasm\misc.h" />
+    <ClInclude Include="GameUtility\GameSettings.h" />
     <ClInclude Include="GameUtility\LockTimer.h" />
     <ClInclude Include="GameUtility\KeyboardManager.h" />
     <ClInclude Include="GameUtility\MenuDisabler.h" />
+    <ClInclude Include="GameUtility\SkyUILib.h" />
     <ClInclude Include="GameUtility\MiscUtility.h" />
     <ClInclude Include="GameUtility\PauseDisabler.h" />
     <ClInclude Include="GameUtility\PlayerControls.h" />
@@ -189,6 +203,8 @@
     <ClInclude Include="ScriptDragon\types.h" />
     <ClInclude Include="SKSEOriginal\Utilities.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Sync\Equipment.h" />
+    <ClInclude Include="Sync\HitData.h" />
     <ClInclude Include="Sync\LookData.h" />
     <ClInclude Include="Sync\MovementData.h" />
     <ClInclude Include="WinAPI\WinAPI.hpp" />

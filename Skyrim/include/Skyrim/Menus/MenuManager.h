@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "IMenu.h"
 #include "../BSCore/BSTSingleton.h"
 #include "../BSCore/BSTHashMap.h"
@@ -103,7 +105,13 @@ public:
 		return ((bool(*)())0x00918D90)();
 	}
 
-
+	__forceinline bool IsMenuOpen(const char *menuName) const
+	{
+		static std::map<std::string, BSFixedString *> fs;
+		if (fs[menuName] == nullptr)
+			fs[menuName] = new BSFixedString(menuName);
+		return this->IsMenuOpen(*fs[menuName]);
+	}
 
 	// @members
 	//BSTSingletonSDM<MenuManager>				singleton;					// 000

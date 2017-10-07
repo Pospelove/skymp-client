@@ -8,12 +8,12 @@ namespace PlayerControls_
 	};
 
 	std::vector<SInt64> state(CONTROLS_COUNT, MIN_ENABLED_STATE);
-	std::recursive_mutex mutex;
+	dlf_mutex mutex;
 
 	void Update()
 	{
-		Timer::Set(0, [] {
-			std::lock_guard<std::recursive_mutex> l(mutex);
+		SET_TIMER(0, [] {
+			std::lock_guard<dlf_mutex> l(mutex);
 			sd::EnablePlayerControls(state[(UInt32)Control::Movement] >= MIN_ENABLED_STATE,
 				state[(UInt32)Control::Fighting] >= MIN_ENABLED_STATE,
 				state[(UInt32)Control::CamSwitch] >= MIN_ENABLED_STATE,
@@ -43,7 +43,7 @@ namespace PlayerControls_
 	void SetEnabled(Control control, bool enabled)
 	{
 		auto idx = (UInt32)control;
-		std::lock_guard<std::recursive_mutex> l(mutex);
+		std::lock_guard<dlf_mutex> l(mutex);
 		if (enabled)
 			state[idx]++;
 		else

@@ -13,5 +13,5 @@ private:
 	void DealWithReference(TESObjectREFR *ref);
 
 	std::set<RefHandle> protectedForms;
-	mutable std::recursive_mutex mutex;
+	mutable dlf_mutex mutex;
 };

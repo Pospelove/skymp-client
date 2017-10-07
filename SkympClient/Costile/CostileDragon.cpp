@@ -1908,8 +1908,8 @@ DEFVOID_END(abShow);
 DEFVAL_START(Value<TESForm>, Game, GetForm, UInt32 aiFormID);
 DEFVAL_END(aiFormID);
 
-//DEFVAL_START(Value<TESForm>, Game, GetFormFromFile, SInt32 aiFormID, std::string asFilename);
-//DEFVAL_END(aiFormID, asFilename);
+DEFVAL_START(Value<TESForm>, Game, GetFormFromFile, UInt32 aiFormID, std::string asFilename);
+DEFVAL_END(aiFormID, asFilename);
 
 DEFVAL_START(float, Game, GetGameSettingFloat, std::string asGameSetting);
 DEFVAL_END(asGameSetting);
@@ -4486,3 +4486,21 @@ FormType cd::GetFormTypeID(Value<TESForm> self, std::function<void(FormType)> ca
 	}
 	return result;
 }*/ //DANGER!!!
+
+DEFVAL_START(int32_t, UILIB_1, ShowList, int32_t dummy);
+DEFVAL_END(dummy);
+
+DEFVAL_START(int32_t, UILIB_1, ShowListResult, bool dummy);
+DEFVAL_END(dummy);
+
+DEFVAL_START(int32_t, UILIB_1, ShowInput, int32_t dummy);
+DEFVAL_END(dummy);
+
+DEFVAL_START(std::string, UILIB_1, ShowInputResult, bool dummy);
+DEFVAL_END(dummy);
+
+DEFVAL_START(int32_t, UILIB_1, SetDataInput, int32_t dummy);
+DEFVAL_END(dummy);
+
+DEFVAL_START(int32_t, UILIB_1, SetDataList, int32_t dummy);
+DEFVAL_END(dummy);

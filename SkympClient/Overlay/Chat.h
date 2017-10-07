@@ -37,7 +37,7 @@ private:
 	size_t m_scrollBarPosition[2];
 	std::list<std::wstring> m_chatList; // To keep number of messages and text to get length of the first message.
 	std::vector<std::wstring> m_myMessages;
-	std::recursive_mutex *mutex;
+	dlf_mutex *mutex;
 	SInt16 offset = 0;
 	SInt16 needCloseEscMenu = 0;
 	

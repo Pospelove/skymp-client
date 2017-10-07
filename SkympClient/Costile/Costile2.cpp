@@ -9,9 +9,9 @@ namespace Costile2
 	Signal<void(TESObjectREFR *, std::string)> OnAnimationEvent;
 	BSScript::IStackCallbackFunctorPtr nullCallback;
 	BSScript::ZeroFunctionArguments zeroArgs;
+	std::map<SInt32, BSFixedString *> staticStrings;
 
-
-	std::recursive_mutex mutex;
+	dlf_mutex mutex;
 	const size_t count = 16;
 
 	struct SessionData
@@ -88,7 +88,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count)
 				data[session].ints[idx] = val;
 		}
@@ -101,7 +101,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count)
 				data[session].uints[idx] = val;
 		}
@@ -114,7 +114,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count)
 				data[session].bools[idx] = val;
 		}
@@ -127,7 +127,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count)
 				data[session].floats[idx] = val;
 		}
@@ -140,7 +140,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count)
 			{
 				static std::map<std::string, char *> map;
@@ -162,7 +162,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count && val != nullptr)
 			{
 				data[session].forms[idx] = val->formID;
@@ -175,7 +175,7 @@ namespace Costile2
 
 	void FinalisePacking(SInt32 session)
 	{
-		std::lock_guard<std::recursive_mutex> l(mutex);
+		std::lock_guard<dlf_mutex> l(mutex);
 		if (data[session].forms[0])
 		{
 			auto realFuncName = data[session].realFuncName;
@@ -199,38 +199,20 @@ namespace Costile2
 				});
 				IDsForThisFunc.push_back(session);
 			}
-
-
-			/*class Pr
-			{
-			public:
-				bool operator()(const SInt32 &s1, const SInt32 &s2)
-				{
-					auto form1 = (TESObjectREFR *)LookupFormByID(data[s1].forms[0]),
-						form2 = (TESObjectREFR *)LookupFormByID(data[s2].forms[0]);
-					if (form1->formType != FormType::Reference)
-						return false;
-					if (form2->formType != FormType::Reference)
-						return true;
-					const float dist1 = (cd::GetPosition(g_thePlayer) - cd::GetPosition(form1)).Length(),
-						dist2 = (cd::GetPosition(g_thePlayer) - cd::GetPosition(form2)).Length();
-					return dist1 < dist2;
-				}
-			};
-
-			const std::set<SInt32, Pr> sessionIDsSorted = { sessionIDs[realFuncName].begin(), sessionIDs[realFuncName].end() };
-			sessionIDs[realFuncName] = {};
-			sessionIDs[realFuncName] = {
-				sessionIDsSorted.begin(), sessionIDsSorted.end()
-			};*/
 		}
+	}
+
+	void CreateStaticString(const std::string &source, int32_t id)
+	{
+		std::lock_guard<dlf_mutex> l(mutex);
+		staticStrings[id] = new BSFixedString(source.data());
 	}
 
 	void SetTESForm(SInt32 session, SInt32 idx, RefHandle val)
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			if (idx >= 0 && idx < count)
 			{
 				data[session].forms[idx] = val;
@@ -250,7 +232,7 @@ namespace Costile2
 	{
 		try
 		{
-			std::lock_guard<std::recursive_mutex> l(mutex);
+			std::lock_guard<dlf_mutex> l(mutex);
 			auto &q = sessionIDs[realFuncName.c_str()];
 			if (!q.empty())
 			{
@@ -271,7 +253,7 @@ namespace Costile2
 		{
 			if (idx >= 0 && idx < count)
 			{
-				std::lock_guard<std::recursive_mutex> l(mutex);
+				std::lock_guard<dlf_mutex> l(mutex);
 				return data[session].ints[idx];
 			}
 		}
@@ -287,7 +269,7 @@ namespace Costile2
 		{
 			if (idx >= 0 && idx < count)
 			{
-				std::lock_guard<std::recursive_mutex> l(mutex);
+				std::lock_guard<dlf_mutex> l(mutex);
 				return data[session].uints[idx];
 			}
 		}
@@ -303,7 +285,7 @@ namespace Costile2
 		{
 			if (idx >= 0 && idx < count)
 			{
-				std::lock_guard<std::recursive_mutex> l(mutex);
+				std::lock_guard<dlf_mutex> l(mutex);
 				return data[session].bools[idx] != NULL;
 			}
 		}
@@ -319,7 +301,7 @@ namespace Costile2
 		{
 			if (idx >= 0 && idx < count)
 			{
-				std::lock_guard<std::recursive_mutex> l(mutex);
+				std::lock_guard<dlf_mutex> l(mutex);
 				return data[session].floats[idx];
 			}
 		}
@@ -335,7 +317,7 @@ namespace Costile2
 		{
 			if (idx >= 0 && idx < count)
 			{
-				std::lock_guard<std::recursive_mutex> l(mutex);
+				std::lock_guard<dlf_mutex> l(mutex);
 				return data[session].strings[idx];
 			}
 		}
@@ -351,7 +333,7 @@ namespace Costile2
 		{
 			if (idx >= 0 && idx < count)
 			{
-				std::lock_guard<std::recursive_mutex> l(mutex);
+				std::lock_guard<dlf_mutex> l(mutex);
 				return LookupFormByID(data[session].forms[idx]);
 			}
 		}
@@ -388,14 +370,10 @@ namespace Costile2
 			}
 			catch (...)
 			{
-				Timer::Set(0, [=] {
-					sd::PrintNote("Warning: Would crash (1)");
-				});
+				ErrorHandling::SendError("ERROR:Costile Would crash (1)");
 				return true;
 			}
-			Timer::Set(0, [=] {
-				sd::PrintNote("Warning: Would crash");
-			});
+			ErrorHandling::SendError("ERROR:Costile Would crash");
 		}
 		return true;
 	}
@@ -460,6 +438,23 @@ namespace Costile2
 		return OnAnimationEvent(src, eventName.c_str());
 	}
 
+	BSFixedString GetStringTest()
+	{
+		static BSFixedString str = "FRLVABATHROOM";
+		return str;
+	}
+
+	BSFixedString GetStaticString(SInt32 id)
+	{
+		std::lock_guard<dlf_mutex> l(mutex);
+		try {
+			return *staticStrings.at(id);
+		}
+		catch (...) {
+			return "<null>";
+		}
+	}
+
 	void Register()
 	{
 		auto vmState = g_skyrimVM->GetState();
@@ -477,5 +472,7 @@ namespace Costile2
 		SKSEScript::RegisterFunction("Costile2", "ReturnFloat", Costile2::ReturnFloat, vmState);
 		SKSEScript::RegisterFunction("Costile2", "ReturnBool", Costile2::ReturnBool, vmState);
 		SKSEScript::RegisterFunction("Costile2", "OnAnimEvent", Costile2::OnAnimEvent , vmState);
+		SKSEScript::RegisterFunction("Costile2", "GetStringTest", Costile2::GetStringTest, vmState);
+		SKSEScript::RegisterFunction("Costile2", "GetStaticString", Costile2::GetStaticString, vmState);
 	}
 }

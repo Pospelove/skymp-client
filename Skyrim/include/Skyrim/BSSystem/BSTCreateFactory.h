@@ -21,7 +21,7 @@ public:
 	virtual UInt32			GetNum1(void);					// 00401860 { return 0x00000067; }
 	virtual UInt32			GetNum2(void);					// 00904A50 { return 0x00000009; }
 
-	inline static IFormFactory * GetFactoryForType(FormType type);	// 0043BDD0
+	static IFormFactory * GetFactoryForType(FormType type);	// 0043BDD0
 
 	// @members
 	//void		** _vtbl;	// 00 - 01076B14

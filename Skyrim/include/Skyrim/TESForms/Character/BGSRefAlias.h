@@ -33,7 +33,7 @@ public:
 	Actor* GetActorReference(void);
 	UInt32 ForceRefTo(TESObjectREFR * reference);
 
-	DEFINE_MEMBER_FN(AttachReference, void, 00553400, RefHandle &refHandle);
+	DEFINE_MEMBER_FN(AttachReference, void, 0x00553400, RefHandle &refHandle);
 
 
 	// @members

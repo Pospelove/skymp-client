@@ -10,19 +10,19 @@ KeyboardManager *KeyboardManager::GetSingletone()
 
 bool KeyboardManager::GetKeyPressed(uint8_t code) const
 {
-	std::lock_guard<std::recursive_mutex> l(mutex);
+	std::lock_guard<dlf_mutex> l(mutex);
 	return pressed.find(code) != pressed.end();
 }
 
 void KeyboardManager::OnPress(uint8_t code)
 {
-	std::lock_guard<std::recursive_mutex> l(mutex);
+	std::lock_guard<dlf_mutex> l(mutex);
 	pressed.insert(code);
 }
 
 void KeyboardManager::OnRelease(uint8_t code)
 {
-	std::lock_guard<std::recursive_mutex> l(mutex);
+	std::lock_guard<dlf_mutex> l(mutex);
 	if (pressed.find(code) != pressed.end())
 		pressed.erase(code);
 }

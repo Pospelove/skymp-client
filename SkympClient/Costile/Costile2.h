@@ -17,6 +17,7 @@ namespace Costile2
 	//void SetTESForm(SInt32 session, SInt32 idx, BSScript::BSScriptObjectPtr val);
 	void SetTESForm(SInt32 session, SInt32 idx, RefHandle val);
 	void FinalisePacking(SInt32 session);
+	void CreateStaticString(const std::string &source, int32_t strID);
 
 	// Функции для вызова из Papyrus:
 	float GetPi(); // Для теста
@@ -33,6 +34,8 @@ namespace Costile2
 	void ReturnBool(SInt32 session, bool result);
 	void ReturnString(SInt32 session, BSFixedString result);
 	void OnAnimEvent(TESObjectREFR *src, BSFixedString eventName);
+	BSFixedString GetStringTest();
+	BSFixedString GetStaticString(SInt32 id);
 
 	// Зарегистрировать ф-ции выше в виртуальной машине Skyrim
 	void Register();

@@ -6,6 +6,23 @@
 #include <memory>
 #include <thread>
 
+#include "../CoreInterface/CoreInterface.h"
+
+#define CAPTURE_LOCKS FALSE
+
+struct CostileArgument
+{
+	enum Type {
+		String = 's',
+		Float = 'f',
+		Int = 'i',
+		Object = 'o',
+		Bool = 'b'
+	};
+	char type;
+	std::string data;
+};
+
 struct Any
 {
 public:
@@ -59,6 +76,34 @@ public:
 		return result;
 	}
 
+	explicit operator CostileArgument()
+	{
+		CostileArgument result;
+		switch (var.type)
+		{
+		case BSScript::BSScriptType::kType_Int:
+			result.type = CostileArgument::Int;
+			result.data = std::to_string((int32_t)*this);
+			break;
+		case BSScript::BSScriptType::kType_Float:
+			result.type = CostileArgument::Float;
+			result.data = std::to_string((float)*this);
+			break;
+		case BSScript::BSScriptType::kType_String:
+			result.type = CostileArgument::Float;
+			result.data = std::string(*this);
+			break;
+		case BSScript::BSScriptType::kType_Object:
+			result.type = CostileArgument::Object;
+			result.data = std::to_string(((cd::Value<TESForm>)*this).GetFormID());
+			break;
+		case BSScript::BSScriptType::kType_None:
+			result.type = CostileArgument::Object;
+			result.data = "0";
+		}
+		return result;
+	}
+
 	const BSScript::BSScriptVariable var;
 };
 
@@ -68,7 +113,7 @@ struct CallState
 	bool gotResult = false;
 };
 
-CallState *GetCallState()
+inline CallState *GetCallState()
 {
 	static CallState callState;
 	return &callState;
@@ -130,7 +175,8 @@ public:
 				GetCallState()->result = var;
 				GetCallState()->gotResult = true;
 			}
-			this->callback();
+			if (this->callback)
+				this->callback();
 		}
 		catch (...)
 		{
@@ -143,7 +189,7 @@ private:
 };
 
 template <class T1, class ... TN>
-static void Pack(
+inline void Pack(
 	SInt32 session,
 	SInt32 idx,
 	T1 first,
@@ -153,13 +199,13 @@ static void Pack(
 	Pack(session, idx + 1, nth ...);
 }
 
-static void Pack(SInt32 session, SInt32 idx)
+inline void Pack(SInt32 session, SInt32 idx)
 {
 	Costile2::FinalisePacking(session);
 }
 
 template <class T>
-static void PackSingle(
+inline void PackSingle(
 	SInt32 session,
 	SInt32 idx,
 	T value)
@@ -168,7 +214,7 @@ static void PackSingle(
 }
 
 template <>
-static void PackSingle<SInt32>(
+inline void PackSingle<SInt32>(
 	SInt32 session,
 	SInt32 idx,
 	SInt32 value)
@@ -177,7 +223,7 @@ static void PackSingle<SInt32>(
 }
 
 template <>
-static void PackSingle<UInt32>(
+inline void PackSingle<UInt32>(
 	SInt32 session,
 	SInt32 idx,
 	UInt32 value)
@@ -186,7 +232,7 @@ static void PackSingle<UInt32>(
 }
 
 template <>
-static void PackSingle<float>(
+inline void PackSingle<float>(
 	SInt32 session,
 	SInt32 idx,
 	float value)
@@ -195,7 +241,7 @@ static void PackSingle<float>(
 }
 
 template <>
-static void PackSingle<bool>(
+inline void PackSingle<bool>(
 	SInt32 session,
 	SInt32 idx,
 	bool value)
@@ -204,7 +250,7 @@ static void PackSingle<bool>(
 }
 
 template <>
-static void PackSingle<std::string>(
+inline void PackSingle<std::string>(
 	SInt32 session,
 	SInt32 idx,
 	std::string value)
@@ -213,7 +259,7 @@ static void PackSingle<std::string>(
 }
 
 template <>
-static void PackSingle<const char *>(
+inline void PackSingle<const char *>(
 	SInt32 session,
 	SInt32 idx,
 	const char *value)
@@ -222,7 +268,7 @@ static void PackSingle<const char *>(
 }
 
 template <>
-static void PackSingle<const cd::IValue &>(
+inline void PackSingle<const cd::IValue &>(
 	SInt32 session,
 	SInt32 idx,
 	const cd::IValue &value)
@@ -239,55 +285,30 @@ static void PackSingle<BSScript::BSScriptObjectPtr>(
 	Costile2::SetTESForm(session, idx, value);
 }*/
 
-extern UInt32 g_SDThreadId;
-
-template <class ResultT, class T1, class ... TN>
-ResultT ExecImpl(
-	bool isAsync,
-	BSScript::IStackCallbackFunctorPtr callback,
-	const std::string &className,
-	const std::string &funcName,
-	T1 first,
-	TN ... nth)
+inline void CallVMFunc(const std::string &className, const std::string &funcName, BSScript::IStackCallbackFunctorPtr callback)
 {
-	static std::mutex mutex;
-	std::lock_guard<std::mutex> l(mutex);
-
 	const auto realFuncName = className + '_' + funcName;
 	const auto realScriptName = "Costile2_" + className;
-
-	auto s = Costile2::CreateSession(realFuncName);
-	Pack(s, 0, first, nth ...);
-	Costile2::SetSessionCallback(s, BSScript::IStackCallbackFunctorPtr(callback));
 
 	auto vmState = g_skyrimVM->GetState();
 	if (vmState)
 	{
-		static UInt32 numThreads = 0;
-		try
-		{
-			static std::recursive_mutex numThreadsMutex;
-			std::lock_guard<std::recursive_mutex> l_(numThreadsMutex);
-			++numThreads;
-			//std::thread([=] {
-				/*BSSpinLockGuard l[] = {
-					vmState->classListLock,
-					vmState->unk120,
-					vmState->stackLock,
-					vmState->unk4A50,
-					vmState->unk4A68
-				};*/
-
-				std::lock(vmState->classListLock,
-					vmState->unk120,
-					vmState->stackLock,
-					vmState->unk4A50,
-					vmState->unk4A68);
-				std::lock_guard<BSSpinLock> lg1(vmState->classListLock, std::adopt_lock);
-				std::lock_guard<BSSpinLock> lg2(vmState->unk120, std::adopt_lock);
-				std::lock_guard<BSSpinLock> lg3(vmState->stackLock, std::adopt_lock);
-				std::lock_guard<BSSpinLock> lg4(vmState->unk4A50, std::adopt_lock);
-				std::lock_guard<BSSpinLock> lg5(vmState->unk4A68, std::adopt_lock);
+		std::thread([=] {
+			try
+			{
+				if (CAPTURE_LOCKS != FALSE)
+				{
+					std::lock(vmState->classListLock,
+						vmState->unk120,
+						vmState->stackLock,
+						vmState->unk4A50,
+						vmState->unk4A68);
+					std::lock_guard<BSSpinLock> lg1(vmState->classListLock, std::adopt_lock);
+					std::lock_guard<BSSpinLock> lg2(vmState->unk120, std::adopt_lock);
+					std::lock_guard<BSSpinLock> lg3(vmState->stackLock, std::adopt_lock);
+					std::lock_guard<BSSpinLock> lg4(vmState->unk4A50, std::adopt_lock);
+					std::lock_guard<BSSpinLock> lg5(vmState->unk4A68, std::adopt_lock);
+				}
 				static auto zeroArgs = BSScript::ZeroFunctionArguments();
 
 				if (realFuncName != "ObjectReference_PlaceAtMe"
@@ -296,21 +317,103 @@ ResultT ExecImpl(
 					&& realFuncName != "Debug_SendAnimationEvent"
 					&& realFuncName != "Actor_KeepOffsetFromActor"
 					&& realFuncName != "ObjectReference_TranslateTo"
-					&& realFuncName != "Actor_StartCombat")
+					&& realFuncName != "Actor_StartCombat"
+					&& realFuncName != "UILIB_1_ShowList"
+					&& realFuncName != "UILIB_1_ShowListResult"
+					&& realFuncName != "UILIB_1_ShowInput"
+					&& realFuncName != "UILIB_1_ShowInputResult"
+					&& realFuncName != "UILIB_1_SetDataInput")
 				{
 					vmState->CallStaticFunction(realScriptName.data(), realFuncName.data(), &zeroArgs, BSScript::IStackCallbackFunctorPtr(callback));
 				}
+				std::stringstream ss;
+				ss << realFuncName;
+				ci::Chat::AddMessage(StringToWstring(ss.str()));
 				//vmState->CallStaticFunction("Game", realFuncName.data(), &zeroArgs, BSScript::IStackCallbackFunctorPtr(callback));
+			}
+			catch (...)
+			{
+				ErrorHandling::SendError("ERROR:CostileInvoke %s.%s()", className.data(), funcName.data());
+			}
+		}).detach();
+	}
+}
 
-				std::lock_guard<std::recursive_mutex> l1(numThreadsMutex);
-				--numThreads;
-			//}).detach();
-		}
-		catch (...)
+extern UInt32 g_SDThreadId;
+
+
+static std::mutex execImplMutex;
+
+inline CostileArgument ExecImpl(bool isAsync,
+	BSScript::IStackCallbackFunctorPtr callback,
+	const std::string &className,
+	const std::string &funcName, 
+	const std::vector<CostileArgument> &arguments)
+{
+	std::lock_guard<std::mutex> l(execImplMutex);
+
+	const auto realFuncName = className + '_' + funcName;
+	auto s = Costile2::CreateSession(realFuncName);
+	for (size_t i = 0; i != arguments.size(); ++i)
+	{
+		using T = CostileArgument::Type;
+		switch (arguments[i].type)
 		{
-			sd::PrintNote("Failed to create thread %u", numThreads);
+		case T::Int:
+			PackSingle(s, i, atoi(arguments[i].data.data()));
+			break;
+		case T::Bool:
+			PackSingle(s, i, arguments[i].data == "true" || arguments[i].data == "1");
+			break;
+		case T::Float:
+			PackSingle(s, i, (float)atof(arguments[i].data.data()));
+			break;
+		case T::String:
+			PackSingle(s, i, arguments[i].data);
+			break;
+		case T::Object:
+			std::istringstream idStream(arguments[i].data);
+			uint32_t formID;
+			idStream >> formID;
+			PackSingle(s, i, (cd::Value<TESForm>)LookupFormByID(formID));
+			break;
 		}
 	}
+	Costile2::SetSessionCallback(s, BSScript::IStackCallbackFunctorPtr(callback));
+
+	CallVMFunc(className, funcName, callback);
+
+	if (!isAsync)
+	{
+		while (!GetCallState()->gotResult)
+		{
+			if (GetCurrentThreadId() == g_SDThreadId)
+				sd::Wait(0);
+		}
+		GetCallState()->gotResult = false;
+		return CostileArgument(Any(GetCallState()->result));
+	}
+
+	return CostileArgument();
+}
+
+template <class ResultT, class T1, class ... TN>
+inline ResultT ExecImpl(
+	bool isAsync,
+	BSScript::IStackCallbackFunctorPtr callback,
+	const std::string &className,
+	const std::string &funcName,
+	T1 first,
+	TN ... nth)
+{
+	std::lock_guard<std::mutex> l(execImplMutex);
+
+	const auto realFuncName = className + '_' + funcName;
+	auto s = Costile2::CreateSession(realFuncName);
+	Pack(s, 0, first, nth ...);
+	Costile2::SetSessionCallback(s, BSScript::IStackCallbackFunctorPtr(callback));
+
+	CallVMFunc(className, funcName, callback);
 
 	if (!isAsync)
 	{

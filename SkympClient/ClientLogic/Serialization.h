@@ -2,6 +2,8 @@
 
 void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
 {
+	bsOut.Write(d.aimingAngle);
+	bsOut.Write(d.attackState);
 	bsOut.Write(d.pos.x);
 	bsOut.Write(d.pos.y);
 	bsOut.Write(d.pos.z);
@@ -22,6 +24,8 @@ void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
 
 void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
 {
+	bsIn.Read(d.aimingAngle);
+	bsIn.Read(d.attackState);
 	bsIn.Read(d.pos.x);
 	bsIn.Read(d.pos.y);
 	bsIn.Read(d.pos.z);

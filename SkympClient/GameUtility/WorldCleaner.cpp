@@ -27,7 +27,7 @@ void WorldCleaner::SetFormProtected(RefHandle formID, bool val)
 
 	if (formID)
 	{
-		std::lock_guard<std::recursive_mutex> l(this->mutex);
+		std::lock_guard<dlf_mutex> l(this->mutex);
 		if (sums[formID] > 0)
 			this->protectedForms.insert(formID);
 		else
@@ -42,7 +42,7 @@ bool WorldCleaner::IsFormProtected(RefHandle formID) const
 		return true;
 	if (!formID)
 		return false;
-	std::lock_guard<std::recursive_mutex> l(this->mutex);
+	std::lock_guard<dlf_mutex> l(this->mutex);
 	return this->protectedForms.find(formID) != this->protectedForms.end();
 }
 
@@ -68,9 +68,10 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		{
 		case FormType::NPC:
 		case FormType::LeveledCharacter:
-			cd::Delete(ref);
+			sd::Delete(ref);
 			break;
 		case FormType::Door:
+		case FormType::Container:
 		{
 			static std::set<uint32_t> saved;
 			if (saved.insert(ref->formID).second)
@@ -95,7 +96,9 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 				}
 
 				std::stringstream ss;
-				ss << "Debug\\Auto\\" << std::hex << std::setfill('0') << std::setw(8) << locationID << "_" << locationName << ".txt";
+				//ss << "Debug\\Auto\\" << std::hex << std::setfill('0') << std::setw(8) << locationID << "_" << locationName << ".txt";
+
+				ss << "Debug\\Auto\\" << std::hex << std::setfill('0') << std::setw(8) << 0 << "_" << "Any" << ".txt";
 
 				std::ofstream of(ss.str().data(), std::ios::app);
 				of << "obj = Object.Create(";
@@ -107,6 +110,8 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 				of << "obj:SetAngle(" << sd::GetAngleX(ref) << ", " << sd::GetAngleY(ref) << ", " << sd::GetAngleZ(ref) << ")" << std::endl;
 				if (ref->baseForm->formType == FormType::Door)
 					of << "obj:RegisterAsDoor()" << std::endl;
+				if (ref->baseForm->formType == FormType::Container)
+					of << "obj:RegisterAsContainer()" << std::endl;
 			}
 
 		}
@@ -116,12 +121,11 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		}
 		return;
 	}
-
 	switch (formType)
 	{
 	case FormType::NPC:
 	case FormType::LeveledCharacter:
-		cd::Delete(ref);
+		sd::Delete(ref); // was cd::delete
 		break;
 	case FormType::Ingredient:
 	case FormType::ScrollItem:
@@ -166,13 +170,17 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		sd::SetDestroyed(ref, true);
 		break;
 	case FormType::Activator:
+		//return;
 		sd::BlockActivation(ref, true);
 		sd::SetDestroyed(ref, true);
+		break;
 	default:
 		break;
 	}
-	if (ref->formID >= 0xFF000000)
+	if (ref->formID >= 0xFF000000 && (ref->baseForm->formID <= 0xFF000000 || ref->baseForm->formID >= 0xFF00F000))
+	{
 		sd::Delete(ref);
+	}
 }
 
 void WorldCleaner::Update()
@@ -192,12 +200,12 @@ void WorldCleaner::Update()
 
 	static const std::set<UInt32> baseIDsToDestroy = {
 		//891015, 891013, 891011, 891009, 891007, 891003, 891005, 464980, 1050496,	// Алтари
-		0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169,	// Летающие насекомые
+		/*0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169,	// Летающие насекомые
 		0x10581f, 0x105824,															// Птицы
 		0xad0cc, 0xd337f, 0x106d28, 0x106d29, 0x106d2A, 0x106d2B, 0x106d2C,			// Рыбы
 		0xe1fb2, 0xb6fb9, 0x89a8a, 0xe2ff9, 0xb6fcb,								// Корни нирна, корзины с яйцами (оригмы?)
 		0x10b035, 0x10c3ba															// waterfall salmons
-	};
+	*/};
 	std::for_each(baseIDsToDestroy.begin(), baseIDsToDestroy.end(), [=] (UInt32 formID) {
 		TESForm *form = LookupFormByID(formID);
 		for (SInt32 i = 0; i != 10; ++i)

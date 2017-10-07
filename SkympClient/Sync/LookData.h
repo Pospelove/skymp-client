@@ -1,13 +1,16 @@
 #pragma once
 #include "../CoreInterface/ciTypes.h"
 
-namespace LookData_
+class ILookSynchronizer
 {
-	TESNPC *Apply(const ci::LookData &lookData);
-	void Apply(const ci::LookData &lookData, Actor *actor);
-	ci::LookData GetFromPlayer();
-	void ShowRaceMenu();
-	void ApplyTintMasks(TESNPC *npc, const std::vector<ci::LookData::TintMask> &result_tintmasks);
-	void PreventCrash(TESNPC *npc);
-	RefHandle FindNPCWithParams(TESRace *race, UInt8 isFemale, TESNPC::Color color);
-}
+public:
+	virtual TESNPC *Apply(const ci::LookData &lookData) = 0;
+	virtual void Apply(const ci::LookData &lookData, Actor *actor) = 0;
+	virtual void ApplyTintMasks(TESNPC *npc, const std::vector<ci::LookData::TintMask> &result_tintmasks) = 0;
+	virtual ci::LookData GetFromPlayer(bool noCache = false) = 0;
+	virtual ci::LookData GetFromNPC(TESNPC *npc) = 0;
+	virtual void ShowRaceMenu() = 0;
+
+	static ILookSynchronizer *GetV17();
+	static ILookSynchronizer *GetV16();
+};

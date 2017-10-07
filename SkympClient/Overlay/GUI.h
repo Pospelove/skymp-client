@@ -7,6 +7,14 @@
 
 #include "..\DirectX\DirectXHook.h"
 
+class ICharsMap
+{
+public:
+	virtual int ToRussian(int c) = 0;
+	virtual int ToEnglish(int c) = 0;
+	static ICharsMap *GetSingleton();
+};
+
 class GUI
 {
 	friend class Chat;
@@ -22,14 +30,15 @@ public:
 	void MouseMove(unsigned int PositionX, unsigned int PositionY, unsigned int PositionZ);
 	void SetRussianLanguage(bool russian);
 	bool IsRussianLanguage() const;
+	static int32_t ScanCodeToText(int32_t c);
 
 private:
 
 	MyGUI::DirectXPlatform* m_pPlatform;
 	MyGUI::Gui* myGUI;
-	int PositionX, PositionY;
+	int PositionX = 0, PositionY = 0;
 	bool isRussianLanguage = false;
-	mutable std::recursive_mutex mutex;
+	mutable dlf_mutex mutex;
 };
 
 extern GUI* TheGUI;

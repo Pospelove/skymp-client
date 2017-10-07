@@ -15,19 +15,21 @@ namespace MovementData_
 	{
 		// in
 		bool fullyUnsafeSync = false;
+		uint32_t myFoxID = 0;
 
 		// in-out
 		SyncMode syncMode = SyncMode::Light;
+		bool forceFixAfterHitAnim = false;
 
 		// out
 		ci::MovementData last;
 		bool appliedOnce = false;
 		clock_t firstApplyStartMoment = 0;
 		struct {
-			NiPoint3 offset;
-			NiPoint3 offsetAngle;
-			float catchUpR;
-			float followR;
+			NiPoint3 offset = { 0,0,0 };
+			NiPoint3 offsetAngle = { 0,0,0 };
+			float catchUpR = -1.f;
+			float followR = -1.f;
 			bool calledOnce = false;
 		} lastKeepOffsetCall;
 		bool forceCallKeepOffset = true;
@@ -45,8 +47,11 @@ namespace MovementData_
 		UInt32 translateToMSOnDirChange = 0;
 		clock_t lastJump = 0;
 		clock_t timer1 = 0;
+		clock_t strictTranslateToTimer = 0;
+		clock_t disableSyncTimer = 0;
 		UInt64 ghostAxeSeed = 0;
 		bool jumpedStanding = false;
+		bool isAiming = false;
 	};
 
 	using GhostAxeVector = std::vector<RefHandle>;

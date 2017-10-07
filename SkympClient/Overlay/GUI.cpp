@@ -6,7 +6,7 @@ GUI* TheGUI = nullptr;
 
 GUI::GUI() : m_pPlatform(nullptr), myGUI(nullptr)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 
 	m_pPlatform = new MyGUI::DirectXPlatform();
 	m_pPlatform->initialise(g_pIDirect3DDevice9);
@@ -22,7 +22,7 @@ GUI::GUI() : m_pPlatform(nullptr), myGUI(nullptr)
 
 GUI::~GUI()
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 
 	if (this->myGUI != nullptr)
 	{
@@ -41,7 +41,7 @@ GUI::~GUI()
 
 void GUI::OnRender(IDirect3DDevice9* pDevice)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 
 	IDirect3DStateBlock9* pStateBlock = NULL;
 
@@ -63,7 +63,7 @@ void GUI::OnRender(IDirect3DDevice9* pDevice)
 
 void GUI::OnLostDevice(IDirect3DDevice9* pDevice)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 	try
 	{
 		this->m_pPlatform->getRenderManagerPtr()->deviceLost();
@@ -76,15 +76,15 @@ void GUI::OnLostDevice(IDirect3DDevice9* pDevice)
 
 void GUI::SetCursor(bool Visible)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 	if (this->m_pPlatform && this->myGUI)
 		this->myGUI->setVisiblePointer(Visible);
 }
 
-class CharsMap
+class CharsMap : public ICharsMap
 {
 public: 
-	int ToRussian(int c)
+	virtual int ToRussian(int c) override
 	{
 		for (UInt32 i = 0; i != en.size(); ++i)
 		{
@@ -94,7 +94,7 @@ public:
 		return c;
 	}
 
-	int ToEnglish(int c)
+	virtual int ToEnglish(int c) override
 	{
 		for (UInt32 i = 0; i != ru.size(); ++i)
 		{
@@ -110,6 +110,12 @@ private:
 		en = L"qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>";
 };
 
+ICharsMap *ICharsMap::GetSingleton()
+{
+	static CharsMap map;
+	return &map;
+}
+
 WCHAR toupperUnicode(WCHAR key)
 {
 	std::locale::global(std::locale(""));  // (*)
@@ -123,7 +129,7 @@ WCHAR toupperUnicode(WCHAR key)
 
 void GUI::InjectKey(unsigned char Key, bool isPressed)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 
 	if (this->m_pPlatform == nullptr || this->myGUI == nullptr)
 		return;
@@ -281,7 +287,7 @@ void GUI::InjectKey(unsigned char Key, bool isPressed)
 		}
 	}
 
-	if (1 | !IsRussianLanguage())
+	//if (1 | !IsRussianLanguage()) // PVS
 	{
 		key = tolower(key);
 		key = map.ToEnglish(key);
@@ -417,7 +423,7 @@ void GUI::InjectKey(unsigned char Key, bool isPressed)
 
 void GUI::InjectMouse(unsigned char Key, bool isPressed)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 
 	if (this->m_pPlatform == nullptr || this->myGUI == nullptr)
 		return;
@@ -432,7 +438,7 @@ void GUI::InjectMouse(unsigned char Key, bool isPressed)
 
 void GUI::MouseMove(unsigned int PositionX, unsigned int PositionY, unsigned int PositionZ)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 
 	if (this->m_pPlatform == nullptr || this->myGUI == nullptr)
 		return;
@@ -444,12 +450,17 @@ void GUI::MouseMove(unsigned int PositionX, unsigned int PositionY, unsigned int
 
 void GUI::SetRussianLanguage(bool russian)
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 	this->isRussianLanguage = russian;
 }
 
 bool GUI::IsRussianLanguage() const
 {
-	std::lock_guard<std::recursive_mutex> lck(mutex);
+	std::lock_guard<dlf_mutex> lck(mutex);
 	return this->isRussianLanguage;
+}
+
+int32_t GUI::ScanCodeToText(int32_t v)
+{
+	return input::ScanCodeToText(v);
 }

@@ -28,7 +28,7 @@ namespace ci
 			float alpha;
 		};
 
-		uint8_t isFemale = false;
+		uint8_t isFemale = 0;
 		uint32_t raceID = 0;
 		uint8_t weight = 0;
 		Color skinColor;
@@ -66,16 +66,18 @@ namespace ci
 			Falling = 2
 		};
 
-		NiPoint3 pos = { 0,0,0 };//
-		uint16_t angleZ = 0;//
-		uint16_t direction = 0;//
-		uint16_t speedSampled = 0;//
-		RunMode runMode = RunMode::Standing;//
+		NiPoint3 pos = { 0,0,0 };
+		uint16_t angleZ = 0;
+		uint16_t direction = 0;
+		uint16_t speedSampled = 0;
+		int16_t aimingAngle = 0;
+		uint16_t attackState = 0;
+		RunMode runMode = RunMode::Standing;
 		JumpStage jumpStage = JumpStage::Landed;
 		bool isInJumpState = false;
 		bool isJumping = false;
 		bool isSprinting = false;
-		bool isSneaking = false;//
+		bool isSneaking = false;
 		bool isWeapDrawn = false;
 		bool isBlocking = false;
 		bool isFirstPerson = false;

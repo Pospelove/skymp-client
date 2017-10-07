@@ -1,5 +1,6 @@
 #include "../CoreInterface/CoreInterface.h"
 
+#include <set>
 #include <map>
 #include <vector>
 #include <thread>
@@ -25,9 +26,19 @@ enum : RakNet::MessageID {
 	ID_PAUSE_START,
 	ID_PAUSE_STOP,
 	ID_ACTIVATE,
+	ID_DROPITEM,
+	ID_CONTAINER_CHANGED,
+	ID_HOST_START,
+	ID_HOSTED_OBJECT_MOVEMENT,
+	ID_EQUIP_UNEQUIP_ITEM,
+	ID_ANIMATION_EVENT_HIT,
+	ID_HIT_OBJECT,
+	ID_HIT_PLAYER,
+	ID_DIALOG_RESPONSE,
+	ID_AV_CHANGED,
 
 	// client <---> server
-	ID_CHAT_MESSAGE,
+	ID_MESSAGE,
 
 	// client <---- server
 	ID_WRONG_PASS,
@@ -36,18 +47,29 @@ enum : RakNet::MessageID {
 	ID_WELCOME,
 	ID_SERVER_CLOSED_THE_CONNECTION,
 	ID_MOVE_TO,
-	ID_OTHER_PLAYER_CREATE,
-	ID_OTHER_PLAYER_DESTROY,
-	ID_OTHER_PLAYER_MOVEMENT,
-	ID_OTHER_PLAYER_NAME,
-	ID_OTHER_PLAYER_PAUSE,
-	ID_OTHER_PLAYER_LOOK,
+	ID_PLAYER_CREATE,
+	ID_PLAYER_DESTROY,
+	ID_PLAYER_MOVEMENT,
+	ID_PLAYER_NAME,
+	ID_PLAYER_PAUSE,
+	ID_PLAYER_LOOK,
+	ID_PLAYER_FURNITURE,
+	ID_PLAYER_INVENTORY,
+	ID_PLAYER_EQUIPMENT,
+	ID_PLAYER_HIT,
+	ID_PLAYER_AV,
 	ID_SHOW_RACE_MENU,
+	ID_SHOW_DIALOG,
 	ID_OBJECT_CREATE,
 	ID_OBJECT_DESTROY,
 	ID_OBJECT_POS_ROT_LOCATION,
 	ID_OBJECT_NAME,
 	ID_OBJECT_BEHAVIOR,
+	ID_ITEMTYPES,
+	ID_WEATHER,
+	ID_GLOBAL_VARIABLE,
+	ID_SILENT,
+	ID_COMMAND,
 };
 
 
@@ -62,16 +84,67 @@ class ClientLogic : public ci::IClientLogic
 	//std::map<uint16_t, std::shared_ptr<ci::RemotePlayer>> remotePlayers;
 	std::map<uint16_t, ci::IActor *> players;
 	std::map<uint32_t, ci::Object *> objects;
+	std::map<uint32_t, ci::ItemType *> itemTypes;
+	std::set<ci::Object *> hostedJustNow;
+	bool silentInventoryChanges = false;
+
+	uint16_t GetID(const ci::IActor *player)
+	{
+		for (auto it = players.begin(); it != players.end(); ++it)
+		{
+			if (it->second == player)
+				return it->first;
+		}
+		return -1;
+	}
+	
+	uint32_t GetID(const ci::Object *object)
+	{
+		for (auto it = objects.begin(); it != objects.end(); ++it)
+		{
+			if (it->second == object)
+				return it->first;
+		}
+		return -1;
+	}
+
+	uint32_t GetID(const ci::ItemType *itemType)
+	{
+		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
+		{
+			if (it->second == itemType)
+				return it->first;
+		}
+		return -1;
+	}
+
+	enum class Type : uint8_t
+	{
+		Static =			0x00,
+		Door =				0x01,
+		TeleportDoor =		0x02,
+		Activator =			0x03,
+		Furniture =			0x04,
+		Item =				0x05,
+		Container =			0x06,
+	};
 
 	struct ObjectInfo
 	{
-		uint8_t type = 0;
+		Type type = Type::Static;
+		uint16_t hostID = ~0;
+		bool isDynamic = false;
+		clock_t createMoment = 0;
 	};
 	std::map<uint32_t, ObjectInfo> objectsInfo;
+	std::map<uint32_t, NiPoint3> pos;
+
+	std::map<uint8_t, float> currentAVsOnServer; // percentage
 
 	uint32_t lastLocation = 0;
 
 	bool haveName = false;
+	bool allowUpdateAVs = false;
 
 	struct
 	{
@@ -79,7 +152,7 @@ class ClientLogic : public ci::IClientLogic
 		RakNet::SocketDescriptor socket;
 		std::string password, host, hardcodedPassword;
 		std::wstring nickname;
-		uint16_t port;
+		uint16_t port = 0;
 		std::wstring connectingMsg;
 
 		RakNet::SystemAddress remote = RakNet::UNASSIGNED_SYSTEM_ADDRESS;
@@ -89,6 +162,51 @@ class ClientLogic : public ci::IClientLogic
 		uint16_t myID = ~0;
 
 	} net;
+
+	struct {
+		enum {
+			InvalidAV,
+			Health,
+			Magicka,
+			Stamina,
+			HealRate,
+			MagickaRate,
+			StaminaRate,
+			HealRateMult,
+			MagickaRateMult,
+			StaminaRateMult,
+			_fSprintStaminaDrainMult,
+			_fSprintStaminaWeightBase,
+			_fSprintStaminaWeightMult,
+			CarryWeight,
+			UnarmedDamage,
+			NUM_AVS,
+		};
+		const std::string &GetAVName(uint8_t id) 
+		{
+			static const std::vector<std::string> names = {
+				"",
+				"Health",
+				"Magicka",
+				"Stamina",
+				"HealRate",
+				"MagickaRate",
+				"StaminaRate",
+				"HealRateMult",
+				"MagickaRateMult",
+				"StaminaRateMult",
+				"_fSprintStaminaDrainMult",
+				"_fSprintStaminaWeightBase",
+				"_fSprintStaminaWeightMult",
+				"CarryWeight",
+				"UnarmedDamage"
+			};
+			if (id < NUM_AVS)
+				return names[id];
+			else
+				return names[InvalidAV];
+		}
+	} av;
 
 	void ConnectToServer(const std::string &host,
 		uint16_t port,
@@ -131,6 +249,26 @@ class ClientLogic : public ci::IClientLogic
 				bsOut.Write(ID_UPDATE_MOVEMENT);
 				Serialize(bsOut, movementData);
 				net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+			}
+		}
+		for (auto it = objects.begin(); it != objects.end(); ++it)
+		{
+			const auto id = it->first;
+			const auto object = it->second;
+			if (objectsInfo[id].hostID == net.myID)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_HOSTED_OBJECT_MOVEMENT);
+				bsOut.Write(id);
+				bsOut.Write(object->GetPos().x);
+				bsOut.Write(object->GetPos().y);
+				bsOut.Write(object->GetPos().z);
+				bsOut.Write(object->GetRot().x);
+				bsOut.Write(object->GetRot().y);
+				bsOut.Write(object->GetRot().z);
+				bsOut.Write(object->IsGrabbed());
+				pos[id] = object->GetPos();
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
 			}
 		}
 
@@ -214,7 +352,7 @@ class ClientLogic : public ci::IClientLogic
 				players[net.myID] = ci::LocalPlayer::GetSingleton();
 				net.fullyConnected = true;
 				break;
-			case ID_CHAT_MESSAGE:
+			case ID_MESSAGE:
 			{
 				using T = uint16_t;
 				if (packet->length > (2 * sizeof(RakNet::MessageID)) + sizeof(T))
@@ -240,9 +378,6 @@ class ClientLogic : public ci::IClientLogic
 			}
 			case ID_MOVE_TO:
 			{
-				//remotePlayers.clear();
-
-
 				struct {
 					NiPoint3 pos;
 					uint16_t angleZ;
@@ -276,7 +411,7 @@ class ClientLogic : public ci::IClientLogic
 				});
 				break;
 			}
-			case ID_OTHER_PLAYER_MOVEMENT:
+			case ID_PLAYER_MOVEMENT:
 			{
 				uint16_t playerid = ~0;
 				bsIn.Read(playerid);
@@ -296,7 +431,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 				break;
 			}
-			case ID_OTHER_PLAYER_NAME:
+			case ID_PLAYER_NAME:
 			{
 				using T = uint16_t;
 				if (packet->length > (3 + sizeof(T)))
@@ -325,15 +460,16 @@ class ClientLogic : public ci::IClientLogic
 
 				break;
 			}
-			case ID_OTHER_PLAYER_CREATE:
+			case ID_PLAYER_CREATE:
 			{
 				uint16_t id = ~0;
 				ci::MovementData movement;
+				ci::LookData look;
 				uint32_t locationID = 0;
-				ci::LookData lookData = localPlayer->GetLookData();
 
 				bsIn.Read(id);
 				Deserialize(bsIn, movement);
+				Deserialize(bsIn, look);
 				bsIn.Read(locationID);
 
 				uint16_t characters;
@@ -350,10 +486,19 @@ class ClientLogic : public ci::IClientLogic
 				uint32_t cellID = localPlayer->GetCell();
 				uint32_t worldSpaceID = localPlayer->GetWorldSpace();
 
-				players[id] = new ci::RemotePlayer(name, lookData, movement.pos, cellID, worldSpaceID);
+				auto onHit = [this, id](const ci::HitEventData &eventData) {
+					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+					try {
+						this->OnHit(players.at(id), eventData);
+					}
+					catch (...) {
+					}
+				};
+
+				players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
 				break;
 			}
-			case ID_OTHER_PLAYER_DESTROY:
+			case ID_PLAYER_DESTROY:
 			{
 				uint16_t id = ~0;
 				bsIn.Read(id);
@@ -365,7 +510,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 				break;
 			}
-			case ID_OTHER_PLAYER_PAUSE:
+			case ID_PLAYER_PAUSE:
 			{
 				uint16_t id = ~0;
 				uint8_t isPaused;
@@ -382,7 +527,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 				break;
 			}
-			case ID_OTHER_PLAYER_LOOK:
+			case ID_PLAYER_LOOK:
 			{
 				uint16_t id = ~0;
 				ci::LookData look;
@@ -399,12 +544,107 @@ class ClientLogic : public ci::IClientLogic
 				});
 				break;
 			}
+			case ID_PLAYER_FURNITURE:
+			{
+				uint16_t playerID = ~0;
+				uint32_t furnitureID = 0;
+
+				bsIn.Read(playerID);
+				bsIn.Read(furnitureID);
+				try {
+
+					switch (objectsInfo[furnitureID].type)
+					{
+						// Что происходит ниже? Я ни*** не понимаю..
+					case Type::Furniture:
+					{
+						static std::map<uint16_t, uint32_t> lastFurnitureUsed;
+						auto pl = players.at(playerID);
+
+						auto it = objects.find(furnitureID);
+						if (it != objects.end())
+						{
+							pl->UseFurniture(it->second, true);
+							lastFurnitureUsed[playerID] = furnitureID;
+						}
+						else
+						{
+							enum {
+								mustBeTrue = true
+							};
+							pl->UseFurniture(objects.at(lastFurnitureUsed[playerID]), mustBeTrue); // 2nd activate to stop use furniture
+							lastFurnitureUsed.erase(playerID);
+						}
+						break;
+					}
+
+					case Type::Container:
+						players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+						break;
+
+					case Type::TeleportDoor:
+						players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+						break;
+					}
+				}
+				catch (...) {
+				}
+
+				break;
+			}
 			case ID_SHOW_RACE_MENU:
 				ci::ShowRaceMenu();
 				break;
+			case ID_SHOW_DIALOG:
+				using T = uint16_t;
+				using Index = int32_t;
+				using DialogID = uint32_t;
+				if (packet->length > (1 * sizeof(RakNet::MessageID)) + sizeof(T))
+				{
+					std::wstring title;
+					std::wstring text;
+					T characters;
+					T characters2;
+					bsIn.Read(characters);
+					bsIn.Read(characters2);
+
+
+					if (packet->length == sizeof(DialogID) + sizeof(Index) + sizeof(ci::Dialog::Style) + (1 * sizeof(RakNet::MessageID)) + 2 * sizeof(T) + sizeof(wchar_t) * characters + sizeof(wchar_t) * characters2)
+					{
+						for (size_t i = 0; i != characters; ++i)
+						{
+							wchar_t ch;
+							bsIn.Read(ch);
+							title += ch;
+						}
+						for (size_t i = 0; i != characters2; ++i)
+						{
+							wchar_t ch;
+							bsIn.Read(ch);
+							text += ch;
+						}
+						DialogID dialogID;
+						Index defaultIndex;
+						ci::Dialog::Style style;
+						bsIn.Read(dialogID);
+						bsIn.Read(defaultIndex);
+						bsIn.Read(style);
+
+						if (dialogID == ~0)
+						{
+							ci::Dialog::Hide();
+							break;
+						}
+
+						ci::Dialog::Show(title, style, text, defaultIndex, [=](ci::Dialog::Result result) {
+							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+							this->OnDialogResponse(dialogID, result);
+						});
+					}
+				}
+				break;
 			case ID_OBJECT_CREATE:
 			{
-				//ci::Chat::AddMessage(L"ID_OBJECT_CREATE");
 				uint32_t id = 0;
 				bool isNative = true;
 				uint32_t baseFormID;
@@ -422,17 +662,41 @@ class ClientLogic : public ci::IClientLogic
 				bsIn.Read(rot.y);
 				bsIn.Read(rot.z);
 
-				auto onActivate = [&](ci::Object *self, bool isOpen) {
-					std::lock_guard<std::mutex> l(IClientLogic::callbacksMutex);
-					this->OnActivate(self, isOpen); 
+				auto onActivate = [this, id](bool isOpen) {
+					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+					try {
+						this->OnActivate(objects.at(id), isOpen);
+					}
+					catch (...) {
+					}
 				};
-				objects[id] = new ci::Object(isNative ? id : 0, baseFormID, locationID, pos, rot, onActivate);
+
+				auto onContainerChanged = [this, id](const ci::ItemType *itemType, uint32_t count, bool isAdd) {
+					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+					try {
+						this->OnContainerChanged(objects.at(id), itemType, count, isAdd);
+					}
+					catch (...) {
+					}
+				};
+
+				auto onHit = [this, id](const ci::HitEventData &eventData) {
+					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+					try {
+						this->OnHit(objects.at(id), eventData);
+					}
+					catch (...) {
+					}
+				};
+
+				objects[id] = new ci::Object(isNative ? id : 0, baseFormID, locationID, pos, rot, onActivate, onContainerChanged, onHit);
+				objects[id]->SetDestroyed(true);
 				objectsInfo[id] = {};
+				objectsInfo[id].createMoment = clock();
 				break;
 			}
 			case ID_OBJECT_DESTROY:
 			{
-				//ci::Chat::AddMessage(L"ID_OBJECT_DESTROY");
 				uint32_t id = 0; 
 				bsIn.Read(id);
 				try {
@@ -459,8 +723,20 @@ class ClientLogic : public ci::IClientLogic
 				bsIn.Read(locationID);
 				try {
 					auto obj = objects.at(id);
-					obj->SetPosition(pos);
-					obj->SetAngle(rot);
+					if (objectsInfo[id].hostID != net.myID)
+					{
+						if (objectsInfo[id].hostID != 65535)
+						{
+							const float S = (pos - obj->GetPos()).Length();
+							const float t = 0.100f;
+							obj->TranslateTo(pos, rot, S / t, 300);
+						}
+						else
+						{
+							obj->SetPosition(pos);
+							obj->SetAngle(rot);
+						}
+					}
 					obj->SetLocation(locationID);
 				}
 				catch (...) {
@@ -492,42 +768,383 @@ class ClientLogic : public ci::IClientLogic
 			}
 			case ID_OBJECT_BEHAVIOR:
 			{
-				enum class Type : uint8_t
-				{
-					Static = 0x00,
-					Door = 0x01,
-					TeleportDoor = 0x02,
-				};
-
 				uint32_t id = 0;
 				Type type;
 				bool isOpen;
 				uint32_t teleportTargetID = 0;
+				bool isDisabled;
+				uint32_t itemsCount;
+				uint32_t itemTypeID;
+				uint16_t hostPlayerID;
 
 				bsIn.Read(id);
 				bsIn.Read(type);
 				bsIn.Read(isOpen);
 				bsIn.Read(teleportTargetID);
+				bsIn.Read(isDisabled);
+				bsIn.Read(itemsCount);
+				bsIn.Read(itemTypeID);
+				bsIn.Read(hostPlayerID);
 
 				try {
 					auto object = objects.at(id);
 
-					objectsInfo[id].type = static_cast<uint8_t>(type);
+					if (type == Type::Container)
+					{
+						uint32_t size;
+						bsIn.Read(size);
+						for (uint32_t i = 0; i != size; ++i)
+						{
+							uint32_t itemTypeID;
+							uint32_t count;
+							bsIn.Read(itemTypeID);
+							const bool read = bsIn.Read(count);
+							if (!read)
+								break;
+							auto type = itemTypes.at(itemTypeID);
+							object->AddItem(itemTypes[itemTypeID], count);
+						}
+
+						bsIn.Read(size);
+						for (uint32_t i = 0; i != size; ++i)
+						{
+							uint32_t itemTypeID;
+							uint32_t count;
+							bsIn.Read(itemTypeID);
+							const bool read = bsIn.Read(count);
+							if (!read)
+								break;
+							auto type = itemTypes.at(itemTypeID);
+							object->RemoveItem(itemTypes[itemTypeID], count);
+						}
+					}
+
+
+					objectsInfo[id].type = type;
+					objectsInfo[id].hostID = hostPlayerID;
+
+					if (hostPlayerID == net.myID)
+					{
+						ci::SetTimer(200, [=] {
+							hostedJustNow.insert(object);
+							ci::SetTimer(1800, [=] {
+								std::thread([=] {
+									std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+									hostedJustNow.erase(object);
+								}).detach();
+							});
+						});
+					}
+
+					object->SetDisabled(isDisabled);
 
 					switch (type)
 					{
+					case Type::Static:
+						break;
 					case Type::Door:
 						object->SetOpen(isOpen);
-						object->BlockActivation(false);
+						object->SetDestroyed(false);
+						object->BlockActivation(true);
 						break;
 					case Type::TeleportDoor:
 						object->SetOpen(isOpen);
-						object->BlockActivation(false);
+						switch (object->GetBase())
+						{
+						case 0x31897:
+						case 0x351EB:
+						case 0x180D8:
+							object->SetDestroyed(true);
+							object->BlockActivation(true);
+							break;
+						default:
+							object->SetDestroyed(false);
+							object->BlockActivation(false);
+							break;
+						}
 						break;
+					case Type::Activator:
+					case Type::Furniture:
+						object->SetDestroyed(false);
+						object->BlockActivation(true);
+						break;
+					case Type::Container:
+						object->SetDestroyed(false);
+						object->BlockActivation(true);
+						object->SetOpen(isOpen);
+						break;
+					case Type::Item:
+						object->SetDestroyed(false);
+						object->BlockActivation(true);
+						object->SetBase(itemTypes[itemTypeID]);
+						object->SetCount(itemsCount);
 					}
 				}
 				catch (...) {
 				}
+
+				break;
+			}
+			case ID_PLAYER_INVENTORY:
+			{
+				uint16_t playerID;
+				bool add;
+				uint32_t count1;
+
+				bsIn.Read(playerID);
+				bsIn.Read(add);
+				bsIn.Read(count1);
+
+				for (uint32_t i = 0; i != count1; ++i)
+				{
+					uint32_t itemTypeID;
+					uint32_t count;
+					bsIn.Read(itemTypeID);
+					bsIn.Read(count);
+
+					try {
+						auto asd = itemTypes.at(itemTypeID);
+					}
+					catch (...) {
+						ci::Log("WARN:Logic:AddItem ItemType %d not found", itemTypeID);
+					}
+
+
+					try {
+						if (add)
+						{
+							players.at(playerID)->AddItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
+						}
+						else
+							players.at(playerID)->RemoveItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
+						for (auto it = objects.begin(); it != objects.end(); ++it)
+						{
+							if (it->second)
+								it->second->AddItem(itemTypes.at(itemTypeID), 0);
+						}
+					}
+					catch (...) {
+					}
+				}
+
+				break;
+			}
+			case ID_PLAYER_EQUIPMENT:
+			{
+				uint16_t playerID;
+				bool add;
+				uint32_t count1;
+
+				bsIn.Read(playerID);
+				bsIn.Read(add);
+				bsIn.Read(count1);
+
+				for (uint32_t i = 0; i != count1; ++i)
+				{
+					uint32_t itemTypeID;
+					uint32_t count;
+					bsIn.Read(itemTypeID);
+					bsIn.Read(count);
+
+					try {
+						auto itemType = itemTypes.at(itemTypeID);
+					}
+					catch (...) {
+						ci::Log("WARN:Logic:EquipItem ItemType %d not found", itemTypeID);
+					}
+
+					try {
+						if (add)
+							players.at(playerID)->EquipItem(itemTypes.at(itemTypeID), silentInventoryChanges, false);
+						else
+							players.at(playerID)->UnequipItem(itemTypes.at(itemTypeID), silentInventoryChanges, false);
+					}
+					catch (...) {
+					}
+				}
+
+				if (add)
+				{
+					uint32_t rightHandWeapTypeID = ~0;
+					uint32_t leftHandWeapTypeID = ~0;
+					uint32_t ammoTypeID = ~0;
+					bsIn.Read(rightHandWeapTypeID);
+					bsIn.Read(leftHandWeapTypeID);
+					bsIn.Read(ammoTypeID);
+
+					try {
+						auto pl = players.at(playerID);
+						
+						if (rightHandWeapTypeID != ~0)
+						{
+							if (pl->GetEquippedWeapon(false) != itemTypes.at(rightHandWeapTypeID))
+								pl->EquipItem(itemTypes.at(rightHandWeapTypeID), true, false, false);
+						}
+						else
+							pl->UnequipItem(pl->GetEquippedWeapon(false), true, false, false);
+
+						if (leftHandWeapTypeID != ~0)
+						{
+							if (pl->GetEquippedWeapon(true) != itemTypes.at(leftHandWeapTypeID))
+							{
+								pl->EquipItem(itemTypes.at(leftHandWeapTypeID), true, false, true);
+							}
+						}
+						else
+							pl->UnequipItem(pl->GetEquippedWeapon(true), true, false, true);
+
+						if (ammoTypeID != ~0)
+							pl->EquipItem(itemTypes.at(ammoTypeID), true, false);
+						else
+							pl->UnequipItem(pl->GetEquippedAmmo(), true, false);
+					}
+					catch (...) {
+					}
+				}
+
+				break;
+			}
+			case ID_PLAYER_HIT:
+			{
+				uint16_t playerID;
+				uint8_t hitAnimID;
+				bsIn.Read(playerID);
+				bsIn.Read(hitAnimID);
+				try {
+					players.at(playerID)->PlayHitAnimation(hitAnimID);
+				}
+				catch (...) {
+				}
+				break;
+			}
+			case ID_PLAYER_AV:
+			{
+				uint16_t playerID;
+				bsIn.Read(playerID);
+				while (true)
+				{
+					uint8_t avID;
+					ci::AVData avData;
+					bsIn.Read(avID);
+					bsIn.Read(avData.base);
+					bsIn.Read(avData.modifier);
+					const bool read = bsIn.Read(avData.percentage);
+					if (!read)
+						break;
+					try {
+						currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
+
+						/*if (playerID == net.myID)
+						{
+							static std::map<uint8_t, bool> moded;
+							if (!moded[avID])
+							{
+								if (avID == av.Health || avID == av.Stamina || avID == av.Magicka)
+								{
+									auto avData2 = avData;
+									avData2.modifier += 0.01;
+									players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData2);
+									moded[avID] = true;
+								}
+							}
+						}*/
+						ci::SetTimer(avID == av.Health ? 200 : 0, [=] {
+							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+							players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
+						});
+						allowUpdateAVs = true;
+					}
+					catch (...) {
+					}
+				}
+				break;
+			}
+			case ID_ITEMTYPES:
+			{
+				struct
+				{
+					uint32_t id;
+					uint8_t classID;
+					uint8_t subclassID;
+					uint32_t existingFormID;
+					float weight;
+					uint32_t goldVal;
+					float armorRating;
+					float damage;
+					uint32_t equipSlot;
+				} itemType;
+				bsIn.Read(itemType.id);
+				bsIn.Read(itemType.classID);
+				bsIn.Read(itemType.subclassID);
+				bsIn.Read(itemType.existingFormID);
+				bsIn.Read(itemType.weight);
+				bsIn.Read(itemType.goldVal);
+				bsIn.Read(itemType.armorRating);
+				bsIn.Read(itemType.damage);
+				bsIn.Read(itemType.equipSlot);
+
+				if (itemTypes[itemType.id] == nullptr)
+					itemTypes[itemType.id] = new ci::ItemType(
+						static_cast<ci::ItemType::Class>(itemType.classID), 
+						static_cast<ci::ItemType::Subclass>(itemType.subclassID), 
+						itemType.existingFormID);
+
+				itemTypes[itemType.id]->SetGoldValue(itemType.goldVal);
+				itemTypes[itemType.id]->SetWeight(itemType.weight);
+				itemTypes[itemType.id]->SetArmorRating(itemType.armorRating);
+				itemTypes[itemType.id]->SetDamage(itemType.damage);
+				break;
+			}
+			case ID_WEATHER:
+			{
+				uint32_t wTypeOrID;
+				bsIn.Read(wTypeOrID);
+				switch (wTypeOrID)
+				{
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					ci::SetWeatherType(wTypeOrID);
+					break;
+				default:
+					ci::SetWeather(wTypeOrID);
+					break;
+				}
+				break;
+			}
+			case ID_GLOBAL_VARIABLE:
+			{
+				uint32_t globalID;
+				float val;
+				bsIn.Read(globalID);
+				bsIn.Read(val);
+				ci::SetGlobalVariable(globalID, val);
+				break;
+			}
+			case ID_SILENT:
+			{
+				bool silent;
+				bsIn.Read(silent);
+				silentInventoryChanges = silent;
+				break;
+			}
+			case ID_COMMAND:
+			{
+				std::string str;
+				ci::CommandType t = ci::CommandType::CDScript;
+				bsIn.Read(t);
+				char ch;
+				while (bsIn.Read(ch))
+					str += ch;
+				if (str.size() > 0)
+					str.erase(str.end() - 1);
+				ci::ExecuteCommand(t, str);
+				//ci::Chat::AddMessage(L"cmd " + StringToWstring(str), 0);
+
+				//std::ostringstream ss2;
+				//ss2 << "Sound.Play(Form:" << 0x000137D4 << ",Form:20)";
+				//ci::ExecuteCommand(t, ss2.str());
 
 				break;
 			}
@@ -594,14 +1211,68 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(id);
 		bsOut.Write(isOpen);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
+		/*if (!isOpen && objectsInfo[id].type == Type::Container)
+			self->Respawn();*/
+	}
+
+	void OnContainerChanged(ci::Object *self, const ci::ItemType *itemType, uint32_t count, bool isAdd)
+	{
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_CONTAINER_CHANGED);
+
+		uint32_t itemTypeID;
+		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
+			if (it->second == itemType)
+			{
+				itemTypeID = it->first;
+				break;
+			}
+		bsOut.Write(itemTypeID);
+		bsOut.Write(count);
+		bsOut.Write(isAdd);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void OnHit(ci::IActor *self, const ci::HitEventData &eventData)
+	{
+		const auto playerID = GetID(self);
+		const auto weaponID = GetID(eventData.weapon);
+
+		//ci::Chat::AddMessage(L"Local Hit: " + self->GetName() + L" or " + players.at(playerID)->GetName());
+
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_HIT_PLAYER);
+		bsOut.Write(playerID);
+		bsOut.Write(weaponID);
+		bsOut.Write(eventData.powerAttack);
+		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void OnHit(ci::Object *self, const ci::HitEventData &eventData)
+	{
+		const auto objectID = GetID(self);
+		const auto weaponID = GetID(eventData.weapon);
+
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_HIT_OBJECT);
+		bsOut.Write(objectID);
+		bsOut.Write(weaponID);
+		bsOut.Write(eventData.powerAttack);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
 	void OnWorldInit() override
 	{
 	}
 
+	std::function<void()> test_onUpd;
+
 	void OnUpdate() override
 	{
+		if (test_onUpd)
+			test_onUpd();
+
 		if (ci::IsInDebug())
 			return;
 		try {
@@ -638,6 +1309,10 @@ class ClientLogic : public ci::IClientLogic
 			{
 				cl = clNow;
 				UpdateNetworking();
+				UpdateObjects();
+				UpdateEquipment();
+				UpdateCombat();
+				UpdateActorValues();
 			}
 			catch (...)
 			{
@@ -666,7 +1341,7 @@ class ClientLogic : public ci::IClientLogic
 			return;
 
 		RakNet::BitStream bsOut;
-		bsOut.Write(ID_CHAT_MESSAGE);
+		bsOut.Write(ID_MESSAGE);
 		bsOut.Write((uint16_t)text.size());
 		for (auto it = text.begin(); it != text.end(); ++it)
 			bsOut.Write(*it);
@@ -701,13 +1376,13 @@ class ClientLogic : public ci::IClientLogic
 			}
 			else
 			{
-				obj = new ci::Object(0x0005815F, 0x00024E26, 0x000580A2, { 3420, 1021, 7298 }, { 0,0,0 }, nullptr);
+				obj = new ci::Object(0x0005815F, 0x00024E26, 0x000580A2, { 3420, 1021, 7298 }, { 0,0,0 });
 			}
 		}
 		else if (cmdText == L"//qnnu")
 		{
 			ci::Chat::AddMessage(L"#bebebe>> QueueNiNodeUpdate()");
-			ci::ExecuteConsoleCommand(L"skymp qnnu");
+			ci::ExecuteCommand(ci::CommandType::Console, L"skymp qnnu");
 		}
 		else if (cmdText == L"//ld")
 		{
@@ -736,7 +1411,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//worldspaces")
 		{
-			ci::ExecuteConsoleCommand(L"skymp worldspaces");
+			ci::ExecuteCommand(ci::CommandType::Console, L"skymp worldspaces");
 		}
 		else if (cmdText == L"//testld_save")
 		{
@@ -748,6 +1423,71 @@ class ClientLogic : public ci::IClientLogic
 			new ci::RemotePlayer(L"TestPlayer", testLookData, localPlayer->GetPos(), localPlayer->GetCell(), localPlayer->GetWorldSpace());
 			ci::Chat::AddMessage(L"testld_spawn");
 			ci::Chat::AddMessage(L"[Test] TintMasks count = " + std::to_wstring(testLookData.tintmasks.size()));
+		}
+		else if (cmdText == L"//clone")
+		{
+			ci::IActor *localPlayer =
+				ci::LocalPlayer::GetSingleton();
+
+			ci::IActor *p =
+				new ci::RemotePlayer(*localPlayer); // ci::RemotePlayer может быть скопирован из любого наследника IActor
+
+			static std::vector<ci::ItemType *> armorLast, weaponsLast;
+
+			auto onUpd = [=] {
+				auto movement = localPlayer->GetMovementData();
+				movement.pos += {128, 128, 0};
+				p->ApplyMovementData(movement);
+
+				RakNet::BitStream bs;
+				Serialize(bs, movement);
+				Deserialize(bs, movement);
+
+				auto armor = localPlayer->GetEquippedArmor();
+
+				if (armor != armorLast)
+				{
+					for (auto item : armorLast)
+					{
+						p->UnequipItem(item, true, false);
+					}
+					for (auto item : armor)
+					{
+						p->AddItem(item, 1, true);
+						p->EquipItem(item, true, true);
+					}
+					armorLast = armor;
+				}
+
+				auto weapons = std::vector<ci::ItemType *>{
+					localPlayer->GetEquippedWeapon(0), localPlayer->GetEquippedWeapon(1) , localPlayer->GetEquippedAmmo()
+				};
+				if (weapons != weaponsLast)
+				{
+					int32_t handID = 0;
+					for (auto item : weapons)
+					{
+						if (item == nullptr)
+							continue;
+						p->AddItem(item, 1, true);
+						p->EquipItem(item, true, true, handID++ != 0);
+					}
+					weaponsLast = weapons;
+				}
+
+				for (int i = 0; i != 2; ++i)
+				{
+					const bool bI = i != 0;
+					if (localPlayer->GetEquippedWeapon(bI) == nullptr)
+						if (p->GetEquippedWeapon(bI) != nullptr)
+							p->UnequipItem(p->GetEquippedWeapon(0), true, false, bI);
+				}
+				if (localPlayer->GetEquippedAmmo() == nullptr)
+					if (p->GetEquippedAmmo() != nullptr)
+						p->UnequipItem(p->GetEquippedAmmo(), true, false);
+			};
+
+			test_onUpd = onUpd;
 		}
 		else
 		{
@@ -784,6 +1524,281 @@ class ClientLogic : public ci::IClientLogic
 
 			});
 		}
+	}
+
+	void OnItemDropped(const ci::ItemType *itemType, uint32_t count) override
+	{
+		uint32_t itemTypeID = ~0;
+		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
+			if (it->second == itemType)
+			{
+				itemTypeID = it->first;
+				break;
+			}
+
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_DROPITEM);
+		bsOut.Write(itemTypeID);
+		bsOut.Write(count);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+		//ci::Chat::AddMessage(L"OnItemDropped " + std::to_wstring(count));
+	}
+
+	uint32_t GetItemTypeID(const ci::ItemType *itemType)
+	{
+		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
+			if (it->second == itemType)
+				return it->first;
+		return ~0;
+	}
+
+	void UpdateObjects()
+	{
+		for (auto it = objects.begin(); it != objects.end(); ++it)
+		{
+			const uint32_t id = it->first;
+			const auto object = it->second;
+			if (objectsInfo[id].isDynamic)
+			{
+				OnObjectMove(object);
+			}
+
+			if (object->IsGrabbed())
+			{
+				static bool timerSet = false;
+				if (!timerSet)
+				{
+					timerSet = true;
+					ci::SetTimer(1333, [=] {
+						try {
+							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+							auto object = objects.at(id);
+							if (objectsInfo[id].hostID != net.myID)
+							{
+								auto pos = object->GetPos();
+								object->Respawn();
+								object->SetPosition(pos);
+							}
+						}
+						catch (...) {
+						}
+						timerSet = false;
+					});
+				}
+			}
+
+			const auto hostPlayerID = objectsInfo[id].hostID;
+			if ((hostedJustNow.find(object) != hostedJustNow.end() || object->IsCrosshairRef() || (localPlayer->GetPos() - object->GetPos()).Length() < 128)
+				&& (hostPlayerID == 65535 || hostPlayerID == net.myID))
+			{
+				if (!objectsInfo[id].isDynamic)
+				{
+					object->SetMotionType(ci::Object::Motion_Dynamic);
+					objectsInfo[id].isDynamic = true;
+				}
+			}
+
+			else
+			{
+				if (object->GetSpeed() == 0)
+				{
+					if (objectsInfo[id].isDynamic)
+					{
+						object->SetMotionType(ci::Object::Motion_Keyframed);
+						objectsInfo[id].isDynamic = false;
+					}
+				}
+			}
+		}
+	}
+
+	void UpdateEquipment()
+	{
+		enum class EquipType : uint8_t
+		{
+			RightHand =		0x00,
+			LeftHand =		0x01,
+			Armor =			0x02,
+			Ammo =			0x03,
+		};
+
+		static std::vector<ci::ItemType *> eqWas;
+		std::vector<ci::ItemType *> eq = localPlayer->GetEquippedArmor();
+		if (eqWas != eq)
+		{
+			std::vector<ci::ItemType *> equipped;
+			std::set_difference(eq.begin(), eq.end(), eqWas.begin(), eqWas.end(),
+				std::inserter(equipped, equipped.begin()));
+
+			for (auto it = equipped.begin(); it != equipped.end(); ++it)
+			{
+				uint32_t itemTypeID = GetItemTypeID(*it);
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
+				bsOut.Write(itemTypeID);
+				bsOut.Write(true);
+				bsOut.Write(EquipType::Armor);
+				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+			}
+
+			std::vector<ci::ItemType *> unequipped;
+			std::set_difference(eqWas.begin(), eqWas.end(), eq.begin(), eq.end(),
+				std::inserter(unequipped, unequipped.begin()));
+
+			for (auto it = unequipped.begin(); it != unequipped.end(); ++it)
+			{
+				uint32_t itemTypeID = GetItemTypeID(*it);
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
+				bsOut.Write(itemTypeID);
+				bsOut.Write(false);
+				bsOut.Write(EquipType::Armor);
+				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+			}
+
+			eqWas = std::move(eq);
+		}
+
+		{
+			static const ci::ItemType *leftHandWas = nullptr;
+			const ci::ItemType *leftHand = localPlayer->GetEquippedWeapon(true);
+			if (leftHandWas != leftHand)
+			{
+				uint32_t itemTypeID = GetItemTypeID(leftHand);
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
+				bsOut.Write(itemTypeID);
+				bsOut.Write(true);
+				bsOut.Write(EquipType::LeftHand);
+				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
+				leftHandWas = leftHand;
+			}
+		}
+		{
+			static const ci::ItemType *rightHandWas = nullptr;
+			const ci::ItemType *rightHand = localPlayer->GetEquippedWeapon(false);
+			if (rightHandWas != rightHand)
+			{
+				uint32_t itemTypeID = GetItemTypeID(rightHand);
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
+				bsOut.Write(itemTypeID);
+				bsOut.Write(true);
+				bsOut.Write(EquipType::RightHand);
+				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
+				rightHandWas = rightHand;
+			}
+		}
+		{
+			static const ci::ItemType *ammoWas = nullptr;
+			const ci::ItemType *ammo = localPlayer->GetEquippedAmmo();
+			if (ammoWas != ammo)
+			{
+				uint32_t itemTypeID = GetItemTypeID(ammo);
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
+				bsOut.Write(itemTypeID);
+				bsOut.Write(true);
+				bsOut.Write(EquipType::Ammo);
+				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
+				ammoWas = ammo;
+			}
+		}
+	}
+
+	void UpdateCombat()
+	{
+		const auto hitAnimIDPtr = dynamic_cast<ci::LocalPlayer *>(localPlayer)->GetNextHitAnim();
+		if (hitAnimIDPtr != nullptr)
+		{
+			RakNet::BitStream bsOut;
+			bsOut.Write(ID_ANIMATION_EVENT_HIT);
+			bsOut.Write(*hitAnimIDPtr);
+			net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+		}
+	}
+
+	void UpdateActorValues()
+	{
+		if (allowUpdateAVs == false)
+			return;
+		static clock_t lastUpd = 0;
+		if (lastUpd + 333 < clock())
+		{
+			lastUpd = clock();
+			for (uint8_t avID = av.Health; avID <= av.Stamina; ++avID)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_AV_CHANGED);
+				const auto name = av.GetAVName(avID);
+				const auto avData = localPlayer->GetAVData(name);
+				auto p = avData.percentage;
+				if (p < 0)
+					p = 0;
+				else if (p > 1)
+					p = 1;
+				if (p != currentAVsOnServer[avID])
+				{
+					static_assert(sizeof(avID) == 1, "");
+					bsOut.Write(avID);
+					bsOut.Write(p);
+					currentAVsOnServer[avID] = p;
+				}
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+			}
+		}
+	}
+
+	void OnObjectMove(ci::Object *object)
+	{
+		uint32_t id = 0;
+		for (auto it = objects.begin(); it != objects.end(); it++)
+		{
+			if (it->second == object)
+			{
+				id = it->first;
+				break;
+			}
+		}
+		if (!id)
+			return;
+
+		static clock_t lastPausedMoment = 0;
+		if (ci::IsInPause())
+		{
+			lastPausedMoment = clock();
+		}
+
+		static clock_t lastHostReq = 0;
+		if (objectsInfo[id].hostID == 65535)
+		{
+			if(lastPausedMoment + 2000 < clock())
+				if ((object->GetPos() - pos[id]).Length() > 8.0f && lastHostReq + 0 <= clock())
+				{
+					lastHostReq = clock();
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_HOST_START);
+					bsOut.Write(id);
+					net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+					pos[id] = object->GetPos();
+				}
+		}
+	}
+
+	void OnDialogResponse(uint32_t dialogID, ci::Dialog::Result result)
+	{
+		//ci::Chat::AddMessage(L"OnDialogResponse " + std::to_wstring(dialogID) + L' ' + result.inputText + L' ' + std::to_wstring(result.listItem));
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_DIALOG_RESPONSE);
+		bsOut.Write((uint16_t)result.inputText.size());
+		for (auto it = result.inputText.begin(); it != result.inputText.end(); ++it)
+			bsOut.Write(*it);
+		bsOut.Write(result.listItem);
+
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 };
 

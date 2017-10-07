@@ -7,6 +7,7 @@
 #include "Overlay\Input.h"
 
 #include <iomanip>
+#include <chrono>
 
 #include "Costile\Costile2.h"  // Costile2::Register();
 #include "Costile\CostileDragon.h"
@@ -25,8 +26,15 @@ namespace ci
 
 bool IsSkympDebug()
 {
-	std::ifstream is_file("skymp_debug.txt");
-	return is_file.good();
+	static std::mutex mutex;
+	std::lock_guard<std::mutex> l(mutex);
+	static bool *isSkympDebugPtr = nullptr;
+	if (isSkympDebugPtr == nullptr)
+	{
+		std::ifstream is_file("skymp_debug.txt");
+		isSkympDebugPtr = new bool(is_file.good());
+	}
+	return *isSkympDebugPtr;
 }
 
 void other_thread(void *);
@@ -42,7 +50,8 @@ public:
 	{
 		if (!Requires(kSKSEVersion_1_7_1, SKSEPapyrusInterface::Version_1))
 		{
-			gLog << "ERROR: your skse version is too old" << std::endl;
+			//gLog << "ERROR: your skse version is too old" << std::endl;
+			ErrorHandling::SendError("FATAL:Client your skse version is too old");
 			return false;
 		}
 
@@ -79,7 +88,7 @@ public:
 			if (evn->caster != g_thePlayer)
 				return {};
 			auto ref = evn->target;
-			Timer::Set(0, [ref] {
+			SET_TIMER(0, [ref] {
 				uint32_t locationID = 0;
 				const char *locationName = "";
 				auto cell = sd::GetParentCell(ref);
@@ -146,7 +155,7 @@ public:
 		auto &logic = ci::IClientLogic::clientLogic;
 		if (logic)
 		{
-			std::lock_guard<std::mutex> l(logic->callbacksMutex);
+			std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 			logic->OnWorldInit();
 		}
 
@@ -158,38 +167,110 @@ public:
 		sd::ExecuteConsoleCommand("player.aps Costile _PlaceAtMe_", 0);
 		sd::ExecuteConsoleCommand("player.aps Costile _SetPosition_", 0);
 		sd::ExecuteConsoleCommand("player.aps Costile _SendAnimationEvent_", 0);
+		sd::ExecuteConsoleCommand("player.aps Costile _ShowList_", 0);
 		for (SInt32 i = 0; i != 10; ++i)
 			sd::ExecuteConsoleCommand("player.aps Costile _KeepOffsetFromActor_", 0);
 		for (SInt32 i = 0; i != 10; ++i)
 			sd::ExecuteConsoleCommand("player.aps Costile _TranslateTo_", 0);
 
-		Timer::Set(0, [] {
+		SET_TIMER(0, [] {
 			sd::ExecuteConsoleCommand("player.aps Costile PostLoad", 0);
 			sd::FadeOutGame(0, 1, 0.3, 0.5);
 		});
 
 		while (1)
 		{
-			try
-			{
+			try {
+
+				/*static int16_t stateWas;
+				const auto state = (int16_t)sd::Obscript::GetAttackState(g_thePlayer);
+				if (stateWas != state)
+				{
+					stateWas = state;
+					ci::Chat::AddMessage(std::to_wstring(state));
+				}*/
+
+				this->lastUpdateMT = clock();
+
 				sd::Wait(0);
 
-				if (TheChat)
-					TheChat->Update();
+				auto callAndGetTime = [](std::function<void()> callable) {
+					clock_t startTime = clock();
+					callable();
+					clock_t now = clock();
+					return now - startTime;
+				};
 
-				Timer::Update();
-				WorldCleaner::GetSingleton()->Update();
-				ci::RemotePlayer::UpdateAll();
-				ci::LocalPlayer::GetSingleton()->Update();
-				ci::Object::UpdateAll();
+				auto cChat = callAndGetTime([&] {
+					try {
+						if (TheChat)
+							TheChat->Update();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:Chat");
+					}
+				});
+
+				auto cTimer = callAndGetTime([&] {
+					try {
+						Timer::Update();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:Timer");
+					}
+				});
+
+				auto cWorldCleaner = callAndGetTime([&] {
+					try {
+						WorldCleaner::GetSingleton()->Update();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:WorldCleaner");
+					}
+				});
+
+				auto cRemotePlayer = callAndGetTime([&] {
+					try {
+						ci::RemotePlayer::UpdateAll();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:RemotePlayer");
+					}
+				});
+
+				auto cLocalPlayer = callAndGetTime([&] {
+					try {
+						ci::LocalPlayer::GetSingleton()->Update();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:LocalPlayer");
+					}
+				});
+
+				auto cObject = callAndGetTime([&] {
+					try {
+						ci::Object::UpdateAll();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:Object");
+					}
+				});
+
+				if (sd::GetKeyPressed(0x31))
+				{
+					std::wstringstream ss;
+					ss << L"Chat:"		<< cChat << L' ';
+					ss << L"Timer:"		<< cTimer << L' ';
+					ss << L"WC:"		<< cWorldCleaner << L' ';
+					ss << L"RemotePl:"	<< cRemotePlayer << L' ';
+					ss << L"LocalPl:"	<< cLocalPlayer << L' ';
+					ss << L"Object:"	<< cObject;
+					//ci::Chat::AddMessage(ss.str());
+				}
+
 			}
-			catch (const std::exception &e)
-			{
-				sd::PrintNote("Exception in MT (Not crash): %s", e.what());
-			}
-			catch (...)
-			{
-				sd::PrintNote("Exception in MT (Not crash): %s", "Unknown");
+			catch (...) {
+				ErrorHandling::SendError("ERROR:Unknown");
 			}
 		}
 	}
@@ -201,7 +282,11 @@ public:
 			ci::SetTimer(1000, [] {
 				const auto hModule = GetModuleHandle("SkyrimSouls.dll");
 				if (!hModule)
+				{
+					ErrorHandling::SendError("FATAL:Client SkyrimSouls.dll not found");
+					Sleep(1000);
 					std::exit(EXIT_FAILURE);
+				}
 			});
 		}
 
@@ -238,13 +323,48 @@ public:
 
 		MenuDisabler::SetDisabled("Tutorial Menu", true);
 		MenuDisabler::SetDisabled("Console", true);
+		//PlayerControls_::SetEnabled(Control::Console, true);
 
 		auto &logic = ci::IClientLogic::clientLogic;
+
+		std::thread([this] {
+			while (1)
+			{
+				Sleep(2000);
+				if (ci::IsInPause() || !Utility::IsForegroundProcess())
+					this->lastUpdateMT = NULL;
+
+				if (this->lastUpdateMT != NULL && this->lastUpdateMT + 5000 < clock())
+				{
+					if (GameSettings::IsFullScreen())
+					{
+						ErrorHandling::SendError("FATAL:Client Game thread is not responding");
+						Sleep(1000);
+						std::exit(EXIT_FAILURE);
+					}
+					else
+					{
+						ErrorHandling::SendError("ERROR:Client Game thread is not responding");
+					}
+				}
+			}
+		}).detach();
 
 		while (1)
 		{
 			try
 			{
+				if (sd::GetKeyPressed(VK_LMENU) && sd::GetKeyPressed(VK_F4))
+				{
+					if (Utility::IsForegroundProcess())
+					{
+						//if (ci::IsInPause())
+						std::exit(0);
+					}
+				}
+
+				ci::LocalPlayer::GetSingleton()->Update_OT();
+
 				if (TheChat)
 					TheChat->Update_OT();
 
@@ -284,10 +404,10 @@ public:
 							enum {
 								safe = true
 							};
-							auto menus = { "TutorialMenu","MessageBoxMenu","TweenMenu","InventoryMenu","MagicMenu","ContainerMenu","FavoritesMenu","BarterMenu","TrainingMenu","LockpickingMenu","BookMenu","GiftMenu", "SleepWaitMenu","CustomMenu","FadeOutDist" };
+							auto menus = { "Console","TutorialMenu","MessageBoxMenu","TweenMenu","InventoryMenu","MagicMenu","ContainerMenu","FavoritesMenu","BarterMenu","TrainingMenu","LockpickingMenu","BookMenu","GiftMenu", "SleepWaitMenu","CustomMenu","FadeOutDist" };
 							for (auto menu : menus)
 								PauseDisabler::SetPauseDisabledInMenu(menu, true, safe);
-							auto menusWithPause = { "Console","JournalMenu" };
+							auto menusWithPause = { "JournalMenu" };
 							for (auto menu : menusWithPause)
 								PauseDisabler::SetPauseDisabledInMenu(menu, false, safe);
 						}
@@ -300,29 +420,18 @@ public:
 						{
 							onStartupCalled = true;
 							ci::SetTimer(800, [=] {
-								std::lock_guard<std::mutex> l(logic->callbacksMutex);
+								std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 								logic->OnStartup();
 							});
 						}
 					}
 
-					auto isForegroundProcess = [](DWORD pid)
-					{
-						HWND hwnd = GetForegroundWindow();
-						if (hwnd == NULL)
-							return false;
-						DWORD foregroundPid;
-						if (GetWindowThreadProcessId(hwnd, &foregroundPid) == 0)
-							return false;
-						return (foregroundPid == pid);
-					};
-
 					if (!TheChat || !TheChat->IsTyping())
 					{
-						if (isForegroundProcess(GetCurrentProcessId()) && !IsSkympDebug())
+						if (Utility::IsForegroundProcess() && !IsSkympDebug())
 						{
-							keybd_event(VK_UP, DIK_UPARROW, NULL, NULL);
-							keybd_event(VK_UP, DIK_UPARROW, KEYEVENTF_KEYUP, NULL);
+							keybd_event(VK_UP, DIK_DOWNARROW, NULL, NULL);
+							keybd_event(VK_UP, DIK_DOWNARROW, KEYEVENTF_KEYUP, NULL);
 
 							if (KeyboardManager::GetSingletone()->GetKeyPressed(DIK_LALT) == false)
 							{
@@ -381,7 +490,7 @@ public:
 
 						if (logic && !lexs.empty() && !lexs[0].empty())
 						{
-							std::lock_guard<std::mutex> l(logic->callbacksMutex);
+							std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 							if (lexs[0][0] == L'/')
 							{
 								const auto cmdText = lexs[0];
@@ -406,7 +515,7 @@ public:
 					if (lastOnUpdateCallMoment + ci::updateRateMS <= clock())
 					{
 						lastOnUpdateCallMoment = clock();
-						std::lock_guard<std::mutex> l(logic->callbacksMutex);
+						std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 						logic->OnUpdate();
 					}
 				}
@@ -418,12 +527,15 @@ public:
 			}
 			catch (...)
 			{
-				Timer::Set(0, [] {
+				SET_TIMER(0, [] {
 					sd::ShowMessageBox("Exception in OT");
 				});
 			}
 		}
 	}
+
+private:
+	clock_t lastUpdateMT = 0;
 
 } thePlugin;
 

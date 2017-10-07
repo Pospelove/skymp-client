@@ -5,10 +5,11 @@ class Timer
 public:
 	using callback = std::function<void(void)>;
 
-	static void Set(UInt32 ms, callback fn);
+	static void Set(UInt32 ms, callback fn, uint32_t dbgLine = 0, std::string dbgFile = "");
+	static void SetLight(UInt32 ms, callback fn, uint32_t dbgLine = 0, std::string dbgFile = "");
 	static void Update();
 
 private:
 	Timer();
-	static std::recursive_mutex mutex;
+	static dlf_mutex mutex;
 };

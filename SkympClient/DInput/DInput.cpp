@@ -26,18 +26,15 @@ public:
 		return (InputHook*)TheIInputHook;
 	}
 
-	bool IsInputEnabled()
-	{
+	bool IsInputEnabled() {
 		return mEnabled;
 	}
 
-	void SetInputEnabled(bool input)
-	{
+	void SetInputEnabled(bool input) {
 		mEnabled = input;
 	}
 
-	void AddListener(InputListener *listener)
-	{
+	void AddListener(InputListener *listener) {
 		if (listener != nullptr)
 			mListeners.insert(listener);
 	}
@@ -47,8 +44,7 @@ public:
 
 private:
 
-	InputHook() : mEnabled(true)
-	{
+	InputHook() : mEnabled(true) {
 		memset(m_buffer, 0, 256);
 		memset(m_mouseBuffer, 0, 4);
 	}
@@ -85,9 +81,7 @@ void InputHook::ProcessKeyboardData(uint8_t* apData)
 	}
 
 	if (!mEnabled)
-	{
 		memset(apData, 0, 256);
-	}
 }
 
 void InputHook::ProcessMouseData(DIMOUSESTATE2* apMouseState)
@@ -128,18 +122,15 @@ public:
 	{
 	}
 
-	HRESULT _stdcall QueryInterface(REFIID riid, LPVOID * ppvObj)
-	{
+	HRESULT _stdcall QueryInterface(REFIID riid, LPVOID * ppvObj) {
 		return mRealDevice->QueryInterface(riid, ppvObj);
 	}
 
-	ULONG _stdcall AddRef(void)
-	{
+	ULONG _stdcall AddRef(void)	{
 		return mRealDevice->AddRef();
 	}
 
-	ULONG _stdcall Release(void)
-	{
+	ULONG _stdcall Release(void) {
 		ULONG count = mRealDevice->Release();
 
 		if (count == 0)
@@ -158,8 +149,7 @@ public:
 	HRESULT _stdcall Acquire(void) { return mRealDevice->Acquire(); }
 	HRESULT _stdcall Unacquire(void) { return mRealDevice->Unacquire(); }
 
-	HRESULT _stdcall GetDeviceState(DWORD outDataLen, LPVOID outData)
-	{
+	HRESULT _stdcall GetDeviceState(DWORD outDataLen, LPVOID outData) {
 		if (mKeyboard)
 		{
 			uint8_t	rawData[256];
@@ -188,8 +178,7 @@ public:
 
 	}
 
-	HRESULT _stdcall GetDeviceData(DWORD dataSize, DIDEVICEOBJECTDATA * outData, DWORD * outDataLen, DWORD flags)
-	{
+	HRESULT _stdcall GetDeviceData(DWORD dataSize, DIDEVICEOBJECTDATA * outData, DWORD * outDataLen, DWORD flags) {
 		HRESULT ret = mRealDevice->GetDeviceData(dataSize, outData, outDataLen, flags);
 
 		if (!InputHook::GetInstance()->IsInputEnabled())
@@ -205,8 +194,6 @@ public:
 			{
 				InputHook::GetInstance()->ProcessKeyboardData(rawData);
 			}
-
-			
 		}
 
 		return ret;
@@ -250,13 +237,11 @@ class myDirectInput : public IDirectInput8A
 
 	HRESULT _stdcall QueryInterface(REFIID riid, LPVOID* ppvObj) { return mRealInput->QueryInterface(riid, ppvObj); }
 
-	ULONG _stdcall AddRef(void)
-	{
+	ULONG _stdcall AddRef(void) {
 		return mRealInput->AddRef();
 	}
 
-	ULONG _stdcall Release(void)
-	{
+	ULONG _stdcall Release(void) {
 		ULONG count = mRealInput->Release();
 
 		if (count == 0)
@@ -268,8 +253,7 @@ class myDirectInput : public IDirectInput8A
 		return count;
 	}
 
-	HRESULT _stdcall CreateDevice(REFGUID typeGuid, IDirectInputDevice8A ** device, IUnknown * unused)
-	{
+	HRESULT _stdcall CreateDevice(REFGUID typeGuid, IDirectInputDevice8A ** device, IUnknown * unused) {
 		if (typeGuid != GUID_SysKeyboard && typeGuid != GUID_SysMouse)
 		{
 			return mRealInput->CreateDevice(typeGuid, device, unused);
@@ -306,7 +290,7 @@ static tDirectInput8Create	DirectInput8Create_RealFunc;
 static HRESULT _stdcall FakeDirectInput8Create(HINSTANCE instance, DWORD version, REFIID iid, void * out, IUnknown * outer)
 {
 	IDirectInput8A * dinput;
-	HRESULT hr = DirectInput8Create_RealFunc(instance, version, iid, &dinput, outer);
+	const HRESULT hr = DirectInput8Create_RealFunc(instance, version, iid, &dinput, outer);
 
 	if (hr != DI_OK) 
 		return hr;
@@ -316,9 +300,9 @@ static HRESULT _stdcall FakeDirectInput8Create(HINSTANCE instance, DWORD version
 	return DI_OK;
 }
 
-void HookDirectInput()
+void HookDirectInput() 
 {
-	UInt32	thunkAddress = (UInt32)GetIATAddr((UInt8 *)GetModuleHandle(NULL), "dinput8.dll", "DirectInput8Create");
+	const UInt32 thunkAddress = (UInt32)GetIATAddr((UInt8 *)GetModuleHandle(NULL), "dinput8.dll", "DirectInput8Create");
 
 	DirectInput8Create_RealFunc = (tDirectInput8Create)*(DWORD *)thunkAddress;
 	SafeWrite32(thunkAddress, (DWORD)FakeDirectInput8Create);

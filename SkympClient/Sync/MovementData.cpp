@@ -3,7 +3,9 @@
 #include "Skyrim\Camera\PlayerCamera.h"
 #include "..\ScriptDragon\obscript.h"
 #include "MovementData.h"
+#include "Skyrim\NetImmerse\NiCamera.h"
 
+void HitData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName);
 
 namespace MovementData_
 {
@@ -14,6 +16,64 @@ namespace MovementData_
 	bool isPCBlocking = false;
 	clock_t weapDrawStart = 0;
 	clock_t lastAnySwing = 0;
+
+	enum {
+		FirstApplyDelay = 300
+	};
+
+	bool HasEquippedBow(Actor *actor) {
+		enum {
+			Bow = 7,
+		};
+		return sd::GetEquippedItemType(actor, 0) == Bow 
+			|| sd::GetEquippedItemType(actor, 1) == Bow;
+	}
+
+	void SendAnimationEvent(Actor *actor, const char *aeName, bool unsafe) {
+		//ci::Chat::AddMessage(L"SendAnimationEvent: " + StringToWstring(aeName));
+		if (unsafe)
+		{
+			std::lock_guard<BSSpinLock>l(actor->processManager->middleProcess->animGraphManager.Get()->lock);
+			actor->SendAnimationEvent(aeName);
+		}
+		else
+			cd::SendAnimationEvent(actor, aeName);
+	}
+
+	void SendAnimationEvent(cd::Value<Actor> actor, const char *aeName, bool unsafe) {
+		//ci::Chat::AddMessage(L"SendAnimationEvent: " + StringToWstring(aeName));
+		if (unsafe)
+		{
+			const auto actorPtr = actor.operator Actor *();
+			if (actorPtr == nullptr)
+				return;
+			std::lock_guard<BSSpinLock>l(actorPtr->processManager->middleProcess->animGraphManager.Get()->lock);
+			actorPtr->SendAnimationEvent(aeName);
+		}
+		else
+			cd::SendAnimationEvent(actor, aeName);
+	}
+
+	NiPoint3 RotationMatrixToEulerAngles(const NiMatrix3 &R)
+	{
+		//assert(isRotationMatrix(R));
+		const float sy = sqrt(R.GetEntry(0, 0) * R.GetEntry(0, 0) + R.GetEntry(1, 0) * R.GetEntry(1, 0));
+		const bool singular = sy < 1e-6; // If
+		float x, y, z;
+		if (!singular)
+		{
+			x = atan2(R.GetEntry(2, 1), R.GetEntry(2, 2));
+			y = atan2(-R.GetEntry(2, 0), sy);
+			z = atan2(R.GetEntry(1, 0), R.GetEntry(0, 0));
+		}
+		else
+		{
+			x = atan2(-R.GetEntry(1, 2), R.GetEntry(1, 1));
+			y = atan2(-R.GetEntry(2, 0), sy);
+			z = 0;
+		}
+		return { x, y, z };
+	}
 
 	void OnAnimationEvent(TESObjectREFR *src, std::string animEventName)
 	{
@@ -28,7 +88,7 @@ namespace MovementData_
 		{
 			if (lastAE != animEventName)
 			{
-				Timer::Set(200, [] {
+				SET_TIMER(200, [] {
 					if (currentPCJumpStage != JumpStage::Jumping)
 						currentPCJumpStage = JumpStage::Landed;
 				});
@@ -44,6 +104,8 @@ namespace MovementData_
 			lastAnySwing = clock();
 		else if (animEventName == "weaponleftswing")
 			lastAnySwing = clock();
+
+		HitData_OnAnimationEvent(src, animEventName);
 
 		lastAE = animEventName;
 
@@ -108,17 +170,18 @@ namespace MovementData_
 			addedToSignal = true;
 		}
 
+		result.attackState = (uint16_t)sd::Obscript::GetAttackState(actor);
+
+		auto mat = PlayerCamera::GetSingleton()->GetNiCamera()->GetWorldRotate();
+		auto angles = RotationMatrixToEulerAngles(mat);
+		result.aimingAngle = angles.y * 180 / std::acos(-1);
+
 		return result;
 	}
 
-	ci::MovementData GetFromPlayer()
-	{
+	ci::MovementData GetFromPlayer() {
 		return Get(g_thePlayer);
 	}
-
-	enum {
-		FirstApplyDelay = 300
-	};
 
 	void KeepOffsetFromSelf(Actor *self, MovementData_::SyncState &syncStatus, NiPoint3 offset, NiPoint3 offsetAngle, float afCatchUpRadius, float afFollowRadius)
 	{
@@ -143,6 +206,7 @@ namespace MovementData_
 		dat.calledOnce = true;
 		if (argsChanged || syncStatus.forceCallKeepOffset)
 		{
+			ci::Chat::AddMessage(L"KeepOffsetFromActor");
 			if (syncStatus.fullyUnsafeSync)
 				sd::KeepOffsetFromActor(self, self, offset.x, offset.y, offset.z, offsetAngle.x, offsetAngle.y, offsetAngle.z, afCatchUpRadius, afFollowRadius);
 			else
@@ -152,7 +216,7 @@ namespace MovementData_
 
 	void OnFirstApply(cd::Value<Actor> actor)
 	{
-		Timer::Set(FirstApplyDelay, [=] {
+		SET_TIMER(FirstApplyDelay, [=] {
 			if (!cd::IsWeaponDrawn(actor))
 				cd::SendAnimationEvent(actor, "IdleForceDefaultState");
 		});
@@ -185,12 +249,7 @@ namespace MovementData_
 		pos2.z = cd::GetPosition(ac).z;
 
 		if (sd::IsDead(ac))
-		{
-			sd::Resurrect(ac);
 			return;
-		}
-		sd::SetHeadTracking(ac, false);
-
 		const auto oldSyncMode = syncStatus.syncMode;
 
 		const bool isInScreenDest = PlayerCamera::GetSingleton()->IsInScreen(pos1)
@@ -216,6 +275,7 @@ namespace MovementData_
 			bool smartAngle;
 			bool jumpingSync;
 			bool unsafeSDFuncsEnabled;
+			bool headtrackingDisabled;
 			UInt32 weapDrawnUpdateRate;
 			UInt32 positionUpdateRate;
 			UInt32 sneakingUpdateRate;
@@ -242,6 +302,7 @@ namespace MovementData_
 			config.maxLagDistance = 64.0;
 			config.maxLagDistanceOnRotate = 48.0;
 			config.negligibleTime = 0.100;
+			config.headtrackingDisabled = true;
 			break;
 		case SyncMode::Normal:
 			config.smartAngle = true;
@@ -255,6 +316,8 @@ namespace MovementData_
 			config.maxLagDistance = 128.0;
 			config.maxLagDistanceOnRotate = 128.0;
 			config.negligibleTime = 0.100;
+			config.headtrackingDisabled = true;
+			break;
 		case SyncMode::Light:
 			config.smartAngle = true;
 			config.weapDrawnUpdateRate = 11000;
@@ -267,38 +330,45 @@ namespace MovementData_
 			config.maxLagDistance = 128.0;
 			config.maxLagDistanceOnRotate = 128.0;
 			config.negligibleTime = 0.200;
+			config.headtrackingDisabled = false;
 			break;
 		};
 
-		if (md.runMode == RunMode::Standing)
+		if (syncStatus.disableSyncTimer < clock())
 		{
-			if (abs((SInt64)md.angleZ - (SInt64)sd::GetAngleZ(ac)) > 10)
+			if (config.headtrackingDisabled)
+				sd::SetHeadTracking(ac, false);
+
+			if (syncStatus.strictTranslateToTimer >= clock())
+				syncStatus.forceCallKeepOffset = true;
+
+			if (md.runMode == RunMode::Standing)
 			{
-				if (!syncStatus.timer1)
+				if (abs((SInt64)md.angleZ - (SInt64)sd::GetAngleZ(ac)) > 10)
 				{
-					syncStatus.timer1 = clock() + 500;
-					KeepOffsetFromSelf(ac, syncStatus, { 0,0,0 }, { 0,0, config.smartAngle ? angleOffset : 0 }, 1, 1);
+					if (!syncStatus.timer1)
+					{
+						syncStatus.timer1 = clock() + 500;
+						KeepOffsetFromSelf(ac, syncStatus, { 0,0,0 }, { 0,0, config.smartAngle ? angleOffset : 0 }, 1, 1);
+					}
 				}
+				else
+					KeepOffsetFromSelf(ac, syncStatus, { 0,0,0 }, { 0,0,0 }, 1, 1);
 			}
 			else
-				KeepOffsetFromSelf(ac, syncStatus, { 0,0,0 }, { 0,0,0 }, 1, 1);
-		}
-		else
-		{
-			const float pi = std::acos(-1);
-			const float unitsOffset = 512.0;
-			const NiPoint3 offset{
-				unitsOffset * std::sin(float(md.direction) / 180 * pi),
-				unitsOffset * std::cos(float(md.direction) / 180 * pi),
-				0.0f
-			};
-			const float catchUpRadius = md.runMode == RunMode::Running ? 1.0 : 2048.0;
-			const float followRadius = 1.0;
-			KeepOffsetFromSelf(ac, syncStatus, offset, { 0,0,0 }, catchUpRadius, followRadius);
-		}
+			{
+				const float pi = std::acos(-1);
+				const float unitsOffset = 512.0;
+				const NiPoint3 offset{
+					unitsOffset * std::sin(float(md.direction) / 180 * pi),
+					unitsOffset * std::cos(float(md.direction) / 180 * pi),
+					0.0f
+				};
+				const float catchUpRadius = md.runMode == RunMode::Running ? 1.0 : 2048.0;
+				const float followRadius = 1.0;
+				KeepOffsetFromSelf(ac, syncStatus, offset, { 0,0,0 }, catchUpRadius, followRadius);
+			}
 
-		if (1 || md.isInJumpState == false || config.jumpingSync == false)
-		{
 			float maxDistance = config.maxLagDistance;
 			if (syncStatus.lastDirectionChangeMoment + syncStatus.translateToMSOnDirChange > clock())
 				maxDistance = config.maxLagDistanceOnRotate;
@@ -310,12 +380,14 @@ namespace MovementData_
 				|| syncStatus.lastBlockingChangeMoment + 800 > clock()
 				|| md.isInJumpState
 				|| (syncStatus.syncMode == SyncMode::Hard && md.isSprinting)
+				|| syncStatus.forceFixAfterHitAnim
+				|| syncStatus.strictTranslateToTimer >= clock()
 				)
 			{
 				float speed = distance / config.negligibleTime;
 				if (md.runMode == RunMode::Standing)
 					speed = 128.0;
-				if (md.runMode == RunMode::Standing && distance > maxDistance)
+				if (md.runMode == RunMode::Standing && (distance > maxDistance || syncStatus.strictTranslateToTimer >= clock()))
 					speed = 8192.0;
 				if (syncStatus.lastTranslateToMoment + config.positionUpdateRate <= clock())
 				{
@@ -356,7 +428,7 @@ namespace MovementData_
 				if (md.runMode != RunMode::Standing)
 				{
 					if (!md.isWeapDrawn && !ac->IsWeaponDrawn() && !md.isJumping)
-						cd::SendAnimationEvent(ac, "IdleForceDefaultState");
+						SendAnimationEvent(ac, "IdleForceDefaultState", syncStatus.fullyUnsafeSync);
 				}
 			}
 			if (md.direction != syncStatus.last.direction)
@@ -384,53 +456,36 @@ namespace MovementData_
 			{
 				if (!needUpdateSneaking)
 					syncStatus.updateSneakingTimer = clock() + config.sneakingUpdateRate;
-				cd::SendAnimationEvent(ac, md.isSneaking ? "SneakStart" : "SneakStop");
+				SendAnimationEvent(ac, md.isSneaking ? "SneakStart" : "SneakStop", syncStatus.fullyUnsafeSync);
 			}
 
 			if (md.isSprinting != syncStatus.last.isSprinting || syncStatus.isFirstNormalApply)
 			{
 				if (md.isSprinting)
 				{
-					cd::SendAnimationEvent(ac, "SprintStart");
-					cd::SendAnimationEvent(ac, "MoveStart");
+					SendAnimationEvent(ac, "SprintStart", syncStatus.fullyUnsafeSync);
+					SendAnimationEvent(ac, "MoveStart", syncStatus.fullyUnsafeSync);
 				}
 				else
-					cd::SendAnimationEvent(ac, "SprintStop");
+					SendAnimationEvent(ac, "SprintStop", syncStatus.fullyUnsafeSync);
 			}
 
-			/*if (sd::GetCombatTarget(ac) == g_thePlayer)
-			{
-				if (syncStatus.fullyUnsafeSync)
-					sd::StopCombat(ac);
-				else
-					cd::SendAnimationEvent(ac, "Skymp_StopCombatAI");
-			}*/
-
-			/*syncStatus.ghostAxeSeed++;
-			SInt32 i = syncStatus.ghostAxeSeed % ghostAxes.size();
-			auto ghostAxe = (Actor *)LookupFormByID(ghostAxes[i]);
-			if (ghostAxe && md.isWeapDrawn)
-			{
-				sd::StartCombat(ac, ghostAxe);
-			}*/
-
-			//if (syncStatus.isFirstNormalApply)
-			//	sd::AddItem(ac, LookupFormByID(0x12eb7), 1, 1);
-
-			if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply  || syncStatus.updateWeapDrawnTimer < clock())
+			if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply || syncStatus.updateWeapDrawnTimer < clock())
 			{
 				syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
-				//ci::Chat::AddMessage(L"isWeapDrawn " + std::to_wstring(md.isWeapDrawn));
 				cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
 
-				auto val = /*sd::GetCombatTarget(ac) == g_thePlayer || lastAnySwing + 350 > clock()*/md.isWeapDrawn == false ? 0.0f : 4.0f;
+				auto val = md.isWeapDrawn == false ? 0.0f : 4.0f;
 				if (sd::GetActorValue(ac, "Confidence") != val)
 					sd::SetActorValue(ac, "Confidence", val);
 				if (md.isWeapDrawn)
 				{
-					SInt32 i = syncStatus.ghostAxeSeed % ghostAxes.size();
-					auto ghostAxe = (Actor *)LookupFormByID(ghostAxes[i]);
-					sd::StartCombat(ac, ghostAxe);
+					if (ghostAxes.empty() == false)
+					{
+						SInt32 i = syncStatus.ghostAxeSeed % ghostAxes.size();
+						auto ghostAxe = (Actor *)LookupFormByID(ghostAxes[i]);
+						sd::StartCombat(ac, ghostAxe);
+					}
 					ac->DrawSheatheWeapon(true);
 				}
 				else
@@ -438,7 +493,6 @@ namespace MovementData_
 					sd::StopCombat(ac);
 					ac->DrawSheatheWeapon(false);
 				}
-				//g_thePlayer->hostileHandles.clear();
 
 				static bool tdetectCalled = false;
 				if (tdetectCalled == false)
@@ -453,12 +507,9 @@ namespace MovementData_
 				syncStatus.updateBlockingTimer = clock() + config.blockingUpdateRate;
 				syncStatus.lastBlockingChangeMoment = clock();
 				if (0.0 != sd::Obscript::IsBlocking(ac) != md.isBlocking)
-					cd::SendAnimationEvent(ac, md.isBlocking ? "BlockStart" : "BlockStop");
+					SendAnimationEvent(ac, md.isBlocking ? "BlockStart" : "BlockStop", syncStatus.fullyUnsafeSync);
 			}
-		}
 
-		{
-			
 			bool isj;
 			ac->GetAnimationVariableBool("bInJumpState", isj);
 			if (md.jumpStage != JumpStage::Landed)
@@ -479,14 +530,63 @@ namespace MovementData_
 					if (ac->processManager && ac->processManager->middleProcess && ac->processManager->middleProcess->animGraphManager)
 					{
 						std::lock_guard<BSSpinLock>l(ac->processManager->middleProcess->animGraphManager.Get()->lock);
-						ac->SendAnimationEvent(md.runMode == RunMode::Standing ?  "JumpLand" : "JumpLandDirectional");
+						ac->SendAnimationEvent(md.runMode == RunMode::Standing ? "JumpLand" : "JumpLandDirectional");
 					}
 			}
+
+			if (syncStatus.forceFixAfterHitAnim
+				&& syncStatus.syncMode == SyncMode::Hard)
+			{
+				syncStatus.updateUnsafeSDFuncsTimer = 0;
+				syncStatus.lastRunModeChangeMoment = 0;
+				syncStatus.lastDirectionChangeMoment = 0;
+				syncStatus.lastTranslateToMoment = 0;
+				syncStatus.strictTranslateToTimer = clock() + 5000;
+			}
 		}
+
+		enum AttackState {
+			BowClick = 8,
+			BowDrawing = 9,
+			BowHoldingAShot = 10,
+			BowRelease = 11,
+			BowReleased = 12,
+		};
+		const bool isAiming = md.attackState == BowClick
+			|| md.attackState == BowDrawing 
+			|| md.attackState == BowHoldingAShot;
+
+		const bool bowEquipped = sd::GetEquippedItemType(ac, 0) == 7 
+			|| sd::GetEquippedItemType(ac, 1) == 7;
+		if (bowEquipped && ac->IsWeaponDrawn())
+		{
+			const cd::Value<Actor> cdActor(ac);
+			if (isAiming)
+				SendAnimationEvent(cdActor, "bowAttackStart", 1);
+			else
+				SendAnimationEvent(cdActor, "attackRelease", 1);
+		}
+		/*if (isAiming != syncStatus.isAiming)
+		{
+			syncStatus.isAiming = isAiming;
+
+			if (isAiming)
+			{
+				//syncStatus.disableSyncTimer = clock() + 100;
+				SET_TIMER_LIGHT(100, [=] {
+					SendAnimationEvent(cdActor, "bowAttackStart", syncStatus.fullyUnsafeSync);
+				});
+			}
+			else
+			{
+				SendAnimationEvent(cdActor, "attackRelease", syncStatus.fullyUnsafeSync);
+			}
+		}*/
 
 		syncStatus.last = md;
 		syncStatus.forceCallKeepOffset = false;
 		syncStatus.isFirstNormalApply = false;
+		syncStatus.forceFixAfterHitAnim = false;
 	}
 
 	void ApplyToThePlayer(const ci::MovementData &md)
@@ -498,19 +598,19 @@ namespace MovementData_
 		if (g_thePlayer->IsWeaponDrawn() != md.isWeapDrawn)
 			g_thePlayer->DrawSheatheWeapon(md.isWeapDrawn);
 		if (md.isInJumpState)
-			cd::SendAnimationEvent(g_thePlayer, md.runMode == RunMode::Standing ? "JumpStandingStart" : "JumpDirectionalStart");
+			SendAnimationEvent(g_thePlayer, md.runMode == RunMode::Standing ? "JumpStandingStart" : "JumpDirectionalStart", false);
 		if (md.isSprinting != g_thePlayer->IsSprinting())
 		{
 			if (md.isSprinting)
 			{
-				cd::SendAnimationEvent(g_thePlayer, "SprintStart");
-				cd::SendAnimationEvent(g_thePlayer, "MoveStart");
+				SendAnimationEvent(g_thePlayer, "SprintStart", false);
+				SendAnimationEvent(g_thePlayer, "MoveStart", false);
 			}
 			else
-				cd::SendAnimationEvent(g_thePlayer, "SprintStop");
+				SendAnimationEvent(g_thePlayer, "SprintStop", false);
 		}
-		if (0.0 != sd::Obscript::IsBlocking(g_thePlayer) != md.isBlocking)
-			cd::SendAnimationEvent(g_thePlayer, md.isBlocking ? "BlockStart" : "BlockStop");
+		if ((0.0 != sd::Obscript::IsBlocking(g_thePlayer)) != md.isBlocking)
+			SendAnimationEvent(g_thePlayer, md.isBlocking ? "BlockStart" : "BlockStop", false);
 	}
 
 	void Apply(ci::MovementData md, Actor *actor, SyncState *syncState, GhostAxeVector ghostAxes)
@@ -519,7 +619,7 @@ namespace MovementData_
 			return;
 
 		if (actor == g_thePlayer)
-			ApplyToThePlayer(md);
+			return ApplyToThePlayer(md);
 
 		if (syncState != nullptr)
 			ApplyImpl(md, actor, *syncState, ghostAxes);

@@ -37,7 +37,7 @@ namespace cd
 		template <typename T2>
 		operator Value<T2>() const
 		{
-			static T2 *test = (T *)0x1;
+			static T2 *test = (T *)nullptr;
 
 			Value<T2> result(this->formID);
 			return result;

@@ -5,6 +5,8 @@ namespace Utility
 {
 	uint32_t NewFormID()
 	{
+		static std::mutex mutex;
+		std::lock_guard<std::mutex> l(mutex);
 		static uint32_t id = ~0;
 		do
 		{
@@ -47,5 +49,20 @@ namespace Utility
 		}
 
 		return data[(TESWorldSpace *)LookupFormByID(worldSpaceID)];
+	}
+
+	bool IsForegroundProcess()
+	{
+		static auto isForegroundProcess = [](DWORD pid)
+		{
+			HWND hwnd = GetForegroundWindow();
+			if (hwnd == NULL)
+				return false;
+			DWORD foregroundPid;
+			if (GetWindowThreadProcessId(hwnd, &foregroundPid) == 0)
+				return false;
+			return (foregroundPid == pid);
+		};
+		return isForegroundProcess(GetCurrentProcessId());
 	}
 }

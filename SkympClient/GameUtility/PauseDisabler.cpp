@@ -15,7 +15,7 @@ bool PauseDisabler::SetPauseDisabledInMenu(const BSFixedString &menuName, bool d
 		sd::ExecuteConsoleCommand(const_cast<char *>(cmd.data()), nullptr);
 	};
 	if (sendCmdStrictlyFromGameThread)
-		Timer::Set(0, exec);
+		SET_TIMER(0, exec);
 	else
 		exec();
 
