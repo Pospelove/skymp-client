@@ -559,35 +559,6 @@ namespace ci
 				if (pimpl->timer1000ms + 1000 < clock())
 				{
 					pimpl->timer1000ms = clock();
-
-					// Auto unequip removed items
-					/*SAFE_CALL("RemotePlayer", [&] {
-						std::vector<const ci::ItemType *> items = {
-							pimpl->hands[0],
-							pimpl->hands[1],
-							pimpl->ammo,
-						};
-						for (auto arm : pimpl->equipment)
-							items.push_back(arm);
-						for(auto item : items)
-						{
-							if (item == nullptr)
-								continue;
-							uint32_t count;
-							try {
-								count = pimpl->inventory.at(item);
-							}
-							catch (...) {
-								count = 0;
-							}
-							if (count == 0)
-							{
-								this->UnequipItem(item, true, false, false);
-								this->UnequipItem(item, true, false, true);
-							}
-						}
-
-					});*/
 				}
 
 				if (!pimpl->greyFaceFixed && currentFixingGreyFace == nullptr)
@@ -945,7 +916,6 @@ namespace ci
 					break;
 				case ItemType::Class::Armor:
 					pimpl->equipment.insert(item);
-					ci::Chat::AddMessage(L"Armor Eq");
 				case ItemType::Class::Ammo:
 					pimpl->ammo = item;
 					break;
@@ -958,6 +928,10 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->equipment.erase(item);
+		if (item->GetClass() == ItemType::Class::Armor)
+		{
+			pimpl->equipment.erase(item);
+		}
 		if (pimpl->hands[isLeftHand] == item /*|| !item*/)
 			pimpl->hands[isLeftHand] = nullptr;
 		if (pimpl->ammo == item /*|| !item*/)

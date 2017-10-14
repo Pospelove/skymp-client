@@ -95,41 +95,5 @@ namespace Equipment_
 			}
 		});
 
-		/*std::set<TESForm *> equippedNonWeap;
-		auto extraContainerChanges = (ExtraContainerChanges *)actor->extraData.GetByType(ExtraDataType::ContainerChanges);
-		if (extraContainerChanges != nullptr)
-		{
-			auto &entryList = *extraContainerChanges->changes->entryList;
-			for (auto &entry : entryList)
-			{
-				auto form = entry->baseForm;
-				if (form->formType == FormType::Armor 
-					|| form->formType == FormType::Ammo)
-				{
-					if (sd::IsEquipped(actor, form))
-						equippedNonWeap.insert(form);
-				}
-			}
-		}
-		else
-		{
-			static bool sent = false;
-			if (!sent)
-			{
-				ErrorHandling::SendError("ERROR:Equipment null extraContainerChanges");
-				sent = true;
-			}
-		}
-
-		for (auto form : equippedNonWeap)
-		{
-			if (equipment.other.find(form) == equipment.other.end())
-				sd::UnequipItem(actor, form, false, true); 
-		}
-		for (auto form : equipment.other)
-		{
-			if (equippedNonWeap.find(form) == equippedNonWeap.end())
-				sd::EquipItem(actor, form, false, true);
-		}*/
 	}
 }
