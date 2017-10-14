@@ -289,8 +289,8 @@ public:
 				}
 			});
 		}
-
-		HWND fore = GetForegroundWindow(); // Every window has it's own current language (keyboard layout)
+		HWND fore = //GetForegroundWindow(); // Every window has it's own current language (keyboard layout)
+			Utility::FindMainWindow();
 		DWORD tpid = GetWindowThreadProcessId(fore, 0);
 		HKL hKL = GetKeyboardLayout(tpid);
 		auto languageCode = LOWORD(hKL);

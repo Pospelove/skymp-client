@@ -2,5 +2,16 @@
 
 namespace Equipment_
 {
-	void SetEquippedObjects(Actor *actor, TESForm *leftHand, TESForm *rightHand);
+	class Equipment
+	{
+	public:
+		Equipment() {
+			hands[0] = hands[1] = nullptr;
+		}
+
+		TESForm *hands[2];
+		std::set<TESForm *> other;
+	};
+
+	void Apply(Actor *actor, const Equipment &equipment);
 }

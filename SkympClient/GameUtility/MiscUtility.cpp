@@ -65,4 +65,36 @@ namespace Utility
 		};
 		return isForegroundProcess(GetCurrentProcessId());
 	}
+
+	namespace Private
+	{
+		struct HandleData {
+			unsigned long process_id;
+			HWND best_handle;
+		};
+
+		BOOL IsMainWindow(HWND handle) {
+			return GetWindow(handle, GW_OWNER) == (HWND)0 && IsWindowVisible(handle);
+		}
+
+		BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam) {
+			auto &data = *(HandleData*)lParam;
+			unsigned long process_id = 0;
+			GetWindowThreadProcessId(handle, &process_id);
+			if (data.process_id != process_id || !IsMainWindow(handle)) {
+				return TRUE;
+			}
+			data.best_handle = handle;
+			return FALSE;
+		}
+	}
+
+	HWND FindMainWindow() {
+		using namespace Private;
+		HandleData data;
+		data.process_id = GetCurrentProcessId();
+		data.best_handle = NULL;
+		EnumWindows(EnumWindowsCallback, (LPARAM)&data);
+		return data.best_handle;
+	}
 }

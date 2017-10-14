@@ -24,7 +24,7 @@ void InputManager::OnPress(BYTE code)
 	}
 
 	if (MyGUI::InputManager::getInstance().isFocusKey() == false && (key == dikOem2 || key == DIK_T || key == DIK_F6) // Right CTRL is pressend, give focus to text box.
-		&& MenuManager::GetSingleton()->IsMenuOpen("Journal Menu") == false && MenuManager::GetSingleton()->IsMenuOpen("CustomMenuBBBBB") == false && MenuManager::GetSingleton()->IsMenuOpen("Console") == false)
+		&& MenuManager::GetSingleton()->IsMenuOpen("Journal Menu") == false && MenuManager::GetSingleton()->IsMenuOpen("CustomMenu") == false && MenuManager::GetSingleton()->IsMenuOpen("Console") == false)
 	{
 		TheChat->SetTyping(false);
 		TheIInputHook->SetInputEnabled(false);

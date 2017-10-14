@@ -9,6 +9,7 @@
 // Chat will be invisible in menus
 std::vector<BSFixedString> menusWithChatDisabled =
 {
+	//"CustomMenu",
 	"BarterMenu",
 	"Book Menu",
 	"Console",

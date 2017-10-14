@@ -168,9 +168,9 @@ namespace ci
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::set<const ci::ItemType *> equipment, equipmentLast;
-		std::map<bool, const ci::ItemType *> hands, handsLast;
-		const ci::ItemType *ammo = nullptr, *ammoLast = nullptr;
+		std::set<const ci::ItemType *> equipment;
+		std::map<bool, const ci::ItemType *> hands;
+		const ci::ItemType *ammo = nullptr;
 		std::set<uint32_t> knownArmor;
 		std::set<TESForm *> knownWeaps;
 		std::queue<uint8_t> hitAnimsToApply;
@@ -334,8 +334,6 @@ namespace ci
 
 			case SpawnStage::Spawning:
 			{
-				pimpl->equipmentLast.clear();
-				pimpl->handsLast.clear();
 				pimpl->avDataLast.clear();
 
 				if (currentSpawning != this)
@@ -485,16 +483,30 @@ namespace ci
 						}
 					});
 
-					// Apply Equipped Weapons
-					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->hands != pimpl->handsLast)
-						{ 
-							pimpl->handsLast = pimpl->hands;
-							auto leftHandForm = LookupFormByID(pimpl->hands[1] ? pimpl->hands[1]->GetFormID() : NULL),
-								rightHandForm = LookupFormByID(pimpl->hands[0] ? pimpl->hands[0]->GetFormID() : NULL);
-							Equipment_::SetEquippedObjects(actor, leftHandForm, rightHandForm);
-						}
-					});
+					// Apply Equipment
+					//SAFE_CALL("RemotePlayer", [&] {
+						Equipment_::Equipment eq;
+						SAFE_CALL("RemotePlayer", [&] {
+							eq.hands[0] = pimpl->hands[false] ? LookupFormByID(pimpl->hands[false]->GetFormID()) : nullptr;
+							eq.hands[1] = pimpl->hands[true] ? LookupFormByID(pimpl->hands[true]->GetFormID()) : nullptr;
+						});
+						SAFE_CALL("RemotePlayer", [&] {
+							for (auto &item : pimpl->equipment)
+							{
+								eq.other.insert(LookupFormByID(item->GetFormID()));
+							}
+						});
+						SAFE_CALL("RemotePlayer", [&] {
+							if (pimpl->ammo != nullptr)
+								eq.other.insert(LookupFormByID(pimpl->ammo->GetFormID()));
+						});
+						SAFE_CALL("RemotePlayer", [&] {
+							eq.other.erase(nullptr); // Equipment::other must not have null pointers
+						});
+						SAFE_CALL("RemotePlayer", [&] {
+							Equipment_::Apply(actor, eq);
+						});
+					//});
 
 					// Apply Health
 					SAFE_CALL("RemotePlayer", [&] {
@@ -520,118 +532,6 @@ namespace ci
 				if (pimpl->timer250ms + 250 < clock())
 				{
 					pimpl->timer250ms = clock();
-
-					// Apply Equipped Ammo
-					SAFE_CALL("RemotePlayer", [&] {
-
-						enum {
-							IronArrow = 0x0001397D,
-						};
-						static auto invisibleAmmo = (TESAmmo *)nullptr;
-						if (invisibleAmmo == nullptr)
-						{
-							invisibleAmmo = FormHeap_Allocate<TESAmmo>();
-							memcpy(invisibleAmmo, LookupFormByID(IronArrow), sizeof TESAmmo);
-							invisibleAmmo->formID = 0;
-							invisibleAmmo->SetFormID(Utility::NewFormID(), 1);
-							invisibleAmmo->m_swaps = nullptr;
-							invisibleAmmo->m_count = 0;
-							invisibleAmmo->SetModelName("");
-							invisibleAmmo->settings.damage = 3;
-						}
-
-						if (pimpl->ammo != pimpl->ammoLast)
-						{
-							static std::set<TESForm *> knownAmmo;
-							pimpl->ammoLast = pimpl->ammo;
-							if (sd::GetItemCount(actor, invisibleAmmo) < 10000)
-								sd::AddItem(actor, invisibleAmmo, 10000, true);
-							auto form = LookupFormByID(pimpl->ammo ? pimpl->ammo->GetFormID() : NULL);
-							if (form != nullptr)
-							{
-								knownAmmo.erase(form);
-								sd::AddItem(actor, form, 10000, true);
-								sd::EquipItem(actor, form, false, true);
-							}
-							for (auto form : knownAmmo)
-								sd::RemoveItem(actor, form, -1, true, nullptr);
-							if (form != nullptr)
-							{
-								knownAmmo.insert(form);
-							}
-							//ci::Chat::AddMessage(L"Ammo Changed");
-						}
-					});
-
-					// Apply Equipped Armor
-					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->equipment != pimpl->equipmentLast)
-						{
-							pimpl->equipmentLast = pimpl->equipment;
-							//pimpl->ammoLast = nullptr;
-							try
-							{
-								for (auto it = pimpl->knownArmor.begin(); it != pimpl->knownArmor.end(); ++it)
-								{
-									auto form = LookupFormByID(*it);
-									if (form && form->formType == FormType::Armor)
-									{
-										bool unequip = true;
-										for (auto it = pimpl->equipment.begin(); it != pimpl->equipment.end(); it++)
-										{
-											if ((*it)->GetFormID() == form->formID)
-												unequip = false;
-										}
-										if (unequip)
-											sd::UnequipItem(actor, form, false, false);
-									}
-								}
-
-								for (auto it = pimpl->equipment.begin(); it != pimpl->equipment.end(); it++)
-									if (*it)
-									{
-										auto form = LookupFormByID((*it)->GetFormID());
-										if (form)
-										{
-											sd::EquipItem(actor, form, false, true);
-											pimpl->knownArmor.insert(form->formID);
-										}
-									}
-							}
-							catch (...) {
-								const auto equipment = pimpl->equipment;
-								const cd::Value<Actor> cdActor = actor;
-								for (auto it = equipment.begin(); it != equipment.end(); it++)
-									pimpl->knownArmor.insert((*it)->GetFormID());
-								cd::UnequipAll(cdActor, [=] {
-									Timer::Set(0, [=] {
-										for (auto it = equipment.begin(); it != equipment.end(); it++)
-											if (*it)
-											{
-												auto form = LookupFormByID((*it)->GetFormID());
-												if (form)
-													cd::EquipItem(cdActor, form, false, true);
-											}
-									});
-								});
-							}
-						}
-					});
-
-					SAFE_CALL("RemotePlayer", [&] {
-						auto it = pimpl->equipment.begin();
-						if (it != pimpl->equipment.end())
-						{
-							auto form = LookupFormByID((*it)->GetFormID());
-							if (form)
-							{
-								if (!sd::IsEquipped(actor, form))
-								{
-									pimpl->equipmentLast.clear();
-								}
-							}
-						}
-					});
 
 					SAFE_CALL("RemotePlayer", [&] {
 						if (pimpl->currentNonExteriorCell != GetParentNonExteriorCell(g_thePlayer))
@@ -661,7 +561,7 @@ namespace ci
 					pimpl->timer1000ms = clock();
 
 					// Auto unequip removed items
-					SAFE_CALL("RemotePlayer", [&] {
+					/*SAFE_CALL("RemotePlayer", [&] {
 						std::vector<const ci::ItemType *> items = {
 							pimpl->hands[0],
 							pimpl->hands[1],
@@ -687,7 +587,7 @@ namespace ci
 							}
 						}
 
-					});
+					});*/
 				}
 
 				if (!pimpl->greyFaceFixed && currentFixingGreyFace == nullptr)
@@ -1045,6 +945,7 @@ namespace ci
 					break;
 				case ItemType::Class::Armor:
 					pimpl->equipment.insert(item);
+					ci::Chat::AddMessage(L"Armor Eq");
 				case ItemType::Class::Ammo:
 					pimpl->ammo = item;
 					break;

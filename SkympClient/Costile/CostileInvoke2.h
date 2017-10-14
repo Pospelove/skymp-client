@@ -6,7 +6,7 @@
 #include <memory>
 #include <thread>
 
-#include "../CoreInterface/CoreInterface.h"
+//#include "../CoreInterface/CoreInterface.h"
 
 #define CAPTURE_LOCKS FALSE
 
@@ -328,7 +328,7 @@ inline void CallVMFunc(const std::string &className, const std::string &funcName
 				}
 				std::stringstream ss;
 				ss << realFuncName;
-				ci::Chat::AddMessage(StringToWstring(ss.str()));
+				//ci::Chat::AddMessage(StringToWstring(ss.str()));
 				//vmState->CallStaticFunction("Game", realFuncName.data(), &zeroArgs, BSScript::IStackCallbackFunctorPtr(callback));
 			}
 			catch (...)

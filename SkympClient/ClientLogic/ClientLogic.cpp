@@ -1449,7 +1449,7 @@ class ClientLogic : public ci::IClientLogic
 				{
 					for (auto item : armorLast)
 					{
-						p->UnequipItem(item, true, false);
+						//p->UnequipItem(item, true, false);
 					}
 					for (auto item : armor)
 					{
@@ -1475,7 +1475,7 @@ class ClientLogic : public ci::IClientLogic
 					weaponsLast = weapons;
 				}
 
-				for (int i = 0; i != 2; ++i)
+				/*for (int i = 0; i != 2; ++i)
 				{
 					const bool bI = i != 0;
 					if (localPlayer->GetEquippedWeapon(bI) == nullptr)
@@ -1484,7 +1484,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 				if (localPlayer->GetEquippedAmmo() == nullptr)
 					if (p->GetEquippedAmmo() != nullptr)
-						p->UnequipItem(p->GetEquippedAmmo(), true, false);
+						p->UnequipItem(p->GetEquippedAmmo(), true, false);*/
 			};
 
 			test_onUpd = onUpd;

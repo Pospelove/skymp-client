@@ -206,7 +206,7 @@ namespace MovementData_
 		dat.calledOnce = true;
 		if (argsChanged || syncStatus.forceCallKeepOffset)
 		{
-			ci::Chat::AddMessage(L"KeepOffsetFromActor");
+			//ci::Chat::AddMessage(L"KeepOffsetFromActor");
 			if (syncStatus.fullyUnsafeSync)
 				sd::KeepOffsetFromActor(self, self, offset.x, offset.y, offset.z, offsetAngle.x, offsetAngle.y, offsetAngle.z, afCatchUpRadius, afFollowRadius);
 			else

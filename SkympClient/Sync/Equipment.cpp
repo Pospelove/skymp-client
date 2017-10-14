@@ -4,138 +4,132 @@
 
 namespace Equipment_
 {
-	enum
-	{
-		UnarmedBothHandsID = 0x000001F4,
-		Torch = 0x0001D4EC,
-	};
-
-	struct EquipSlots
-	{
-		BGSEquipSlot *leftHand = (BGSEquipSlot *)LookupFormByID(0x00013F43),
-			*rightHand = (BGSEquipSlot *)LookupFormByID(0x00013F42),
-			*eitherHand = (BGSEquipSlot *)LookupFormByID(0x00013F44),
-			*bothHands = (BGSEquipSlot *)LookupFormByID(0x00013F45);
-	};
-
-	TESObjectWEAP *CustomWeapHand(TESForm *source, bool isRightHand)
-	{
-		static auto eqSlots = EquipSlots();
-		if (!source)
-			source = LookupFormByID(UnarmedBothHandsID);
-		else if ((int32_t)source->formType == TESObjectWEAP::kTypeID &&
-			((TESObjectWEAP *)source)->GetEquipSlot() == eqSlots.bothHands)
-			return (TESObjectWEAP *)source;
-
-		if (source && (int32_t)source->formType == TESObjectWEAP::kTypeID)
-		{
-			static std::map<TESForm *, std::array<TESObjectWEAP *, 2>> data;
-			auto it = data.find(source);
-			if (it == data.end())
-			{
-				auto leftHandWeap = (TESObjectWEAP *)malloc(sizeof TESObjectWEAP),
-					rightHandWeap = (TESObjectWEAP *)malloc(sizeof TESObjectWEAP);
-				memcpy(leftHandWeap, source, sizeof TESObjectWEAP);
-				memcpy(rightHandWeap, source, sizeof TESObjectWEAP);
-				leftHandWeap->SetEquipSlot(eqSlots.leftHand);
-				rightHandWeap->SetEquipSlot(eqSlots.rightHand);
-				leftHandWeap->formID = 0;
-				leftHandWeap->SetFormID(Utility::NewFormID(), 1);
-				rightHandWeap->formID = 0;
-				rightHandWeap->SetFormID(Utility::NewFormID(), 1);
-				//leftHandWeap->attackDamage = 0.001;
-				//rightHandWeap->attackDamage = 0.001;
-				data[source] = { leftHandWeap, rightHandWeap };
-
-				SET_TIMER(0, [=] {
-					auto funcs = { &cd::IsSword, &cd::IsWarAxe, &cd::IsDagger, &cd::IsMace };
-					for (auto &func : funcs)
-					{
-						func((TESObjectWEAP *)source, [=](bool is) {
-							if (is)
-							{
-								leftHandWeap->SetEquipSlot(eqSlots.bothHands);
-								rightHandWeap->SetEquipSlot(eqSlots.bothHands);
-							}
-						});
-					}
-				});
-			}
-			return data[source][isRightHand];
-		}
-		return nullptr;
+	TESObjectWEAP *GetUnarmedBothHands() {
+		enum {
+			UnarmedBothHandsID = 0x000001F4
+		};
+		return (TESObjectWEAP *)LookupFormByID(UnarmedBothHandsID);
 	}
-	void SetEquippedObjects(Actor *actor, TESForm *leftHandWeap, TESForm *rightHandWeap)
+
+	class EquipSlots
 	{
-		static TESObjectWEAP *leftHandUnarmed, *rightHandUnarmed = nullptr;
-		if (leftHandUnarmed == nullptr)
-		{
-			leftHandUnarmed = (TESObjectWEAP *)malloc(sizeof TESObjectWEAP);
-			memcpy(leftHandUnarmed, LookupFormByID(UnarmedBothHandsID), sizeof TESObjectWEAP);
-			leftHandUnarmed->SetEquipSlot(EquipSlots().leftHand);
-		}
-		if (rightHandUnarmed == nullptr)
-		{
-			rightHandUnarmed = (TESObjectWEAP *)malloc(sizeof TESObjectWEAP);
-			memcpy(rightHandUnarmed, LookupFormByID(UnarmedBothHandsID), sizeof TESObjectWEAP);
-			rightHandUnarmed->SetEquipSlot(EquipSlots().rightHand);
+	public:
+		EquipSlots() {
+			std::set<TESForm *> s;
+			s.insert(this->GetBothHands());
+			s.insert(this->GetEitherHand());
+			s.insert(this->GetLeftHand());
+			s.insert(this->GetRightHand());
+			assert(s.size() == 4);
 		}
 
-		static std::set<TESForm *> known;
-		for (auto it = known.begin(); it != known.end(); ++it)
-		{
-			if ((*it) && (*it)->IsWeapon())
-				sd::RemoveItem(actor, *it, -1, 1, 0);
+		BGSEquipSlot *GetLeftHand() {
+			return (BGSEquipSlot *)LookupFormByID(0x00013F43);
 		}
+		BGSEquipSlot *GetRightHand() {
+			return (BGSEquipSlot *)LookupFormByID(0x00013F42);
+		}
+		BGSEquipSlot *GetEitherHand() {
+			return (BGSEquipSlot *)LookupFormByID(0x00013F44);
+		}
+		BGSEquipSlot *GetBothHands() {
+			return (BGSEquipSlot *)LookupFormByID(0x00013F45);
+		}
+	};
 
-		if (leftHandWeap)
-		{
-			if (/*leftHandWeap->formID == Torch*/ leftHandWeap->formType == FormType::Light)
+	void Apply(Actor *actor, const Equipment &equipment) 
+	{
+		SAFE_CALL("Equipment", [&] {
+			// Hands
+			for (int32_t i = 0; i != 2; ++i)
 			{
-				sd::AddItem(actor, leftHandWeap, 1, 1);
-				sd::EquipItem(actor, leftHandWeap, true, true);
-				known.insert(leftHandWeap);
-			}
-			else if ((int32_t)leftHandWeap->formType == TESObjectWEAP::kTypeID)
-			{
-				leftHandWeap = CustomWeapHand(leftHandWeap, false);
-				if (leftHandWeap)
+				auto weap = sd::GetEquippedWeapon(actor, i != 0);
+				auto newWeap = equipment.hands[i];
+				if (weap != newWeap)
 				{
-					sd::AddItem(actor, leftHandWeap, 1, 1);
-					sd::EquipItem(actor, leftHandWeap, true, true);
-					known.insert(leftHandWeap);
+					if (weap != nullptr)
+						sd::UnequipItem(actor, weap, false, true);
+					if (equipment.hands[i] != nullptr)
+						sd::EquipItem(actor, newWeap, false, true);
 				}
 			}
-			else if ((int32_t)leftHandWeap->formType == SpellItem::kTypeID)
-				sd::EquipSpell(actor, (SpellItem *)leftHandWeap, 0);
+		});
+
+		SAFE_CALL("Equipment", [&] {
+			std::set<TESForm *> equippedNonWeap;
+			auto extraContainerChanges = (ExtraContainerChanges *)actor->extraData.GetByType(ExtraDataType::ContainerChanges);
+			if (extraContainerChanges != nullptr)
+			{
+				auto &entryList = *extraContainerChanges->changes->entryList;
+				for (auto &entry : entryList)
+				{
+					auto form = entry->baseForm;
+					if (form->formType == FormType::Armor
+						|| form->formType == FormType::Ammo)
+					{
+						if (sd::IsEquipped(actor, form))
+							equippedNonWeap.insert(form);
+					}
+				}
+			}
+			else
+			{
+				static bool sent = false;
+				if (!sent)
+				{
+					ErrorHandling::SendError("ERROR:Equipment null extraContainerChanges");
+					sent = true;
+				}
+			}
+			for (auto form : equippedNonWeap)
+			{
+				if (equipment.other.find(form) == equipment.other.end())
+					sd::UnequipItem(actor, form, false, true);
+			}
+		});
+		SAFE_CALL("Equipment", [&] {
+			for (auto form : equipment.other)
+			{
+				if (sd::IsEquipped(actor, form) == false)
+					sd::EquipItem(actor, form, false, true);
+			}
+		});
+
+		/*std::set<TESForm *> equippedNonWeap;
+		auto extraContainerChanges = (ExtraContainerChanges *)actor->extraData.GetByType(ExtraDataType::ContainerChanges);
+		if (extraContainerChanges != nullptr)
+		{
+			auto &entryList = *extraContainerChanges->changes->entryList;
+			for (auto &entry : entryList)
+			{
+				auto form = entry->baseForm;
+				if (form->formType == FormType::Armor 
+					|| form->formType == FormType::Ammo)
+				{
+					if (sd::IsEquipped(actor, form))
+						equippedNonWeap.insert(form);
+				}
+			}
 		}
 		else
 		{
-			sd::AddItem(actor, leftHandUnarmed, 1, 1);
-			known.insert(leftHandUnarmed);
-			sd::EquipItem(actor, leftHandUnarmed, true, true);
+			static bool sent = false;
+			if (!sent)
+			{
+				ErrorHandling::SendError("ERROR:Equipment null extraContainerChanges");
+				sent = true;
+			}
 		}
 
-		if (rightHandWeap)
+		for (auto form : equippedNonWeap)
 		{
-			if ((int32_t)rightHandWeap->formType == TESObjectWEAP::kTypeID)
-			{
-				rightHandWeap = CustomWeapHand(rightHandWeap, true);
-				if (rightHandWeap)
-				{
-					sd::AddItem(actor, rightHandWeap, 1, 1);
-					known.insert(rightHandWeap);
-					sd::EquipItem(actor, rightHandWeap, true, true);
-				}
-			}
-			else if ((int32_t)rightHandWeap->formType == SpellItem::kTypeID)
-				sd::EquipSpell(actor, (SpellItem *)rightHandWeap, 1);
+			if (equipment.other.find(form) == equipment.other.end())
+				sd::UnequipItem(actor, form, false, true); 
 		}
-		else
+		for (auto form : equipment.other)
 		{
-			sd::AddItem(actor, leftHandUnarmed, 1, 1);
-			known.insert(rightHandWeap);
-			sd::EquipItem(actor, rightHandUnarmed, true, true);
-		}
+			if (equippedNonWeap.find(form) == equippedNonWeap.end())
+				sd::EquipItem(actor, form, false, true);
+		}*/
 	}
 }
