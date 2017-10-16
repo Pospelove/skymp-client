@@ -975,25 +975,29 @@ class ClientLogic : public ci::IClientLogic
 					try {
 						auto pl = players.at(playerID);
 						
-						if (rightHandWeapTypeID != ~0)
-						{
-							if (pl->GetEquippedWeapon(false) != itemTypes.at(rightHandWeapTypeID))
-								pl->EquipItem(itemTypes.at(rightHandWeapTypeID), true, false, false);
-						}
+						enum {
+							NO_ITEM = ~0,
+						};
+
+						if (rightHandWeapTypeID != NO_ITEM)
+							pl->EquipItem(itemTypes.at(rightHandWeapTypeID), true, false, false);
 						else
+						{
 							pl->UnequipItem(pl->GetEquippedWeapon(false), true, false, false);
-
-						if (leftHandWeapTypeID != ~0)
-						{
-							if (pl->GetEquippedWeapon(true) != itemTypes.at(leftHandWeapTypeID))
-							{
-								pl->EquipItem(itemTypes.at(leftHandWeapTypeID), true, false, true);
-							}
+							if (pl->GetEquippedWeapon(false) != nullptr)
+								ci::Log(L"ERROR:ClientLogic Unequip failed (RightHand)");
 						}
-						else
-							pl->UnequipItem(pl->GetEquippedWeapon(true), true, false, true);
 
-						if (ammoTypeID != ~0)
+						if (leftHandWeapTypeID != NO_ITEM)
+							pl->EquipItem(itemTypes.at(leftHandWeapTypeID), true, false, true);
+						else
+						{
+							pl->UnequipItem(pl->GetEquippedWeapon(true), true, false, true);
+							if (pl->GetEquippedWeapon(true) != nullptr)
+								ci::Log(L"ERROR:ClientLogic Unequip failed (LeftHand)");
+						}
+
+						if (ammoTypeID != NO_ITEM)
 							pl->EquipItem(itemTypes.at(ammoTypeID), true, false);
 						else
 							pl->UnequipItem(pl->GetEquippedAmmo(), true, false);

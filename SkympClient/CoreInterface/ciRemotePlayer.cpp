@@ -150,6 +150,10 @@ namespace ci
 
 	struct RemotePlayer::Impl
 	{
+		Impl() {
+			this->hands[0] = this->hands[1] = nullptr;
+		}
+
 		dlf_mutex mutex;
 		FormID formID = 0;
 		std::wstring name;
@@ -169,7 +173,7 @@ namespace ci
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
 		std::set<const ci::ItemType *> equipment;
-		std::map<bool, const ci::ItemType *> hands;
+		std::array<const ci::ItemType *, 2> hands;
 		const ci::ItemType *ammo = nullptr;
 		std::set<uint32_t> knownArmor;
 		std::set<TESForm *> knownWeaps;
@@ -373,99 +377,6 @@ namespace ci
 
 				if (pimpl->greyFaceFixed)
 				{
-					// TEST
-					/*char *anims[] = {
-						"bowAttackStart", "BowRelease", "arrowAttach", "arrowDetach", "arrowRelease", "attackRelease"
-					};
-					const int size = sizeof anims / sizeof anims[0];
-					static int index = 0;
-					SAFE_CALL("RemotePlayer", [&] {
-						bool pressed = sd::GetKeyPressed(0x31);
-						static bool pressedWas = 0;
-						if (pressed != pressedWas)
-						{
-							pressedWas = pressed;
-							if (pressed)
-							{
-								ci::Chat::AddMessage(L"PLAY ANIM");
-								//cd::SendAnimationEvent(actor, anims[index], {});
-								std::lock_guard<BSSpinLock>l(actor->processManager->middleProcess->animGraphManager.Get()->lock);
-								actor->SendAnimationEvent(anims[index]);
-							}
-						}
-					});
-					SAFE_CALL("RemotePlayer", [&] {
-						bool pressed = sd::GetKeyPressed(0x32);
-						static bool pressedWas = 0;
-						if (pressed != pressedWas)
-						{
-							pressedWas = pressed;
-							if (pressed)
-							{
-								++index;
-								if (index == size)
-									index = 0;
-								ci::Chat::AddMessage(StringToWstring(anims[index]));
-							}
-						}
-					});
-					SAFE_CALL("RemotePlayer", [&] {
-						bool pressed = sd::GetKeyPressed(0x33);
-						static bool pressedWas = 0;
-						if (pressed != pressedWas)
-						{
-							pressedWas = pressed;
-							if (pressed)
-							{
-								--index;
-								if (index == 0)
-									index = size - 1;
-								ci::Chat::AddMessage(StringToWstring(anims[index]));
-							}
-						}
-					});*/
-					SAFE_CALL("RemotePlayer", [&] {
-						bool pressed = sd::GetKeyPressed(0x31);
-						static bool pressedWas = 0;
-						if (pressed != pressedWas)
-						{
-							pressedWas = pressed;
-							if (pressed)
-							{
-								std::lock_guard<BSSpinLock>l(actor->processManager->middleProcess->animGraphManager.Get()->lock);
-								//sd::ClearKeepOffsetFromActor(actor);
-								actor->SendAnimationEvent("bowAttackStart");
-							}
-						}
-					});
-					SAFE_CALL("RemotePlayer", [&] {
-						bool pressed = sd::GetKeyPressed(0x32);
-						static bool pressedWas = 0;
-						if (pressed != pressedWas)
-						{
-							pressedWas = pressed;
-							if (pressed)
-							{
-								std::lock_guard<BSSpinLock>l(actor->processManager->middleProcess->animGraphManager.Get()->lock);
-								actor->SendAnimationEvent("attackRelease");
-							}
-						}
-					});
-					SAFE_CALL("RemotePlayer", [&] {
-						bool pressed = sd::GetKeyPressed(0x33);
-						static bool pressedWas = 0;
-						if (pressed != pressedWas)
-						{
-							pressedWas = pressed;
-							if (pressed)
-							{
-								sd::SetLookAt(actor, g_thePlayer, false);
-							}
-						}
-					});
-
-
-
 					// Apply Movement
 					SAFE_CALL("RemotePlayer", [&] {
 						this->ApplyMovementDataImpl();
@@ -486,9 +397,25 @@ namespace ci
 					// Apply Equipment
 					//SAFE_CALL("RemotePlayer", [&] {
 						Equipment_::Equipment eq;
+
+						if (sd::GetKeyPressed(0x31))
+						{
+							if (L"Ghost Axe" != this->GetName())
+								sd::PrintNote("%d %d", pimpl->hands[0] != nullptr, pimpl->hands[1] != nullptr);
+						}
+
 						SAFE_CALL("RemotePlayer", [&] {
-							eq.hands[0] = pimpl->hands[false] ? LookupFormByID(pimpl->hands[false]->GetFormID()) : nullptr;
-							eq.hands[1] = pimpl->hands[true] ? LookupFormByID(pimpl->hands[true]->GetFormID()) : nullptr;
+							for (int32_t i = 0; i != 2; ++i)
+							{
+								TESForm *form = nullptr;
+								if (pimpl->hands[i])
+								{
+									form = LookupFormByID(pimpl->hands[i]->GetFormID());
+									if (form == nullptr)
+										throw 1;
+								}
+								eq.hands[i] = form;
+							}
 						});
 						SAFE_CALL("RemotePlayer", [&] {
 							for (auto &item : pimpl->equipment)
@@ -908,8 +835,6 @@ namespace ci
 				switch (item->GetClass())
 				{
 				case ItemType::Class::Misc:
-					if (item->GetSubclass() == ItemType::Subclass::MISC_Torch)
-						pimpl->hands[1] = item;
 					break;
 				case ItemType::Class::Weapon:
 					pimpl->hands[leftHand] = item;
@@ -1038,6 +963,9 @@ namespace ci
 		auto result = pimpl->lookSync->Apply(pimpl->lookData);
 		ApplyPackage(result);
 		result->TESActorBaseData::flags.bleedoutOverride = true;
+		result->combatStyle =
+			(TESCombatStyle *)LookupFormByID(ID_TESCombatStyle::csForswornBerserkerLow);
+		assert(result->combatStyle);
 		return result;
 	}
 
