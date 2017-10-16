@@ -30,7 +30,6 @@ enum : RakNet::MessageID {
 	ID_CONTAINER_CHANGED,
 	ID_HOST_START,
 	ID_HOSTED_OBJECT_MOVEMENT,
-	ID_EQUIP_UNEQUIP_ITEM,
 	ID_ANIMATION_EVENT_HIT,
 	ID_HIT_OBJECT,
 	ID_HIT_PLAYER,
@@ -55,7 +54,6 @@ enum : RakNet::MessageID {
 	ID_PLAYER_LOOK,
 	ID_PLAYER_FURNITURE,
 	ID_PLAYER_INVENTORY,
-	ID_PLAYER_EQUIPMENT,
 	ID_PLAYER_HIT,
 	ID_PLAYER_AV,
 	ID_SHOW_RACE_MENU,
@@ -929,85 +927,6 @@ class ClientLogic : public ci::IClientLogic
 
 				break;
 			}
-			case ID_PLAYER_EQUIPMENT:
-			{
-				uint16_t playerID;
-				bool add;
-				uint32_t count1;
-
-				bsIn.Read(playerID);
-				bsIn.Read(add);
-				bsIn.Read(count1);
-
-				for (uint32_t i = 0; i != count1; ++i)
-				{
-					uint32_t itemTypeID;
-					uint32_t count;
-					bsIn.Read(itemTypeID);
-					bsIn.Read(count);
-
-					try {
-						auto itemType = itemTypes.at(itemTypeID);
-					}
-					catch (...) {
-						ci::Log("WARN:Logic:EquipItem ItemType %d not found", itemTypeID);
-					}
-
-					try {
-						if (add)
-							players.at(playerID)->EquipItem(itemTypes.at(itemTypeID), silentInventoryChanges, false);
-						else
-							players.at(playerID)->UnequipItem(itemTypes.at(itemTypeID), silentInventoryChanges, false);
-					}
-					catch (...) {
-					}
-				}
-
-				if (add)
-				{
-					uint32_t rightHandWeapTypeID = ~0;
-					uint32_t leftHandWeapTypeID = ~0;
-					uint32_t ammoTypeID = ~0;
-					bsIn.Read(rightHandWeapTypeID);
-					bsIn.Read(leftHandWeapTypeID);
-					bsIn.Read(ammoTypeID);
-
-					try {
-						auto pl = players.at(playerID);
-						
-						enum {
-							NO_ITEM = ~0,
-						};
-
-						if (rightHandWeapTypeID != NO_ITEM)
-							pl->EquipItem(itemTypes.at(rightHandWeapTypeID), true, false, false);
-						else
-						{
-							pl->UnequipItem(pl->GetEquippedWeapon(false), true, false, false);
-							if (pl->GetEquippedWeapon(false) != nullptr)
-								ci::Log(L"ERROR:ClientLogic Unequip failed (RightHand)");
-						}
-
-						if (leftHandWeapTypeID != NO_ITEM)
-							pl->EquipItem(itemTypes.at(leftHandWeapTypeID), true, false, true);
-						else
-						{
-							pl->UnequipItem(pl->GetEquippedWeapon(true), true, false, true);
-							if (pl->GetEquippedWeapon(true) != nullptr)
-								ci::Log(L"ERROR:ClientLogic Unequip failed (LeftHand)");
-						}
-
-						if (ammoTypeID != NO_ITEM)
-							pl->EquipItem(itemTypes.at(ammoTypeID), true, false);
-						else
-							pl->UnequipItem(pl->GetEquippedAmmo(), true, false);
-					}
-					catch (...) {
-					}
-				}
-
-				break;
-			}
 			case ID_PLAYER_HIT:
 			{
 				uint16_t playerID;
@@ -1270,13 +1189,8 @@ class ClientLogic : public ci::IClientLogic
 	{
 	}
 
-	std::function<void()> test_onUpd;
-
 	void OnUpdate() override
 	{
-		if (test_onUpd)
-			test_onUpd();
-
 		if (ci::IsInDebug())
 			return;
 		try {
@@ -1314,7 +1228,6 @@ class ClientLogic : public ci::IClientLogic
 				cl = clNow;
 				UpdateNetworking();
 				UpdateObjects();
-				UpdateEquipment();
 				UpdateCombat();
 				UpdateActorValues();
 			}
@@ -1427,71 +1340,6 @@ class ClientLogic : public ci::IClientLogic
 			new ci::RemotePlayer(L"TestPlayer", testLookData, localPlayer->GetPos(), localPlayer->GetCell(), localPlayer->GetWorldSpace());
 			ci::Chat::AddMessage(L"testld_spawn");
 			ci::Chat::AddMessage(L"[Test] TintMasks count = " + std::to_wstring(testLookData.tintmasks.size()));
-		}
-		else if (cmdText == L"//clone")
-		{
-			ci::IActor *localPlayer =
-				ci::LocalPlayer::GetSingleton();
-
-			ci::IActor *p =
-				new ci::RemotePlayer(*localPlayer); // ci::RemotePlayer может быть скопирован из любого наследника IActor
-
-			static std::vector<ci::ItemType *> armorLast, weaponsLast;
-
-			auto onUpd = [=] {
-				auto movement = localPlayer->GetMovementData();
-				movement.pos += {128, 128, 0};
-				p->ApplyMovementData(movement);
-
-				RakNet::BitStream bs;
-				Serialize(bs, movement);
-				Deserialize(bs, movement);
-
-				auto armor = localPlayer->GetEquippedArmor();
-
-				if (armor != armorLast)
-				{
-					for (auto item : armorLast)
-					{
-						//p->UnequipItem(item, true, false);
-					}
-					for (auto item : armor)
-					{
-						p->AddItem(item, 1, true);
-						p->EquipItem(item, true, true);
-					}
-					armorLast = armor;
-				}
-
-				auto weapons = std::vector<ci::ItemType *>{
-					localPlayer->GetEquippedWeapon(0), localPlayer->GetEquippedWeapon(1) , localPlayer->GetEquippedAmmo()
-				};
-				if (weapons != weaponsLast)
-				{
-					int32_t handID = 0;
-					for (auto item : weapons)
-					{
-						if (item == nullptr)
-							continue;
-						p->AddItem(item, 1, true);
-						p->EquipItem(item, true, true, handID++ != 0);
-					}
-					weaponsLast = weapons;
-				}
-
-				/*for (int i = 0; i != 2; ++i)
-				{
-					const bool bI = i != 0;
-					if (localPlayer->GetEquippedWeapon(bI) == nullptr)
-						if (p->GetEquippedWeapon(bI) != nullptr)
-							p->UnequipItem(p->GetEquippedWeapon(0), true, false, bI);
-				}
-				if (localPlayer->GetEquippedAmmo() == nullptr)
-					if (p->GetEquippedAmmo() != nullptr)
-						p->UnequipItem(p->GetEquippedAmmo(), true, false);*/
-			};
-
-			test_onUpd = onUpd;
 		}
 		else
 		{
@@ -1612,103 +1460,6 @@ class ClientLogic : public ci::IClientLogic
 						objectsInfo[id].isDynamic = false;
 					}
 				}
-			}
-		}
-	}
-
-	void UpdateEquipment()
-	{
-		enum class EquipType : uint8_t
-		{
-			RightHand =		0x00,
-			LeftHand =		0x01,
-			Armor =			0x02,
-			Ammo =			0x03,
-		};
-
-		static std::vector<ci::ItemType *> eqWas;
-		std::vector<ci::ItemType *> eq = localPlayer->GetEquippedArmor();
-		if (eqWas != eq)
-		{
-			std::vector<ci::ItemType *> equipped;
-			std::set_difference(eq.begin(), eq.end(), eqWas.begin(), eqWas.end(),
-				std::inserter(equipped, equipped.begin()));
-
-			for (auto it = equipped.begin(); it != equipped.end(); ++it)
-			{
-				uint32_t itemTypeID = GetItemTypeID(*it);
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
-				bsOut.Write(itemTypeID);
-				bsOut.Write(true);
-				bsOut.Write(EquipType::Armor);
-				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-			}
-
-			std::vector<ci::ItemType *> unequipped;
-			std::set_difference(eqWas.begin(), eqWas.end(), eq.begin(), eq.end(),
-				std::inserter(unequipped, unequipped.begin()));
-
-			for (auto it = unequipped.begin(); it != unequipped.end(); ++it)
-			{
-				uint32_t itemTypeID = GetItemTypeID(*it);
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
-				bsOut.Write(itemTypeID);
-				bsOut.Write(false);
-				bsOut.Write(EquipType::Armor);
-				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-			}
-
-			eqWas = std::move(eq);
-		}
-
-		{
-			static const ci::ItemType *leftHandWas = nullptr;
-			const ci::ItemType *leftHand = localPlayer->GetEquippedWeapon(true);
-			if (leftHandWas != leftHand)
-			{
-				uint32_t itemTypeID = GetItemTypeID(leftHand);
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
-				bsOut.Write(itemTypeID);
-				bsOut.Write(true);
-				bsOut.Write(EquipType::LeftHand);
-				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-
-				leftHandWas = leftHand;
-			}
-		}
-		{
-			static const ci::ItemType *rightHandWas = nullptr;
-			const ci::ItemType *rightHand = localPlayer->GetEquippedWeapon(false);
-			if (rightHandWas != rightHand)
-			{
-				uint32_t itemTypeID = GetItemTypeID(rightHand);
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
-				bsOut.Write(itemTypeID);
-				bsOut.Write(true);
-				bsOut.Write(EquipType::RightHand);
-				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-
-				rightHandWas = rightHand;
-			}
-		}
-		{
-			static const ci::ItemType *ammoWas = nullptr;
-			const ci::ItemType *ammo = localPlayer->GetEquippedAmmo();
-			if (ammoWas != ammo)
-			{
-				uint32_t itemTypeID = GetItemTypeID(ammo);
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_EQUIP_UNEQUIP_ITEM);
-				bsOut.Write(itemTypeID);
-				bsOut.Write(true);
-				bsOut.Write(EquipType::Ammo);
-				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-
-				ammoWas = ammo;
 			}
 		}
 	}

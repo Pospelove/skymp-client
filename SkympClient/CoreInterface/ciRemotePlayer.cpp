@@ -150,10 +150,6 @@ namespace ci
 
 	struct RemotePlayer::Impl
 	{
-		Impl() {
-			this->hands[0] = this->hands[1] = nullptr;
-		}
-
 		dlf_mutex mutex;
 		FormID formID = 0;
 		std::wstring name;
@@ -172,9 +168,6 @@ namespace ci
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::set<const ci::ItemType *> equipment;
-		std::array<const ci::ItemType *, 2> hands;
-		const ci::ItemType *ammo = nullptr;
 		std::set<uint32_t> knownArmor;
 		std::set<TESForm *> knownWeaps;
 		std::queue<uint8_t> hitAnimsToApply;
@@ -393,47 +386,6 @@ namespace ci
 								pimpl->syncState.forceFixAfterHitAnim = true;
 						}
 					});
-
-					// Apply Equipment
-					//SAFE_CALL("RemotePlayer", [&] {
-						Equipment_::Equipment eq;
-
-						if (sd::GetKeyPressed(0x31))
-						{
-							if (L"Ghost Axe" != this->GetName())
-								sd::PrintNote("%d %d", pimpl->hands[0] != nullptr, pimpl->hands[1] != nullptr);
-						}
-
-						SAFE_CALL("RemotePlayer", [&] {
-							for (int32_t i = 0; i != 2; ++i)
-							{
-								TESForm *form = nullptr;
-								if (pimpl->hands[i])
-								{
-									form = LookupFormByID(pimpl->hands[i]->GetFormID());
-									if (form == nullptr)
-										throw 1;
-								}
-								eq.hands[i] = form;
-							}
-						});
-						SAFE_CALL("RemotePlayer", [&] {
-							for (auto &item : pimpl->equipment)
-							{
-								eq.other.insert(LookupFormByID(item->GetFormID()));
-							}
-						});
-						SAFE_CALL("RemotePlayer", [&] {
-							if (pimpl->ammo != nullptr)
-								eq.other.insert(LookupFormByID(pimpl->ammo->GetFormID()));
-						});
-						SAFE_CALL("RemotePlayer", [&] {
-							eq.other.erase(nullptr); // Equipment::other must not have null pointers
-						});
-						SAFE_CALL("RemotePlayer", [&] {
-							Equipment_::Apply(actor, eq);
-						});
-					//});
 
 					// Apply Health
 					SAFE_CALL("RemotePlayer", [&] {
@@ -813,7 +765,8 @@ namespace ci
 			else
 			{
 				pimpl->inventory.erase(item);
-				pimpl->equipment.erase(item);
+				this->UnequipItem(item, silent, false, false);
+				this->UnequipItem(item, silent, false, true);
 			}
 		}
 	}
@@ -832,19 +785,7 @@ namespace ci
 			}
 			if (count > 0)
 			{
-				switch (item->GetClass())
-				{
-				case ItemType::Class::Misc:
-					break;
-				case ItemType::Class::Weapon:
-					pimpl->hands[leftHand] = item;
-					break;
-				case ItemType::Class::Armor:
-					pimpl->equipment.insert(item);
-				case ItemType::Class::Ammo:
-					pimpl->ammo = item;
-					break;
-				}
+				// Not Implemented
 			}
 		}
 	}
@@ -852,15 +793,7 @@ namespace ci
 	void RemotePlayer::UnequipItem(const ItemType *item, bool silent, bool preventEquip, bool isLeftHand)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		pimpl->equipment.erase(item);
-		if (item->GetClass() == ItemType::Class::Armor)
-		{
-			pimpl->equipment.erase(item);
-		}
-		if (pimpl->hands[isLeftHand] == item /*|| !item*/)
-			pimpl->hands[isLeftHand] = nullptr;
-		if (pimpl->ammo == item /*|| !item*/)
-			pimpl->ammo = nullptr;
+		// Not Implemented
 	}
 
 	void RemotePlayer::PlayHitAnimation(uint8_t hitAnimID)
@@ -922,21 +855,22 @@ namespace ci
 	std::vector<ci::ItemType *> RemotePlayer::GetEquippedArmor() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		std::vector<const ci::ItemType *> result{ pimpl->equipment.begin(), pimpl->equipment.end() };
-		return *reinterpret_cast<std::vector<ci::ItemType *> *>(&result);
+		return {};
+		// Not Implemented
 	}
 
 	ci::ItemType *RemotePlayer::GetEquippedWeapon(bool isLeftHand) const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		auto result = pimpl->hands[isLeftHand];
-		return const_cast<ci::ItemType *>(result);
+		return nullptr;
+		// Not Implemented
 	}
 
 	ci::ItemType *RemotePlayer::GetEquippedAmmo() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return const_cast<ci::ItemType *>(pimpl->ammo);
+		return nullptr;
+		// Not Implemented
 	}
 
 	ci::AVData RemotePlayer::GetAVData(const std::string &avName_) const
