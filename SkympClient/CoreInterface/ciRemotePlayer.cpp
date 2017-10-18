@@ -173,7 +173,24 @@ namespace ci
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData, avDataLast;
-		//ci::RemotePlayer *myFox = nullptr;
+
+		struct Equipment
+		{
+			Equipment() {
+				hands[0] = hands[1] = nullptr;
+			}
+
+			std::array<const ci::ItemType *, 2> hands;
+			std::set<const ci::ItemType *> armor;
+			const ci::ItemType *ammo = nullptr;
+
+			friend bool operator==(const Equipment &l, const Equipment &r) {
+				return l.hands[0] == r.hands[0] && l.hands[1] == r.hands[1] && l.armor == r.armor && l.ammo == r.ammo;
+			}
+			friend bool operator!=(const Equipment &l, const Equipment &r) {
+				return !(l == r);
+			}
+		} eq, eqLast;
 
 		static decltype(knownItems) *RemotePlayerKnownItems() { // lock gMutex to use this
 			static decltype(knownItems) remotePlayerKnownItems;
@@ -411,6 +428,22 @@ namespace ci
 				if (pimpl->timer250ms + 250 < clock())
 				{
 					pimpl->timer250ms = clock();
+
+					// Apply Equipment
+					SAFE_CALL("RemotePlayer", [&] {
+						if (pimpl->eq != pimpl->eqLast)
+						{
+							Equipment_::Equipment eq;
+							for (int32_t i = 0; i <= 1; ++i)
+								eq.hands[i] = pimpl->eq.hands[i] ? LookupFormByID(pimpl->eq.hands[i]->GetFormID()) : nullptr;
+							if (pimpl->eq.ammo != nullptr)
+								eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
+							for(auto &item : pimpl->eq.armor)
+								eq.other.insert(LookupFormByID(item->GetFormID()));
+							Equipment_::Apply(actor, eq);
+							pimpl->eqLast = pimpl->eq;
+						}
+					});
 
 					SAFE_CALL("RemotePlayer", [&] {
 						if (pimpl->currentNonExteriorCell != GetParentNonExteriorCell(g_thePlayer))
@@ -785,7 +818,21 @@ namespace ci
 			}
 			if (count > 0)
 			{
-				// Not Implemented
+				if (item->GetClass() == ci::ItemType::Class::Armor)
+				{
+					pimpl->eq.armor.insert(item);
+					return;
+				}
+				if (item->GetClass() == ci::ItemType::Class::Weapon)
+				{
+					pimpl->eq.hands[leftHand] = item;
+					return;
+				}
+				if (item->GetClass() == ci::ItemType::Class::Ammo)
+				{
+					pimpl->eq.ammo = item;
+					return;
+				}
 			}
 		}
 	}
@@ -793,7 +840,23 @@ namespace ci
 	void RemotePlayer::UnequipItem(const ItemType *item, bool silent, bool preventEquip, bool isLeftHand)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		// Not Implemented
+		if (item->GetClass() == ci::ItemType::Class::Armor)
+		{
+			pimpl->eq.armor.erase(item);
+			return;
+		}
+		if (item->GetClass() == ci::ItemType::Class::Weapon)
+		{
+			if (pimpl->eq.hands[isLeftHand] == item)
+				pimpl->eq.hands[isLeftHand] = nullptr;
+			return;
+		}
+		if (item->GetClass() == ci::ItemType::Class::Ammo)
+		{
+			if (pimpl->eq.ammo == item)
+				pimpl->eq.ammo = nullptr;
+			return;
+		}
 	}
 
 	void RemotePlayer::PlayHitAnimation(uint8_t hitAnimID)
@@ -855,22 +918,22 @@ namespace ci
 	std::vector<ci::ItemType *> RemotePlayer::GetEquippedArmor() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return {};
-		// Not Implemented
+		std::vector<ci::ItemType *> result;
+		for (auto item : pimpl->eq.armor)
+			result.push_back(const_cast<ci::ItemType *>(item));
+		return result;
 	}
 
 	ci::ItemType *RemotePlayer::GetEquippedWeapon(bool isLeftHand) const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return nullptr;
-		// Not Implemented
+		return const_cast<ci::ItemType *>(pimpl->eq.hands[isLeftHand]);
 	}
 
 	ci::ItemType *RemotePlayer::GetEquippedAmmo() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return nullptr;
-		// Not Implemented
+		return const_cast<ci::ItemType *>(pimpl->eq.ammo);
 	}
 
 	ci::AVData RemotePlayer::GetAVData(const std::string &avName_) const
@@ -898,8 +961,9 @@ namespace ci
 		ApplyPackage(result);
 		result->TESActorBaseData::flags.bleedoutOverride = true;
 		result->combatStyle =
-			(TESCombatStyle *)LookupFormByID(ID_TESCombatStyle::csForswornBerserkerLow);
-		assert(result->combatStyle);
+			(TESCombatStyle *)LookupFormByID(0x000F960C);
+		if (result->combatStyle == nullptr)
+			ErrorHandling::SendError("ERROR:RemotePlayer CombatStyle");
 		return result;
 	}
 

@@ -35,6 +35,8 @@ enum : RakNet::MessageID {
 	ID_HIT_PLAYER,
 	ID_DIALOG_RESPONSE,
 	ID_AV_CHANGED,
+	ID_EQUIP_ITEM,
+	ID_UNEQUIP_ITEM,
 
 	// client <---> server
 	ID_MESSAGE,
@@ -56,6 +58,7 @@ enum : RakNet::MessageID {
 	ID_PLAYER_INVENTORY,
 	ID_PLAYER_HIT,
 	ID_PLAYER_AV,
+	ID_PLAYER_EQUIPMENT,
 	ID_SHOW_RACE_MENU,
 	ID_SHOW_DIALOG,
 	ID_OBJECT_CREATE,
@@ -956,21 +959,6 @@ class ClientLogic : public ci::IClientLogic
 						break;
 					try {
 						currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
-
-						/*if (playerID == net.myID)
-						{
-							static std::map<uint8_t, bool> moded;
-							if (!moded[avID])
-							{
-								if (avID == av.Health || avID == av.Stamina || avID == av.Magicka)
-								{
-									auto avData2 = avData;
-									avData2.modifier += 0.01;
-									players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData2);
-									moded[avID] = true;
-								}
-							}
-						}*/
 						ci::SetTimer(avID == av.Health ? 200 : 0, [=] {
 							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 							players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
@@ -980,6 +968,51 @@ class ClientLogic : public ci::IClientLogic
 					catch (...) {
 					}
 				}
+				break;
+			}
+			case ID_PLAYER_EQUIPMENT:
+			{
+				uint16_t playerID;
+				uint32_t ammo, hands[2];
+				bsIn.Read(playerID);
+				bsIn.Read(ammo);
+				bsIn.Read(hands[0]);
+				bsIn.Read(hands[1]);
+
+				ci::IActor *pl = nullptr;
+
+				try {
+					pl = players.at(playerID);
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic Equipment: Player not found");
+					return;
+				}
+
+				auto armorWas = pl->GetEquippedArmor();
+				std::set<ci::ItemType *> armorNow;
+
+				uint32_t armor;
+				while (bsIn.Read(armor))
+				{
+					try {
+						auto itemType = itemTypes.at(armor);
+						pl->EquipItem(itemType, this->silentInventoryChanges, false);
+						armorNow.insert(itemType);
+					}
+					catch (...) {
+						ci::Log("ERROR:ClientLogic Equipment: Armor not found");
+						return;
+					}
+				}
+
+				for (auto itemType : armorWas)
+				{
+					if (armorNow.find(itemType) == armorNow.end())
+						pl->UnequipItem(itemType, this->silentInventoryChanges, false);
+				}
+
+				ci::Chat::AddMessage(L"Equipment: All OK");
 				break;
 			}
 			case ID_ITEMTYPES:
@@ -1223,16 +1256,21 @@ class ClientLogic : public ci::IClientLogic
 		auto clNow = clock();
 		if (cl + 10 < clNow)
 		{
-			try
-			{
+			try {
 				cl = clNow;
 				UpdateNetworking();
 				UpdateObjects();
 				UpdateCombat();
 				UpdateActorValues();
+				try { UpdateEquippedArmor(); } catch (...) { ci::Log("ERROR:ClientLogic UpdateEquippedArmor()"); }
+				try { UpdateEquippedWeapon<0>(); } catch (...) { ci::Log("ERROR:ClientLogic UpdateEquippedWeapon<0>()"); }
+				try { UpdateEquippedWeapon<1>(); } catch (...) { ci::Log("ERROR:ClientLogic UpdateEquippedWeapon<1>()"); }
 			}
-			catch (...)
-			{
+			catch (const std::exception &e) {
+				ci::Log("ERROR:ClientLogic OnUpdate() %s", e.what());
+			}
+			catch (...) {
+				ci::Log("ERROR:ClientLogic OnUpdate() unk");
 			}
 		}
 	}
@@ -1504,6 +1542,80 @@ class ClientLogic : public ci::IClientLogic
 				}
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
 			}
+		}
+	}
+
+	void UpdateEquippedArmor()
+	{
+		enum {
+			INVALID_HAND = -1,
+		};
+		const int32_t handID = INVALID_HAND;
+
+		const std::vector<ci::ItemType *> armor = localPlayer->GetEquippedArmor();
+		static std::vector<ci::ItemType *> armorLast;
+
+		if (armor != armorLast)
+		{
+			for (auto itemType : armor)
+			{
+				const bool sendEquip = std::find(armorLast.begin(), armorLast.end(), itemType) == armorLast.end();
+				if (sendEquip)
+				{
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_EQUIP_ITEM);
+					bsOut.Write(GetItemTypeID(itemType));
+					bsOut.Write(handID);
+					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+				}
+			}
+			for (auto itemType : armorLast)
+			{
+				const bool sendUnequip = std::find(armor.begin(), armor.end(), itemType) == armor.end();
+				if (sendUnequip)
+				{
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_UNEQUIP_ITEM);
+					bsOut.Write(GetItemTypeID(itemType));
+					bsOut.Write(handID);
+					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+				}
+			}
+
+
+			armorLast = armor;
+		}
+	}
+
+	template<int32_t handID>
+	void UpdateEquippedWeapon()
+	{
+		enum : bool {
+			isLeftHand = handID != 0
+		};
+		ci::ItemType *const weap = localPlayer->GetEquippedWeapon(isLeftHand);
+		static ci::ItemType *weapWas = nullptr;
+		if (weap != weapWas)
+		{
+			if (weapWas != nullptr)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_UNEQUIP_ITEM);
+				bsOut.Write(GetItemTypeID(weapWas));
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+			}
+
+			if (weap != nullptr)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_ITEM);
+				bsOut.Write(GetItemTypeID(weap));
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+			}
+
+			weapWas = weap;
 		}
 	}
 

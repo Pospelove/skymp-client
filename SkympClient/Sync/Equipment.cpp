@@ -52,7 +52,7 @@ namespace Equipment_
 
 	void Apply(Actor *actor, const Equipment &equipment) 
 	{
-		//SAFE_CALL("Equipment", [&] {
+		/*SAFE_CALL("Equipment", [&] {
 			// Hands
 		static std::map<Actor *, Equipment> eqWas;
 		static std::map<Actor *, std::set<TESForm *>> known;
@@ -81,46 +81,26 @@ namespace Equipment_
 			eqWas[actor] = equipment;
 		}
 
-		//});
-
-		/*SAFE_CALL("Equipment", [&] {
-			std::set<TESForm *> equipped;
-			auto extraContainerChanges = (ExtraContainerChanges *)actor->extraData.GetByType(ExtraDataType::ContainerChanges);
-			if (extraContainerChanges != nullptr)
-			{
-				auto &entryList = *extraContainerChanges->changes->entryList;
-				for (auto &entry : entryList)
-				{
-					auto form = entry->baseForm;
-					if (sd::IsEquipped(actor, form))
-						equipped.insert(form);
-				}
-			}
-			else
-			{
-				static bool sent = false;
-				if (!sent)
-				{
-					ErrorHandling::SendError("ERROR:Equipment null extraContainerChanges");
-					sent = true;
-				}
-			}
-			for (auto form : equipped)
-			{
-				if (equipment.other.find(form) == equipment.other.end())
-				{
-					if (form->formType != FormType::Weapon)
-						sd::UnequipItem(actor, form, false, true);
-				}
-			}
-		});
+		//});*/
+		static std::set<TESForm *> known;
 		SAFE_CALL("Equipment", [&] {
+			for (auto form : known)
+			{
+				if (sd::IsEquipped(actor, form) 
+					&& equipment.other.find(form) == equipment.other.end())
+				{
+					sd::UnequipItem(actor, form, false, true);
+				}
+			}
 			for (auto form : equipment.other)
 			{
 				if (sd::IsEquipped(actor, form) == false)
+				{
 					sd::EquipItem(actor, form, false, true);
+					known.insert(form);
+				}
 			}
-		});*/
+		});
 
 	}
 }
