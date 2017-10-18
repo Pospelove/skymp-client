@@ -14,9 +14,33 @@ dlf_mutex Timer::mutex;
 
 void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 {
+	static std::recursive_mutex numThreadsMutex;
+	static uint32_t numThreads;
 	try
 	{
 		std::thread([=] {
+			{
+				std::lock_guard<std::recursive_mutex> l(numThreadsMutex);
+				++numThreads;
+			}
+			enum {
+				maxThreads = 500,
+			};
+			if (numThreads > maxThreads)
+			{
+				ErrorHandling::SendError("FATAL:Timer Too many threads started (%u)", numThreads);
+				Sleep(1000);
+				std::exit(EXIT_FAILURE);
+			}
+			enum {
+				maxMs = 60 * 60 * 1000,
+			};
+			if (ms > maxMs)
+			{
+				ErrorHandling::SendError("FATAL:Timer Ms must not be greater than %d", maxMs);
+				Sleep(1000);
+				std::exit(EXIT_FAILURE);
+			}
 			enum { min_sleep = 20 };
 			auto num_sleeps = ms / min_sleep;
 			if (!num_sleeps)
@@ -30,6 +54,10 @@ void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 			}
 			std::lock_guard<dlf_mutex> l(mutex);
 			callbacks.push_back({ fn, dbgLine, dbgFunc });
+			{
+				std::lock_guard<std::recursive_mutex> l(numThreadsMutex);
+				--numThreads;
+			}
 		}).detach();
 	}
 	catch (const std::exception &e)

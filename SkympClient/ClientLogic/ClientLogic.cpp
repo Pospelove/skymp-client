@@ -1013,6 +1013,25 @@ class ClientLogic : public ci::IClientLogic
 						pl->UnequipItem(itemType, this->silentInventoryChanges, false);
 				}
 
+				for (int32_t i = 0; i <= 1; ++i)
+				{
+					if (hands[i] != ~0)
+					{
+						try {
+							auto itemType = itemTypes.at(hands[i]);
+							pl->EquipItem(itemType, this->silentInventoryChanges, false);
+						}
+						catch (...) {
+							ci::Log("ERROR:ClientLogic Equipment: Weapon not found");
+							return;
+						}
+					}
+					else
+					{
+						pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, i);
+					}
+				}
+
 				ci::Chat::AddMessage(L"Equipment: All OK");
 				break;
 			}
@@ -1097,11 +1116,6 @@ class ClientLogic : public ci::IClientLogic
 				if (str.size() > 0)
 					str.erase(str.end() - 1);
 				ci::ExecuteCommand(t, str);
-				//ci::Chat::AddMessage(L"cmd " + StringToWstring(str), 0);
-
-				//std::ostringstream ss2;
-				//ss2 << "Sound.Play(Form:" << 0x000137D4 << ",Form:20)";
-				//ci::ExecuteCommand(t, ss2.str());
 
 				break;
 			}
@@ -1195,8 +1209,6 @@ class ClientLogic : public ci::IClientLogic
 	{
 		const auto playerID = GetID(self);
 		const auto weaponID = GetID(eventData.weapon);
-
-		//ci::Chat::AddMessage(L"Local Hit: " + self->GetName() + L" or " + players.at(playerID)->GetName());
 
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_HIT_PLAYER);
@@ -1311,6 +1323,7 @@ class ClientLogic : public ci::IClientLogic
 			return;
 		static ci::LookData testLookData;
 		static ci::Object *obj = nullptr;
+		static ci::IActor *p = nullptr;
 
 		if (cmdText == L"/q")
 		{
@@ -1379,6 +1392,59 @@ class ClientLogic : public ci::IClientLogic
 			new ci::RemotePlayer(L"TestPlayer", testLookData, localPlayer->GetPos(), localPlayer->GetCell(), localPlayer->GetWorldSpace());
 			ci::Chat::AddMessage(L"testld_spawn");
 			ci::Chat::AddMessage(L"[Test] TintMasks count = " + std::to_wstring(testLookData.tintmasks.size()));
+		}
+		else if (cmdText == L"//eq")
+		{
+			if (p)
+			{
+				auto handR = localPlayer->GetEquippedWeapon(),
+					handL = localPlayer->GetEquippedWeapon(true);
+				if (handR)
+				{
+					p->AddItem(handR, 1, true);
+					p->EquipItem(handR, true, false, false);
+				}
+				else
+					p->UnequipItem(p->GetEquippedWeapon(0), true, false, 0);
+				if (handL)
+				{
+					p->AddItem(handL, 1, true);
+					p->EquipItem(handL, true, false, true);
+				}
+				else
+					p->UnequipItem(p->GetEquippedWeapon(1), true, false, 1);
+			}
+		}
+		else if (cmdText == L"//clone")
+		{
+			p = new ci::RemotePlayer(
+				localPlayer->GetName(), 
+				localPlayer->GetLookData(), 
+				localPlayer->GetPos(), 
+				localPlayer->GetCell(), 
+				localPlayer->GetWorldSpace());
+
+			p->ApplyMovementData(localPlayer->GetMovementData());
+
+			/*auto armor = localPlayer->GetEquippedArmor();
+			for (auto item : armor)
+			{
+				p->AddItem(item, 1, true);
+				p->EquipItem(item, true, false, false);
+			}*/
+
+			auto handR = localPlayer->GetEquippedWeapon(),
+				handL = localPlayer->GetEquippedWeapon(true);
+			if (handR)
+			{
+				p->AddItem(handR, 1, true);
+				p->EquipItem(handR, true, false, false);
+			}
+			if (handL)
+			{
+				p->AddItem(handL, 1, true);
+				p->EquipItem(handL, true, false, true);
+			}
 		}
 		else
 		{
@@ -1568,6 +1634,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(GetItemTypeID(itemType));
 					bsOut.Write(handID);
 					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+					ci::Chat::AddMessage(L"Local: EqArmor");
 				}
 			}
 			for (auto itemType : armorLast)
@@ -1580,6 +1647,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(GetItemTypeID(itemType));
 					bsOut.Write(handID);
 					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+					ci::Chat::AddMessage(L"Local: UneqArmor");
 				}
 			}
 

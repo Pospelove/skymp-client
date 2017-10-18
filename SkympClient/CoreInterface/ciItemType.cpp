@@ -55,6 +55,7 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof TESObjectWEAP);
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
+		//((TESObjectWEAP *)pimpl->item)->BGSEquipType::unk04 = GetEitherHandSlot();
 		break;
 	case Class::Armor:
 		pimpl->item = FormHeap_Allocate<TESObjectARMO>();
@@ -125,15 +126,6 @@ void ItemType::SetDamage(float v)
 			((TESAmmo *)item)->settings.damage = (uint16_t)v;
 		});
 	}
-}
-
-void ItemType::SetEquipSlot(uint32_t id)
-{
-	auto item = pimpl->item;
-	auto eqSlot = (BGSEquipSlot *)LookupFormByID(id);
-	if (eqSlot == nullptr || eqSlot->formType != FormType::EquipSlot)
-		return;
-	((TESObjectWEAP *)item)->SetEquipSlot(eqSlot);
 }
 
 uint32_t ItemType::GetFormID() const

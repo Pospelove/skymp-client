@@ -11,11 +11,9 @@
 enum {
 	DRAW_DISTANCE = 						int32_t(70.0218818381 * 100), // 100 metres
 
-	GHOST_AXE_COUNT = 						0,
+	GHOST_AXE_COUNT = 						1,
 	GHOST_AXE_OFFSET_Z = 					2048,
 	GHOST_AXE_UPDATE_RATE =					750,
-
-	//INVISIBLE_FOX_UPDATE_RATE =				0,
 
 	MAX_HARDSYNCED_PLAYERS = 				5,
 	MAX_PLAYERS_SYNCED_SAFE	=				10,
@@ -337,6 +335,7 @@ namespace ci
 							currentSpawning = this;
 							lastForceSpawn = clock();
 							auto npc = this->AllocateNPC();
+							npc->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
 							currentSpawningBaseID = npc->GetFormID();
 							WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 							return this->ForceSpawn(currentSpawningBaseID);
@@ -374,6 +373,9 @@ namespace ci
 				auto actor = (Actor *)LookupFormByID(pimpl->formID);
 				if (!actor)
 					return this->ForceDespawn(L"Despawned: Unloaded by the game");
+
+				if (this->GetName() != L"Ghost Axe")
+					sd::PrintNote("%d", sd::IsInCombat(actor));
 
 				if (pimpl->spawnMoment + 1000 < clock()
 					&& (sd::GetRace(actor)->formID != this->pimpl->lookData.raceID || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
@@ -684,6 +686,8 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			if (ghostAxes.empty())
 			{
+				if (GHOST_AXE_COUNT == 0)
+					ErrorHandling::SendError("ERROR:RemotePlayer GHOST_AXE_COUNT == 0");
 				for (SInt32 i = 0; i != GHOST_AXE_COUNT; ++i)
 					ghostAxes.push_back(CreateGhostAxe());
 			}
@@ -960,10 +964,6 @@ namespace ci
 		auto result = pimpl->lookSync->Apply(pimpl->lookData);
 		ApplyPackage(result);
 		result->TESActorBaseData::flags.bleedoutOverride = true;
-		result->combatStyle =
-			(TESCombatStyle *)LookupFormByID(0x000F960C);
-		if (result->combatStyle == nullptr)
-			ErrorHandling::SendError("ERROR:RemotePlayer CombatStyle");
 		return result;
 	}
 
@@ -1045,70 +1045,4 @@ namespace ci
 	RemotePlayer *CreateGhostAxe() {
 		return new GhostAxe;
 	}
-
-	/*class InvisibleFox : public RemotePlayer
-	{
-	public:
-		InvisibleFox() : RemotePlayer(InvisibleFox::GetName(), {}, {}, NULL, NULL)
-		{
-		}
-
-		virtual ~InvisibleFox() override
-		{
-		}
-
-		static wchar_t *GetName() {
-			return L"Invisible Fox";
-		}
-
-	private:
-		void ApplyMovementDataImpl() override {
-			auto actor = (Actor *)LookupFormByID(pimpl->formID);
-			if (!actor)
-				return;
-			auto movData = pimpl->movementData;
-			if (this->timer < clock())
-			{
-				bool stop = L"Stopped Fox" == pimpl->name;
-				if (!stop)
-				{
-					timer = clock() + INVISIBLE_FOX_UPDATE_RATE;
-					const NiPoint3 pos = {
-						sd::GetPositionX(actor), sd::GetPositionY(actor), sd::GetPositionZ(actor)
-					};
-					const float distance = (movData.pos - pos).Length();
-					const float t = 0.150;
-					const float speed = distance / t;
-					cd::TranslateTo(actor, movData.pos.x, movData.pos.y, movData.pos.z, 0, 0, 0, speed, 4.0);
-					if (sd::GetBaseActorValue(actor, "Invisibility") == 0)
-					{
-						this->aiEnabled = true;
-					}
-					cd::KeepOffsetFromActor(actor, actor, 0, 0, 0, 0, 0, 0, 1, 1);
-				}
-			}
-			if (this->aiEnabled)
-			{
-				this->aiEnabled = false;
-				//sd::EnableAI(actor, false);
-			}
-		}
-
-		TESNPC *AllocateNPC() const override {
-			enum {
-				Pumpkin = 0x000B11A7,
-				//0x2b362,
-			};
-			static auto npc = (TESNPC *)LookupFormByID(Pumpkin);
-			npc->TESActorBaseData::flags.essential = true;
-			return npc;
-		}
-
-		clock_t timer = 0;
-		bool aiEnabled = true;
-	};
-
-	RemotePlayer *CreateInvisibleFox() {
-		return new InvisibleFox;
-	}*/
 }

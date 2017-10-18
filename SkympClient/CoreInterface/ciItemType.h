@@ -45,7 +45,6 @@ namespace ci
 		void SetGoldValue(uint32_t value);
 		void SetArmorRating(float armorRAting);
 		void SetDamage(float damage);
-		void SetEquipSlot(uint32_t equipSlot);
 
 	private:
 		uint32_t GetFormID() const;

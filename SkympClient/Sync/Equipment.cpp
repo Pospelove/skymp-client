@@ -23,9 +23,6 @@ namespace Equipment_
 		static auto eqSlots = EquipSlots();
 		if (!source)
 			source = LookupFormByID(UnarmedBothHandsID);
-		else if ((int32_t)source->formType == TESObjectWEAP::kTypeID &&
-			((TESObjectWEAP *)source)->GetEquipSlot() == eqSlots.bothHands)
-			return (TESObjectWEAP *)source;
 
 		if (source && (int32_t)source->formType == TESObjectWEAP::kTypeID)
 		{
@@ -52,6 +49,17 @@ namespace Equipment_
 
 	void Apply(Actor *actor, const Equipment &equipment) 
 	{
+		/*static std::map<Actor *, Equipment> equipmentLast;
+		if (equipment.hands[0] != equipmentLast[actor].hands[0]
+			|| equipment.hands[1] != equipmentLast[actor].hands[1])
+		{
+			if (equipment.hands[0])
+				sd::AddItem(actor, equipment.hands[0], 1, true);
+			if (equipment.hands[1])
+				sd::AddItem(actor, equipment.hands[1], 1, true);
+			equipmentLast[actor] = equipment;
+		}*/
+
 		SAFE_CALL("Equipment", [&] {
 			//static std::map<Actor *, Equipment> equipmentLast;
 			//if (equipment.hands[0] != equipmentLast[actor].hands[0] 
@@ -59,6 +67,21 @@ namespace Equipment_
 			{
 				if (equipment.hands[0] && equipment.hands[1]) // DualWield
 				{
+					for (int32_t i = 0; i <= 1; ++i)
+					{
+						auto form = sd::GetEquippedWeapon(actor, i);
+						auto custom = CustomWeapHand(equipment.hands[i], i);
+						if (form != nullptr)
+						{
+							if(form != custom)
+							{
+								sd::UnequipItem(actor, form, false, true);
+								sd::RemoveItem(actor, form, -1, true, nullptr);
+							}
+						}
+						if (form != custom)
+							sd::EquipItem(actor, custom, false, true);
+					}
 				}
 				if (equipment.hands[0] && !equipment.hands[1]) // RightOnly
 				{
@@ -81,7 +104,34 @@ namespace Equipment_
 				}
 				if (!equipment.hands[0] && equipment.hands[1]) // LeftOnly
 				{
-
+					static auto unarmedRight = CustomWeapHand(nullptr, 0);
+					auto weapRight = sd::GetEquippedWeapon(actor, false);
+					if (weapRight != unarmedRight)
+					{
+						if (weapRight != nullptr)
+						{
+							sd::UnequipItem(actor, weapRight, false, true);
+							sd::RemoveItem(actor, weapRight, -1, true, nullptr);
+						}
+						sd::EquipItem(actor, unarmedRight, false, true);
+					}
+					auto weapLeft = sd::GetEquippedWeapon(actor, true);
+					auto custom = CustomWeapHand(equipment.hands[1], 1);
+					if (weapLeft != custom)
+					{
+						if (weapLeft != nullptr)
+						{
+							sd::UnequipItem(actor, weapLeft, false, true);
+							sd::RemoveItem(actor, weapLeft, -1, true, nullptr);
+						}
+						if (custom->GetEquipSlot() != GetLeftHandSlot())
+							ErrorHandling::SendError("ERROR:Equipment Unassigned leftHand slot");
+						if (custom == equipment.hands[1])
+							ErrorHandling::SendError("ERROR:Equipment CustomWeapHand 1");
+						if (custom->formID == equipment.hands[1]->formID)
+							ErrorHandling::SendError("ERROR:Equipment CustomWeapHand 2");
+						sd::EquipItem(actor, custom, false, true);
+					}
 				}
 				if (!equipment.hands[0] && !equipment.hands[1]) // NoWeapon
 				{
