@@ -374,9 +374,6 @@ namespace ci
 				if (!actor)
 					return this->ForceDespawn(L"Despawned: Unloaded by the game");
 
-				if (this->GetName() != L"Ghost Axe")
-					sd::PrintNote("%d", sd::IsInCombat(actor));
-
 				if (pimpl->spawnMoment + 1000 < clock()
 					&& (sd::GetRace(actor)->formID != this->pimpl->lookData.raceID || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
 					&& this->pimpl->lookData.isEmpty() == false)

@@ -1031,8 +1031,6 @@ class ClientLogic : public ci::IClientLogic
 						pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, i);
 					}
 				}
-
-				ci::Chat::AddMessage(L"Equipment: All OK");
 				break;
 			}
 			case ID_ITEMTYPES:
