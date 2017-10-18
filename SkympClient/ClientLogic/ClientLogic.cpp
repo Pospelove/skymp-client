@@ -215,6 +215,7 @@ class ClientLogic : public ci::IClientLogic
 		const std::string &password,
 		const std::wstring &nickname)
 	{
+		net = {};
 		net.peer = RakNet::RakPeerInterface::GetInstance();
 		net.peer->Startup(1, &net.socket, 1);
 		net.password = password;
@@ -314,6 +315,8 @@ class ClientLogic : public ci::IClientLogic
 				break;
 			case ID_ALREADY_CONNECTED:
 				ci::Chat::AddMessage(L"Already connected");
+				Sleep(250);
+				this->ConnectToServer(net.host, net.port, net.hardcodedPassword, net.password, net.nickname);
 				break;
 			case ID_DISCONNECTION_NOTIFICATION:
 				if (net.fullyConnected)
@@ -991,7 +994,6 @@ class ClientLogic : public ci::IClientLogic
 
 				auto armorWas = pl->GetEquippedArmor();
 				std::set<ci::ItemType *> armorNow;
-
 				uint32_t armor;
 				while (bsIn.Read(armor))
 				{
@@ -1005,7 +1007,6 @@ class ClientLogic : public ci::IClientLogic
 						return;
 					}
 				}
-
 				for (auto itemType : armorWas)
 				{
 					if (armorNow.find(itemType) == armorNow.end())

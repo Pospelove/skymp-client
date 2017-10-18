@@ -18,7 +18,7 @@ namespace Equipment_
 			*bothHands = (BGSEquipSlot *)LookupFormByID(0x00013F45);
 	};
 
-	TESObjectWEAP *CustomWeapHand(TESForm *source, bool isRightHand)
+	TESObjectWEAP *CustomWeapHand(TESForm *source, bool isLeftHand)
 	{
 		static auto eqSlots = EquipSlots();
 		if (!source)
@@ -43,47 +43,64 @@ namespace Equipment_
 				rightHandWeap->SetFormID(Utility::NewFormID(), 1);
 				leftHandWeap->SetEquipSlot(eqSlots.leftHand);
 				rightHandWeap->SetEquipSlot(eqSlots.rightHand);
-				data[source] = { leftHandWeap, rightHandWeap };
+				data[source] = { rightHandWeap, leftHandWeap };
 			}
-			return data[source][isRightHand];
+			return data[source][isLeftHand];
 		}
 		return nullptr;
 	}
 
 	void Apply(Actor *actor, const Equipment &equipment) 
 	{
-		/*SAFE_CALL("Equipment", [&] {
-			// Hands
-		static std::map<Actor *, Equipment> eqWas;
-		static std::map<Actor *, std::set<TESForm *>> known;
-		if (eqWas[actor].hands[0] != equipment.hands[0]
-			|| eqWas[actor].hands[1] != equipment.hands[1])
-		{
-			for (auto form : known[actor])
+		SAFE_CALL("Equipment", [&] {
+			//static std::map<Actor *, Equipment> equipmentLast;
+			//if (equipment.hands[0] != equipmentLast[actor].hands[0] 
+			//	|| equipment.hands[1] != equipmentLast[actor].hands[1])
 			{
-				if (form && form != CustomWeapHand(equipment.hands[0], true))
+				if (equipment.hands[0] && equipment.hands[1]) // DualWield
 				{
-					if (form != CustomWeapHand(equipment.hands[1], false))
+				}
+				if (equipment.hands[0] && !equipment.hands[1]) // RightOnly
+				{
+					auto weapLeft = sd::GetEquippedWeapon(actor, true);
+					if (weapLeft != nullptr)
 					{
-						sd::RemoveItem(actor, form, -1, true, nullptr);
+						sd::UnequipItem(actor, weapLeft, false, true);
+						sd::RemoveItem(actor, weapLeft, -1, true, nullptr);
+					}
+					auto weapRight = sd::GetEquippedWeapon(actor, false);
+					if (weapRight != CustomWeapHand(equipment.hands[0], 0))
+					{
+						if (weapRight != nullptr)
+						{
+							sd::UnequipItem(actor, weapRight, false, true);
+							sd::RemoveItem(actor, weapRight, -1, true, nullptr);
+						}
+						sd::EquipItem(actor, CustomWeapHand(equipment.hands[0], 0), false, true);
 					}
 				}
+				if (!equipment.hands[0] && equipment.hands[1]) // LeftOnly
+				{
+
+				}
+				if (!equipment.hands[0] && !equipment.hands[1]) // NoWeapon
+				{
+					for (int32_t i = 0; i <= 1; ++i)
+					{
+						auto form = sd::GetEquippedWeapon(actor, i);
+						if (form != nullptr)
+						{
+							sd::UnequipItem(actor, form, false, true);
+							sd::RemoveItem(actor, form, -1, true, nullptr);
+						}
+					}
+				}
+				//equipmentLast[actor] = equipment;
 			}
+		});
 
-			for (int32_t i = 0; i < 2; ++i)
-			{
-				const bool isLeftHand = (i == 1);
-				auto form = CustomWeapHand(equipment.hands[i], !isLeftHand);
-				sd::EquipItem(actor, form, false, true);
-				known[actor].insert(form);
-			}
-
-			eqWas[actor] = equipment;
-		}
-
-		//});*/
-		static std::set<TESForm *> known;
 		SAFE_CALL("Equipment", [&] {
+			static std::set<TESForm *> known;
 			for (auto form : known)
 			{
 				if (sd::IsEquipped(actor, form) 
