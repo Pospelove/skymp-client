@@ -13,5 +13,6 @@ namespace Equipment_
 		std::set<TESForm *> other;
 	};
 
-	void Apply(Actor *actor, const Equipment &equipment);
+	void ApplyHands(Actor *actor, const Equipment &equipment);
+	void ApplyOther(Actor *actor, const Equipment &equipment);
 }

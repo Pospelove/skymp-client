@@ -430,17 +430,24 @@ namespace ci
 
 					// Apply Equipment
 					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->eq != pimpl->eqLast)
+						if (pimpl->eq.hands != pimpl->eqLast.hands && sd::IsInCombat(actor))
 						{
 							Equipment_::Equipment eq;
 							for (int32_t i = 0; i <= 1; ++i)
 								eq.hands[i] = pimpl->eq.hands[i] ? LookupFormByID(pimpl->eq.hands[i]->GetFormID()) : nullptr;
+							Equipment_::ApplyHands(actor, eq);
+							pimpl->eqLast.hands = pimpl->eq.hands;
+						}
+						if (sd::HasLOS(g_thePlayer, actor))
+						{
+							Equipment_::Equipment eq;
 							if (pimpl->eq.ammo != nullptr)
 								eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
-							for(auto &item : pimpl->eq.armor)
+							for (auto &item : pimpl->eq.armor)
 								eq.other.insert(LookupFormByID(item->GetFormID()));
-							Equipment_::Apply(actor, eq);
-							pimpl->eqLast = pimpl->eq;
+							Equipment_::ApplyOther(actor, eq);
+							pimpl->eqLast.armor = pimpl->eq.armor;
+							pimpl->eqLast.ammo = pimpl->eq.ammo;
 						}
 					});
 
@@ -807,9 +814,9 @@ namespace ci
 
 	void RemotePlayer::EquipItem(const ItemType *item, bool silent, bool preventRemoval, bool leftHand)
 	{
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		if (item)
+		if (item != nullptr)
 		{
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 			uint32_t count;
 			try {
 				count = pimpl->inventory.at(item);
@@ -840,6 +847,9 @@ namespace ci
 
 	void RemotePlayer::UnequipItem(const ItemType *item, bool silent, bool preventEquip, bool isLeftHand)
 	{
+		if (item == nullptr)
+			return;
+
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (item->GetClass() == ci::ItemType::Class::Armor)
 		{

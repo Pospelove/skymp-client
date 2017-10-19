@@ -50,7 +50,6 @@ public:
 	{
 		if (!Requires(kSKSEVersion_1_7_1, SKSEPapyrusInterface::Version_1))
 		{
-			//gLog << "ERROR: your skse version is too old" << std::endl;
 			ErrorHandling::SendError("FATAL:Client your skse version is too old");
 			return false;
 		}
@@ -270,7 +269,7 @@ public:
 
 			}
 			catch (...) {
-				ErrorHandling::SendError("ERROR:Unknown");
+				ErrorHandling::SendError("ERROR:Client Exception in MT");
 			}
 		}
 	}
@@ -525,11 +524,13 @@ public:
 
 				Sleep(1);
 			}
+			catch (const std::exception &e)
+			{
+				ErrorHandling::SendError("ERROR:Client Exception in OT '%s'", e.what());
+			}
 			catch (...)
 			{
-				SET_TIMER(0, [] {
-					sd::ShowMessageBox("Exception in OT");
-				});
+				ErrorHandling::SendError("ERROR:Client Exception in OT");
 			}
 		}
 	}

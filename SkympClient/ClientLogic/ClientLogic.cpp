@@ -1233,8 +1233,13 @@ class ClientLogic : public ci::IClientLogic
 	{
 	}
 
+	std::function<void()> testUpd;
+
 	void OnUpdate() override
 	{
+		if (testUpd)
+			testUpd();
+
 		if (ci::IsInDebug())
 			return;
 		try {
@@ -1411,6 +1416,20 @@ class ClientLogic : public ci::IClientLogic
 				}
 				else
 					p->UnequipItem(p->GetEquippedWeapon(1), true, false, 1);
+
+				auto armorWas = p->GetEquippedArmor();
+				for (auto item : armorWas)
+				{
+					p->UnequipItem(item, true, false);
+					p->RemoveItem(item, 1, false);
+				}
+				auto armor = localPlayer->GetEquippedArmor();
+				for (auto item : armor)
+				{
+					p->AddItem(item, 1, true);
+					p->EquipItem(item, true, false, false);
+				}
+			
 			}
 		}
 		else if (cmdText == L"//clone")
@@ -1424,12 +1443,12 @@ class ClientLogic : public ci::IClientLogic
 
 			p->ApplyMovementData(localPlayer->GetMovementData());
 
-			/*auto armor = localPlayer->GetEquippedArmor();
+			auto armor = localPlayer->GetEquippedArmor();
 			for (auto item : armor)
 			{
 				p->AddItem(item, 1, true);
 				p->EquipItem(item, true, false, false);
-			}*/
+			}
 
 			auto handR = localPlayer->GetEquippedWeapon(),
 				handL = localPlayer->GetEquippedWeapon(true);
@@ -1443,6 +1462,10 @@ class ClientLogic : public ci::IClientLogic
 				p->AddItem(handL, 1, true);
 				p->EquipItem(handL, true, false, true);
 			}
+
+			testUpd = [=] {
+				this->OnChatCommand(L"//eq", {});
+			};
 		}
 		else
 		{
@@ -1632,7 +1655,6 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(GetItemTypeID(itemType));
 					bsOut.Write(handID);
 					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
-					ci::Chat::AddMessage(L"Local: EqArmor");
 				}
 			}
 			for (auto itemType : armorLast)
@@ -1645,7 +1667,6 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(GetItemTypeID(itemType));
 					bsOut.Write(handID);
 					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
-					ci::Chat::AddMessage(L"Local: UneqArmor");
 				}
 			}
 
