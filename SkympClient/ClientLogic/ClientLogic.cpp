@@ -1278,9 +1278,10 @@ class ClientLogic : public ci::IClientLogic
 				UpdateObjects();
 				UpdateCombat();
 				UpdateActorValues();
-				try { UpdateEquippedArmor(); } catch (...) { ci::Log("ERROR:ClientLogic UpdateEquippedArmor()"); }
-				try { UpdateEquippedWeapon<0>(); } catch (...) { ci::Log("ERROR:ClientLogic UpdateEquippedWeapon<0>()"); }
-				try { UpdateEquippedWeapon<1>(); } catch (...) { ci::Log("ERROR:ClientLogic UpdateEquippedWeapon<1>()"); }
+				UpdateEquippedArmor();
+				UpdateEquippedWeapon<0>();
+				UpdateEquippedWeapon<1>();
+				UpdateEquippedAmmo();
 			}
 			catch (const std::exception &e) {
 				ci::Log("ERROR:ClientLogic OnUpdate() %s", e.what());
@@ -1429,6 +1430,15 @@ class ClientLogic : public ci::IClientLogic
 					p->AddItem(item, 1, true);
 					p->EquipItem(item, true, false, false);
 				}
+
+				auto ammo = localPlayer->GetEquippedAmmo();
+				if (ammo)
+				{
+					p->AddItem(ammo, 1, true);
+					p->EquipItem(ammo, true, false);
+				}
+				else
+					p->UnequipItem(p->GetEquippedAmmo(), true, false);
 			
 			}
 		}
@@ -1704,6 +1714,39 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			weapWas = weap;
+		}
+	}
+
+	void UpdateEquippedAmmo()
+	{
+		ci::ItemType *const ammo = localPlayer->GetEquippedAmmo();
+		static ci::ItemType *ammoWas = nullptr;
+		if (ammo != ammoWas)
+		{
+			enum {
+				INVALID_HAND = -1,
+			};
+			const int32_t handID = INVALID_HAND;
+
+			if (ammoWas != nullptr)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_UNEQUIP_ITEM);
+				bsOut.Write(GetItemTypeID(ammoWas));
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+			}
+
+			if (ammo != nullptr)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_ITEM);
+				bsOut.Write(GetItemTypeID(ammo));
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+			}
+
+			ammoWas = ammo;
 		}
 	}
 
