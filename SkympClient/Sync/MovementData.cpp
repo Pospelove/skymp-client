@@ -30,7 +30,6 @@ namespace MovementData_
 	}
 
 	void SendAnimationEvent(Actor *actor, const char *aeName, bool unsafe) {
-		//ci::Chat::AddMessage(L"SendAnimationEvent: " + StringToWstring(aeName));
 		if (unsafe)
 		{
 			std::lock_guard<BSSpinLock>l(actor->processManager->middleProcess->animGraphManager.Get()->lock);
@@ -41,7 +40,6 @@ namespace MovementData_
 	}
 
 	void SendAnimationEvent(cd::Value<Actor> actor, const char *aeName, bool unsafe) {
-		//ci::Chat::AddMessage(L"SendAnimationEvent: " + StringToWstring(aeName));
 		if (unsafe)
 		{
 			const auto actorPtr = actor.operator Actor *();
@@ -56,7 +54,6 @@ namespace MovementData_
 
 	NiPoint3 RotationMatrixToEulerAngles(const NiMatrix3 &R)
 	{
-		//assert(isRotationMatrix(R));
 		const float sy = sqrt(R.GetEntry(0, 0) * R.GetEntry(0, 0) + R.GetEntry(1, 0) * R.GetEntry(1, 0));
 		const bool singular = sy < 1e-6; // If
 		float x, y, z;
@@ -108,8 +105,6 @@ namespace MovementData_
 		HitData_OnAnimationEvent(src, animEventName);
 
 		lastAE = animEventName;
-
-		//ci::Chat::AddMessage(StringToWstring(animEventName));
 	}
 
 	ci::MovementData Get(Actor *actor)
@@ -206,7 +201,6 @@ namespace MovementData_
 		dat.calledOnce = true;
 		if (argsChanged || syncStatus.forceCallKeepOffset)
 		{
-			//ci::Chat::AddMessage(L"KeepOffsetFromActor");
 			if (syncStatus.fullyUnsafeSync)
 				sd::KeepOffsetFromActor(self, self, offset.x, offset.y, offset.z, offsetAngle.x, offsetAngle.y, offsetAngle.z, afCatchUpRadius, afFollowRadius);
 			else
@@ -334,11 +328,70 @@ namespace MovementData_
 			break;
 		};
 
-		if (syncStatus.disableSyncTimer < clock())
+		enum AttackState {
+			BowClick = 8,
+			BowDrawing = 9,
+			BowHoldingAShot = 10,
+			BowRelease = 11,
+			BowReleased = 12,
+		};
+
+		auto getIsAiming = [](const ci::MovementData &md) {
+			return md.attackState == BowClick
+				|| md.attackState == BowDrawing
+				|| md.attackState == BowHoldingAShot
+				|| md.attackState == BowRelease;
+		};
+		const bool isAiming = getIsAiming(md);
+
+		auto myFox = (Actor *)LookupFormByID(syncStatus.myFoxID);
+
+		const bool bowEquipped = sd::GetEquippedItemType(ac, 0) == 7
+			|| sd::GetEquippedItemType(ac, 1) == 7;
+		if (bowEquipped && ac->IsWeaponDrawn())
+		{
+			const cd::Value<Actor> cdActor(ac);
+			if (isAiming)
+			{
+				if (!syncStatus.aiDrivenBowSync || !myFox)
+					SendAnimationEvent(cdActor, "bowAttackStart", 1);
+			}
+			else
+			{
+				if (isAiming != getIsAiming(syncStatus.last))
+				{
+					if (syncStatus.shotsRecordStart == 0)
+						syncStatus.shotsRecordStart = clock();
+					syncStatus.numShots++;
+					syncStatus.lastShot = clock();
+				}
+				SendAnimationEvent(cdActor, "attackRelease", 1);
+			}
+		}
+		if (isAiming && bowEquipped && myFox != nullptr)
+		{
+			sd::SetHeadTracking(ac, true);
+			sd::SetLookAt(ac, myFox, false);
+		}
+		else
 		{
 			if (config.headtrackingDisabled)
+			{
+				sd::ClearLookAt(ac);
 				sd::SetHeadTracking(ac, false);
+			}
+		}
+		if (clock() - syncStatus.lastShot > 3300 && syncStatus.lastShot != 0)
+		{
+			syncStatus.lastShot = 0;
+			syncStatus.shotsRecordStart = 0;
+			syncStatus.numShots = 0;
+		}
+		const float attackSpeed = syncStatus.numShots * 1000.0f / (clock() - syncStatus.shotsRecordStart + 1);
+		syncStatus.aiDrivenBowSync = attackSpeed > 1.1;
 
+		if (syncStatus.disableSyncTimer < clock())
+		{
 			if (syncStatus.strictTranslateToTimer >= clock())
 				syncStatus.forceCallKeepOffset = true;
 
@@ -472,6 +525,12 @@ namespace MovementData_
 
 			if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply || syncStatus.updateWeapDrawnTimer < clock())
 			{
+				if (md.isWeapDrawn != syncStatus.last.isWeapDrawn)
+				{
+					syncStatus.shotsRecordStart = 0;
+					syncStatus.numShots = 0;
+				}
+
 				syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
 				cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
 
@@ -480,11 +539,20 @@ namespace MovementData_
 					sd::SetActorValue(ac, "Confidence", val);
 				if (md.isWeapDrawn)
 				{
-					if (ghostAxes.empty() == false)
+					if (myFox != nullptr && syncStatus.aiDrivenBowSync)
 					{
-						SInt32 i = syncStatus.ghostAxeSeed % ghostAxes.size();
-						auto ghostAxe = (Actor *)LookupFormByID(ghostAxes[i]);
-						sd::StartCombat(ac, ghostAxe);
+						sd::StartCombat(ac, myFox);
+					}
+					else
+					{
+						if (sd::GetCombatTarget(ac) == myFox)
+							sd::StopCombat(ac);
+						if (ghostAxes.empty() == false)
+						{
+							SInt32 i = syncStatus.ghostAxeSeed % ghostAxes.size();
+							auto ghostAxe = (Actor *)LookupFormByID(ghostAxes[i]);
+							sd::StartCombat(ac, ghostAxe);
+						}
 					}
 					ac->DrawSheatheWeapon(true);
 				}
@@ -493,16 +561,9 @@ namespace MovementData_
 					sd::StopCombat(ac);
 					ac->DrawSheatheWeapon(false);
 				}
-
-				static bool tdetectCalled = false;
-				if (tdetectCalled == false)
-				{
-					sd::ExecuteConsoleCommand("tdetect", nullptr);
-					tdetectCalled = true;
-				}
 			}
 
-			if (md.isBlocking != syncStatus.last.isBlocking || syncStatus.isFirstNormalApply /*|| syncStatus.updateBlockingTimer < clock()*/)
+			if (md.isBlocking != syncStatus.last.isBlocking || syncStatus.isFirstNormalApply)
 			{
 				syncStatus.updateBlockingTimer = clock() + config.blockingUpdateRate;
 				syncStatus.lastBlockingChangeMoment = clock();
@@ -544,44 +605,6 @@ namespace MovementData_
 				syncStatus.strictTranslateToTimer = clock() + 5000;
 			}
 		}
-
-		enum AttackState {
-			BowClick = 8,
-			BowDrawing = 9,
-			BowHoldingAShot = 10,
-			BowRelease = 11,
-			BowReleased = 12,
-		};
-		const bool isAiming = md.attackState == BowClick
-			|| md.attackState == BowDrawing 
-			|| md.attackState == BowHoldingAShot;
-
-		const bool bowEquipped = sd::GetEquippedItemType(ac, 0) == 7 
-			|| sd::GetEquippedItemType(ac, 1) == 7;
-		if (bowEquipped && ac->IsWeaponDrawn())
-		{
-			const cd::Value<Actor> cdActor(ac);
-			if (isAiming)
-				SendAnimationEvent(cdActor, "bowAttackStart", 1);
-			else
-				SendAnimationEvent(cdActor, "attackRelease", 1);
-		}
-		/*if (isAiming != syncStatus.isAiming)
-		{
-			syncStatus.isAiming = isAiming;
-
-			if (isAiming)
-			{
-				//syncStatus.disableSyncTimer = clock() + 100;
-				SET_TIMER_LIGHT(100, [=] {
-					SendAnimationEvent(cdActor, "bowAttackStart", syncStatus.fullyUnsafeSync);
-				});
-			}
-			else
-			{
-				SendAnimationEvent(cdActor, "attackRelease", syncStatus.fullyUnsafeSync);
-			}
-		}*/
 
 		syncStatus.last = md;
 		syncStatus.forceCallKeepOffset = false;

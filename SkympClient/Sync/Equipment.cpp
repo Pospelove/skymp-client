@@ -62,6 +62,7 @@ namespace Equipment_
 				invisibleAmmo->formID = 0;
 				invisibleAmmo->SetFormID(Utility::NewFormID(), 1);
 				invisibleAmmo->SetModelName("");
+				invisibleAmmo->settings.damage = 2;
 			}
 		});
 
@@ -92,7 +93,7 @@ namespace Equipment_
 				if (sd::IsEquipped(actor, form) == false)
 				{
 					if (form->formType == FormType::Ammo)
-						sd::AddItem(actor, form, 1000, true);
+						sd::AddItem(actor, form, 100000000, true);
 					sd::EquipItem(actor, form, true, true);
 					known.insert(form);
 				}
@@ -117,6 +118,11 @@ namespace Equipment_
 			if (src)
 			{
 				sd::AddItem(actor, src, 1, true);
+				if (((TESObjectWEAP *)src)->gameData.type == TESObjectWEAP::GameData::kType_Bow)
+				{
+					//// »наче он начнЄт бой и уберЄт лук
+					//sd::EquipItem(actor, src, true, true);
+				}
 				known.insert(src);
 			}
 		}

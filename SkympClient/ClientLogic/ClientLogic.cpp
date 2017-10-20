@@ -1397,8 +1397,7 @@ class ClientLogic : public ci::IClientLogic
 					p->UnequipItem(p->GetEquippedAmmo(), true, false);
 
 				auto m = localPlayer->GetMovementData();
-				m.pos = p->GetPos();
-				m.angleZ = p->GetAngleZ();
+				m.pos += {128, 128, 0};
 				p->ApplyMovementData(m);
 			
 			}

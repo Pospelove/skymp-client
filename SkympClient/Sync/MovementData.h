@@ -11,8 +11,9 @@ namespace MovementData_
 		Light
 	};
 
-	struct SyncState
+	class SyncState
 	{
+	public:
 		// in
 		bool fullyUnsafeSync = false;
 		uint32_t myFoxID = 0;
@@ -52,6 +53,10 @@ namespace MovementData_
 		UInt64 ghostAxeSeed = 0;
 		bool jumpedStanding = false;
 		bool isAiming = false;
+		bool aiDrivenBowSync = false;
+		uint32_t numShots = 0;
+		clock_t shotsRecordStart = 0;
+		clock_t lastShot = 0;
 	};
 
 	using GhostAxeVector = std::vector<RefHandle>;

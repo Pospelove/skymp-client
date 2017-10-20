@@ -15,8 +15,10 @@ enum {
 	GHOST_AXE_OFFSET_Z = 					2048,
 	GHOST_AXE_UPDATE_RATE =					750,
 
+	INVISIBLE_FOX_UPDATE_RATE =				80,
+
 	MAX_HARDSYNCED_PLAYERS = 				5,
-	MAX_PLAYERS_SYNCED_SAFE	=				10,
+	MAX_PLAYERS_SYNCED_SAFE	=				0,
 };
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
@@ -171,6 +173,8 @@ namespace ci
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData, avDataLast;
+		RemotePlayer *myFox = nullptr;
+		std::function<void(Actor *)> foxTask = nullptr;
 
 		struct Equipment
 		{
@@ -424,9 +428,94 @@ namespace ci
 					});
 				}
 
+				// When We Are Fox
+				SAFE_CALL("RemotePlayer", [&] {
+					if (pimpl->foxTask != nullptr)
+					{
+						pimpl->foxTask(actor);
+						pimpl->foxTask = nullptr;
+					}
+				});
+
+				// Manage My Fox
+				SAFE_CALL("RemotePlayer", [&] {
+					pimpl->syncState.myFoxID = 0;
+					if (pimpl->myFox != nullptr)
+					{
+						pimpl->syncState.myFoxID = pimpl->myFox->pimpl->formID;
+						auto toRad = [](float v) {
+							return v / 180 * acos(-1);
+						};
+
+						const float r = 600.0f;
+						auto md = MovementData(),
+							myMd = this->GetMovementData();
+						md.pos = myMd.pos;
+						md.pos.x += r * cos(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
+						md.pos.y += r * sin(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
+						md.pos.z += r * cos(toRad(myMd.aimingAngle + 90));
+						pimpl->myFox->ApplyMovementData(md);
+						pimpl->myFox->pimpl->foxTask = [=](Actor *foxRef) {
+							sd::TranslateTo(foxRef, md.pos.x, md.pos.y, md.pos.z, 0, 0, 0, 10000, 1);
+							enum {
+								Pumpkin = 0x000B11A7,
+							};
+							auto foxRace = ((TESNPC *)LookupFormByID(Pumpkin))->GetRace();
+							if (sd::GetRace(foxRef) != foxRace)
+							{
+								//sd::SetRace(foxRef, foxRace);
+							}
+							sd::EnableAI(foxRef, false);
+						};
+					}
+				});
+
 				if (pimpl->timer250ms + 250 < clock())
 				{
 					pimpl->timer250ms = clock();
+
+					// Create/Destroy My Fox
+					SAFE_CALL("RemotePlayer", [&] {
+						bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
+							|| sd::GetEquippedItemType(actor, 1) == 7;
+						if (bowEquipped)
+						{
+							if (pimpl->myFox == nullptr)
+							{
+								std::thread([=] {
+									std::lock_guard<dlf_mutex> l1(gMutex);
+									if (allRemotePlayers.find(this) != allRemotePlayers.end())
+									{
+										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+										ci::Chat::AddMessage(L"Fox Create");
+										if (pimpl->myFox == nullptr)
+										{
+											pimpl->myFox = new RemotePlayer(*this);
+										}
+									}
+								}).detach();
+							}
+						}
+						else
+						{
+							if (pimpl->myFox != nullptr)
+							{
+								std::thread([=] {
+									std::lock_guard<dlf_mutex> l1(gMutex);
+									if (allRemotePlayers.find(this) != allRemotePlayers.end())
+									{
+										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+										ci::Chat::AddMessage(L"FoxDestroy");
+										if (pimpl->myFox != nullptr)
+										{
+											delete pimpl->myFox;
+											pimpl->myFox = nullptr;
+										}
+									}
+								}).detach();
+							}
+						}
+					});
 
 					// Apply Equipment
 					SAFE_CALL("RemotePlayer", [&] {
