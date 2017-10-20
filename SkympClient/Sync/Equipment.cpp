@@ -47,14 +47,41 @@ namespace Equipment_
 		return nullptr;
 	}
 
-	void ApplyOther(Actor *actor, const Equipment &equipment)
+	void ApplyOther(Actor *actor, Equipment equipment)
 	{
+		enum {
+			IronArrow = 0x0001397D
+		};
+		static auto src = (TESAmmo *)LookupFormByID(IronArrow);
+		static auto invisibleAmmo = (TESAmmo *)nullptr;
+		SAFE_CALL("Equipment", [&] {
+			if (!invisibleAmmo)
+			{
+				invisibleAmmo = FormHeap_Allocate<TESAmmo>();
+				memcpy(invisibleAmmo, src, sizeof TESAmmo);
+				invisibleAmmo->formID = 0;
+				invisibleAmmo->SetFormID(Utility::NewFormID(), 1);
+				invisibleAmmo->SetModelName("");
+			}
+		});
+
+		bool hasAmmo = false;
+		for (auto form : equipment.other)
+			if (form->formType == FormType::Ammo)
+			{
+				hasAmmo = true;
+				break;
+			}
+		if (!hasAmmo)
+			equipment.other.insert(invisibleAmmo);
+
 		SAFE_CALL("Equipment", [&] {
 			static std::set<TESForm *> known;
 			for (auto form : known)
 			{
 				if (sd::IsEquipped(actor, form)
-					&& equipment.other.find(form) == equipment.other.end())
+					&& equipment.other.find(form) == equipment.other.end()
+					&& form != invisibleAmmo)
 				{
 					sd::UnequipItem(actor, form, false, true);
 					sd::RemoveItem(actor, form, -1, true, nullptr);
@@ -64,6 +91,8 @@ namespace Equipment_
 			{
 				if (sd::IsEquipped(actor, form) == false)
 				{
+					if (form->formType == FormType::Ammo)
+						sd::AddItem(actor, form, 1000, true);
 					sd::EquipItem(actor, form, true, true);
 					known.insert(form);
 				}

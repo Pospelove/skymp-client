@@ -430,7 +430,7 @@ namespace ci
 
 					// Apply Equipment
 					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->eq.hands != pimpl->eqLast.hands && sd::IsInCombat(actor))
+						if (pimpl->eq.hands != pimpl->eqLast.hands)
 						{
 							Equipment_::Equipment eq;
 							for (int32_t i = 0; i <= 1; ++i)

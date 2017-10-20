@@ -14,5 +14,5 @@ namespace Equipment_
 	};
 
 	void ApplyHands(Actor *actor, const Equipment &equipment);
-	void ApplyOther(Actor *actor, const Equipment &equipment);
+	void ApplyOther(Actor *actor, Equipment equipment);
 }

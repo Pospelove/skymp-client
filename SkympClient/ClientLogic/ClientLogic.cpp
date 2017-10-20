@@ -1031,6 +1031,22 @@ class ClientLogic : public ci::IClientLogic
 						pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, i);
 					}
 				}
+
+				if (ammo != ~0)
+				{
+					try {
+						auto itemType = itemTypes.at(ammo);
+						pl->EquipItem(itemType, this->silentInventoryChanges, false);
+					}
+					catch (...) {
+						ci::Log("ERROR:ClientLogic Equipment: Ammo not found");
+						return;
+					}
+				}
+				else
+				{
+					pl->UnequipItem(pl->GetEquippedAmmo(), true, false);
+				}
 				break;
 			}
 			case ID_ITEMTYPES:
@@ -1439,6 +1455,11 @@ class ClientLogic : public ci::IClientLogic
 				}
 				else
 					p->UnequipItem(p->GetEquippedAmmo(), true, false);
+
+				auto m = localPlayer->GetMovementData();
+				m.pos = p->GetPos();
+				m.angleZ = p->GetAngleZ();
+				p->ApplyMovementData(m);
 			
 			}
 		}
