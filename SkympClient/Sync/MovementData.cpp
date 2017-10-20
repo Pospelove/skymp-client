@@ -549,8 +549,7 @@ namespace MovementData_
 							sd::StopCombat(ac);
 						if (ghostAxes.empty() == false)
 						{
-							SInt32 i = syncStatus.ghostAxeSeed % ghostAxes.size();
-							auto ghostAxe = (Actor *)LookupFormByID(ghostAxes[i]);
+							auto ghostAxe = (Actor *)LookupFormByID(ghostAxes.front());
 							sd::StartCombat(ac, ghostAxe);
 						}
 					}

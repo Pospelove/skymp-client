@@ -50,7 +50,6 @@ namespace MovementData_
 		clock_t timer1 = 0;
 		clock_t strictTranslateToTimer = 0;
 		clock_t disableSyncTimer = 0;
-		UInt64 ghostAxeSeed = 0;
 		bool jumpedStanding = false;
 		bool isAiming = false;
 		bool aiDrivenBowSync = false;
