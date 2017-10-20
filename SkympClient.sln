@@ -19,10 +19,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Performance1.psess = Performance1.psess
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SkympFakeClient", "SkympFakeClient", "{8F0DE430-5192-4709-A815-A76127CDF823}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkympFakeClient", "SkympFakeClient\SkympFakeClient.vcxproj", "{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -61,14 +57,6 @@ Global
 		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|Win32.Build.0 = Release|Win32
 		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|x64.ActiveCfg = Release|x64
 		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713}.Release|x64.Build.0 = Release|x64
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Debug|Win32.ActiveCfg = Debug|Win32
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Debug|Win32.Build.0 = Debug|Win32
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Debug|x64.ActiveCfg = Debug|x64
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Debug|x64.Build.0 = Debug|x64
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Release|Win32.ActiveCfg = Release|Win32
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Release|Win32.Build.0 = Release|Win32
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Release|x64.ActiveCfg = Release|x64
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,7 +66,6 @@ Global
 		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
 		{AD95F75E-FD79-4F2F-BC36-828D592A790A} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
 		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
-		{D61F5CAF-2FD5-4C75-AAE6-F00B0C5A6778} = {8F0DE430-5192-4709-A815-A76127CDF823}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
