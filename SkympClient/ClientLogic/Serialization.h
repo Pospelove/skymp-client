@@ -1,6 +1,6 @@
 #pragma once
 
-void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
+inline void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
 {
 	bsOut.Write(d.aimingAngle);
 	bsOut.Write(d.attackState);
@@ -22,7 +22,7 @@ void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
 	bsOut.Write(d.isSwimming);
 }
 
-void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
+inline void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
 {
 	bsIn.Read(d.aimingAngle);
 	bsIn.Read(d.attackState);
@@ -44,7 +44,7 @@ void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
 	bsIn.Read(d.isSwimming);
 }
 
-void Serialize(RakNet::BitStream &bsOut, const ci::LookData &d)
+inline void Serialize(RakNet::BitStream &bsOut, const ci::LookData &d)
 {
 	bsOut.Write(d.isFemale);
 	bsOut.Write(d.raceID);
@@ -84,7 +84,7 @@ void Serialize(RakNet::BitStream &bsOut, const ci::LookData &d)
 }
 
 
-void Deserialize(RakNet::BitStream &bsIn, ci::LookData &d)
+inline void Deserialize(RakNet::BitStream &bsIn, ci::LookData &d)
 {
 	bsIn.Read(d.isFemale);
 	bsIn.Read(d.raceID);

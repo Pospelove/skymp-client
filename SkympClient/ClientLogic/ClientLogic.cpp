@@ -23,7 +23,6 @@ ci::LookData ld;
 class ClientLogic : public ci::IClientLogic
 {
 	ci::IActor *const localPlayer = ci::LocalPlayer::GetSingleton();
-	//std::map<uint16_t, std::shared_ptr<ci::RemotePlayer>> remotePlayers;
 	std::map<uint16_t, ci::IActor *> players;
 	std::map<uint32_t, ci::Object *> objects;
 	std::map<uint32_t, ci::ItemType *> itemTypes;
