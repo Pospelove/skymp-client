@@ -151,6 +151,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ClientLogic\Config.h" />
+    <ClInclude Include="ClientLogic\MessageID.h" />
     <ClInclude Include="ClientLogic\Serialization.h" />
     <ClInclude Include="Common\clip.h" />
     <ClInclude Include="Common\clip_win.h" />

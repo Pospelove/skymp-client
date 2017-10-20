@@ -365,6 +365,9 @@
     <ClInclude Include="Sync\LookData.h">
       <Filter>core\Sync</Filter>
     </ClInclude>
+    <ClInclude Include="ClientLogic\MessageID.h">
+      <Filter>client_logic</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptDragon\plugin.def">
