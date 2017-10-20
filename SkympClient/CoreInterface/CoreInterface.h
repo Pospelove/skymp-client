@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "Skyrim\NetImmerse\NiPoint3.h"
+#include "..\Skyrim\include\Skyrim\NetImmerse\NiPoint3.h"
 
 #include "ciGUI.h"
 #include "ciOther.h"
