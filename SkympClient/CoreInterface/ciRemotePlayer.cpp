@@ -8,16 +8,22 @@
 #include <algorithm>
 #include <queue>
 
-enum {
-	DRAW_DISTANCE = 						int32_t(70.0218818381 * 100), // 100 metres
-
-	GHOST_AXE_COUNT = 						1,
-	GHOST_AXE_OFFSET_Z = 					2048,
-	GHOST_AXE_UPDATE_RATE =					750,
-
-	MAX_HARDSYNCED_PLAYERS = 				5,
-	MAX_PLAYERS_SYNCED_SAFE	=				0,
+enum class InvisibleFoxEngine {
+	None =				0x0,
+	RemotePlayer =		0x1,
+	Object =			0x2,
 };
+
+#define DRAW_DISTANCE						int32_t(70.0218818381 * 100) // 100 metres
+
+#define GHOST_AXE_COUNT 					1
+#define GHOST_AXE_OFFSET_Z 					2048
+#define GHOST_AXE_UPDATE_RATE				750
+
+#define MAX_HARDSYNCED_PLAYERS				5
+#define MAX_PLAYERS_SYNCED_SAFE				0
+
+#define INVISIBLE_FOX_ENGINE				InvisibleFoxEngine::Object
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 
@@ -172,6 +178,7 @@ namespace ci
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData, avDataLast;
 		RemotePlayer *myFox = nullptr;
+		Object *myPseudoFox = nullptr;
 		std::function<void(Actor *)> foxTask = nullptr;
 
 		struct Equipment
@@ -303,6 +310,14 @@ namespace ci
 		{
 			std::thread([=] {
 				delete myFox;
+			}).detach();
+		}
+
+		auto myPseudoFox = pimpl->myPseudoFox;
+		if (myPseudoFox != nullptr)
+		{
+			std::thread([=] {
+				delete myPseudoFox;
 			}).detach();
 		}
 	}
@@ -439,23 +454,27 @@ namespace ci
 
 				// Manage My Fox
 				SAFE_CALL("RemotePlayer", [&] {
+
+					auto pointAtSphere = [](float angleZ, float aimingAngle, float r)->NiPoint3 {
+						auto toRad = [](float v) {
+							return v / 180 * acos(-1);
+						};
+						return { float(r * cos(-toRad(-90.f + angleZ)) * sin(toRad(aimingAngle + 90))),
+							float(r * sin(-toRad(-90.f + angleZ)) * sin(toRad(aimingAngle + 90))),
+							float(r * cos(toRad(aimingAngle + 90)))
+						};
+					};
+
 					pimpl->syncState.myFoxID = 0;
 					if (pimpl->myFox != nullptr)
 					{
 						pimpl->syncState.myFoxID = pimpl->myFox->pimpl->formID;
-						auto toRad = [](float v) {
-							return v / 180 * acos(-1);
-						};
-
 						auto md = MovementData(),
 							myMd = this->GetMovementData();
-						double r = 600;
+						float r = 600;
 						while (true)
 						{
-							md.pos = myMd.pos;
-							md.pos.x += r * cos(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
-							md.pos.y += r * sin(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
-							md.pos.z += r * cos(toRad(myMd.aimingAngle + 90));
+							md.pos = myMd.pos + pointAtSphere(myMd.angleZ, myMd.aimingAngle, r);
 							if ((md.pos - cd::GetPosition(g_thePlayer)).Length() > 300)
 								break;
 							r += 50;
@@ -471,6 +490,20 @@ namespace ci
 							}
 						};
 					}
+					else if (pimpl->myPseudoFox != nullptr)
+					{
+						const float r = 600;
+						const auto myMd = this->GetMovementData();
+						auto pos = myMd.pos + pointAtSphere(myMd.angleZ, myMd.aimingAngle, r);
+						pimpl->myPseudoFox->SetPosition(pos);
+						auto baseForm = LookupFormByID(pimpl->myPseudoFox->GetBase());
+						if (baseForm != nullptr)
+						{
+							auto ref = sd::Game::FindClosestReferenceOfType(baseForm, pos.x, pos.y, pos.z, 128.0);
+							if (ref != nullptr)
+								pimpl->syncState.myFoxID = ref->formID;
+						}
+					}
 				});
 
 				if (pimpl->timer250ms + 250 < clock())
@@ -478,21 +511,62 @@ namespace ci
 					pimpl->timer250ms = clock();
 
 					// Create/Destroy My Fox
-					SAFE_CALL("RemotePlayer", [&] {
-						bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
-							|| sd::GetEquippedItemType(actor, 1) == 7;
+					const bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
+						|| sd::GetEquippedItemType(actor, 1) == 7;
+					if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::RemotePlayer)
+					{
+						SAFE_CALL("RemotePlayer", [&] {
+							if (bowEquipped)
+							{
+								if (pimpl->myFox == nullptr)
+								{
+									std::thread([=] {
+										std::lock_guard<dlf_mutex> l1(gMutex);
+										if (allRemotePlayers.find(this) != allRemotePlayers.end())
+										{
+											std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+											if (pimpl->myFox == nullptr)
+												pimpl->myFox = new RemotePlayer(*this);
+										}
+									}).detach();
+								}
+							}
+							else
+							{
+								if (pimpl->myFox != nullptr)
+								{
+									std::thread([=] {
+										std::lock_guard<dlf_mutex> l1(gMutex);
+										if (allRemotePlayers.find(this) != allRemotePlayers.end())
+										{
+											std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+											if (pimpl->myFox != nullptr)
+											{
+												delete pimpl->myFox;
+												pimpl->myFox = nullptr;
+											}
+										}
+									}).detach();
+								}
+							}
+						});
+					}
+					else if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::Object)
+					{
 						if (bowEquipped)
 						{
-							if (pimpl->myFox == nullptr)
+							if (pimpl->myPseudoFox == nullptr)
 							{
 								std::thread([=] {
 									std::lock_guard<dlf_mutex> l1(gMutex);
 									if (allRemotePlayers.find(this) != allRemotePlayers.end())
 									{
 										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-										if (pimpl->myFox == nullptr)
+										if (pimpl->myPseudoFox == nullptr)
 										{
-											pimpl->myFox = new RemotePlayer(*this);
+											const uint32_t locationID = pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : pimpl->worldSpaceID;
+											pimpl->myPseudoFox = new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, locationID, { 0,0,0 }, { 0,0,0 });
+											pimpl->myPseudoFox->SetMotionType(Object::Motion_Keyframed);
 										}
 									}
 								}).detach();
@@ -500,24 +574,23 @@ namespace ci
 						}
 						else
 						{
-							if (pimpl->myFox != nullptr)
+							if (pimpl->myPseudoFox != nullptr)
 							{
 								std::thread([=] {
 									std::lock_guard<dlf_mutex> l1(gMutex);
 									if (allRemotePlayers.find(this) != allRemotePlayers.end())
 									{
 										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-										ci::Chat::AddMessage(L"FoxDestroy");
-										if (pimpl->myFox != nullptr)
+										if (pimpl->myPseudoFox != nullptr)
 										{
-											delete pimpl->myFox;
-											pimpl->myFox = nullptr;
+											delete pimpl->myPseudoFox;
+											pimpl->myPseudoFox = nullptr;
 										}
 									}
 								}).detach();
 							}
 						}
-					});
+					}
 
 					// Apply Equipment
 					SAFE_CALL("RemotePlayer", [&] {
