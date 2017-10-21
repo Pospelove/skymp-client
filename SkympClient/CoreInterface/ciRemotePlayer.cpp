@@ -298,11 +298,13 @@ namespace ci
 		if (currentFixingGreyFace == this)
 			currentFixingGreyFace = nullptr;
 		
-		/*if (pimpl->myFox != nullptr)
+		auto myFox = pimpl->myFox;
+		if (myFox != nullptr)
 		{
-			delete pimpl->myFox;
-			pimpl->myFox = nullptr;
-		}*/
+			std::thread([=] {
+				delete myFox;
+			}).detach();
+		}
 	}
 
 	void RemotePlayer::Update()
@@ -445,25 +447,28 @@ namespace ci
 							return v / 180 * acos(-1);
 						};
 
-						const float r = 600.0f;
 						auto md = MovementData(),
 							myMd = this->GetMovementData();
-						md.pos = myMd.pos;
-						md.pos.x += r * cos(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
-						md.pos.y += r * sin(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
-						md.pos.z += r * cos(toRad(myMd.aimingAngle + 90));
+						double r = 600;
+						while (true)
+						{
+							md.pos = myMd.pos;
+							md.pos.x += r * cos(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
+							md.pos.y += r * sin(-toRad(-90.f + myMd.angleZ)) * sin(toRad(myMd.aimingAngle + 90));
+							md.pos.z += r * cos(toRad(myMd.aimingAngle + 90));
+							if ((md.pos - cd::GetPosition(g_thePlayer)).Length() > 300)
+								break;
+							r += 50;
+						}
 						pimpl->myFox->ApplyMovementData(md);
-						pimpl->myFox->pimpl->foxTask = [=](Actor *foxRef) {
+						pimpl->myFox->pimpl->foxTask = [md](Actor *foxRef) {
 							sd::TranslateTo(foxRef, md.pos.x, md.pos.y, md.pos.z, 0, 0, 0, 10000, 1);
-							enum {
-								Pumpkin = 0x000B11A7,
-							};
-							auto foxRace = ((TESNPC *)LookupFormByID(Pumpkin))->GetRace();
-							if (sd::GetRace(foxRef) != foxRace)
+							if (sd::GetBaseActorValue(foxRef, "Invisibility") == 0)
 							{
-								//sd::SetRace(foxRef, foxRace);
+								sd::SetActorValue(foxRef, "Invisibility", 100);
+								sd::EnableAI(foxRef, false);
+								sd::AllowPCDialogue(foxRef, false);
 							}
-							sd::EnableAI(foxRef, false);
 						};
 					}
 				});
@@ -485,7 +490,6 @@ namespace ci
 									if (allRemotePlayers.find(this) != allRemotePlayers.end())
 									{
 										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-										ci::Chat::AddMessage(L"Fox Create");
 										if (pimpl->myFox == nullptr)
 										{
 											pimpl->myFox = new RemotePlayer(*this);

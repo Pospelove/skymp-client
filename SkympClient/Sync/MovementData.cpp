@@ -344,7 +344,7 @@ namespace MovementData_
 		};
 		const bool isAiming = getIsAiming(md);
 
-		auto myFox = (Actor *)LookupFormByID(syncStatus.myFoxID);
+		auto myFox = (TESObjectREFR *)LookupFormByID(syncStatus.myFoxID);
 
 		const bool bowEquipped = sd::GetEquippedItemType(ac, 0) == 7
 			|| sd::GetEquippedItemType(ac, 1) == 7;
@@ -353,7 +353,7 @@ namespace MovementData_
 			const cd::Value<Actor> cdActor(ac);
 			if (isAiming)
 			{
-				if (!syncStatus.aiDrivenBowSync || !myFox)
+				if (!syncStatus.aiDrivenBowSync || !myFox || myFox->baseForm->formType != FormType::NPC)
 					SendAnimationEvent(cdActor, "bowAttackStart", 1);
 			}
 			else
@@ -387,8 +387,8 @@ namespace MovementData_
 			syncStatus.shotsRecordStart = 0;
 			syncStatus.numShots = 0;
 		}
-		const float attackSpeed = syncStatus.numShots * 1000.0f / (clock() - syncStatus.shotsRecordStart + 1);
-		syncStatus.aiDrivenBowSync = attackSpeed > 1.1;
+		const float fireRate = syncStatus.numShots * 1000.0f / (clock() - syncStatus.shotsRecordStart + 1);
+		syncStatus.aiDrivenBowSync = fireRate > 1.1;
 
 		if (syncStatus.disableSyncTimer < clock())
 		{
@@ -541,7 +541,8 @@ namespace MovementData_
 				{
 					if (myFox != nullptr && syncStatus.aiDrivenBowSync)
 					{
-						sd::StartCombat(ac, myFox);
+						if (myFox->baseForm->formType == FormType::NPC)
+							sd::StartCombat(ac, (Actor *)myFox);
 					}
 					else
 					{

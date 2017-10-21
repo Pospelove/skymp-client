@@ -118,11 +118,6 @@ namespace Equipment_
 			if (src)
 			{
 				sd::AddItem(actor, src, 1, true);
-				if (((TESObjectWEAP *)src)->gameData.type == TESObjectWEAP::GameData::kType_Bow)
-				{
-					//// »наче он начнЄт бой и уберЄт лук
-					//sd::EquipItem(actor, src, true, true);
-				}
 				known.insert(src);
 			}
 		}
