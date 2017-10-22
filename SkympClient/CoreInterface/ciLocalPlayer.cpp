@@ -334,7 +334,6 @@ void ci::LocalPlayer::UseFurniture(const Object *target, bool anim)
 				case 0x180D8:
 					//break;
 				default:
-					ci::Chat::AddMessage(L"UseFurniture");
 					sd::Activate(ref, g_thePlayer, true);
 					break;
 				}
@@ -362,11 +361,7 @@ void ci::LocalPlayer::AddItem(const ItemType *item, uint32_t count, bool silent)
 		if (form && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 		{
 			SET_TIMER(0, [=] {
-				if (silent)
-					sd::AddItem(g_thePlayer, form, count, true);
-				else
-					cd::AddItem(g_thePlayer, form, count, false);
-				//sd::Debug::ShowMessageBox(silent ? "silent" : "NOT SILENT");
+				sd::AddItem(g_thePlayer, form, count, silent);
 			});
 		}
 	}

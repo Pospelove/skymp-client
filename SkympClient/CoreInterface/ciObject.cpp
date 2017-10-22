@@ -4,6 +4,8 @@
 #include "SKSE/SKSEEvents.h"
 #include "SKSE/PluginAPI.h"
 
+#define SAFE_ITEM_REMOVE				FALSE
+
 dlf_mutex gMutex;
 std::set<ci::Object *> allObjects;
 
@@ -272,7 +274,10 @@ struct ci::Object::Impl
 						ObjectTask task{ [=](TESObjectREFR *ref) {
 							if (form)
 							{
-								cd::RemoveItem(ref, form, count, true, nullptr);
+								if (SAFE_ITEM_REMOVE != FALSE)
+									cd::RemoveItem(ref, form, count, true, nullptr);
+								else
+									sd::RemoveItem(ref, form, count, true, nullptr);
 							}
 						} };
 						owner->pimpl->inventoryTasks.push_back(task);
@@ -627,7 +632,10 @@ void ci::Object::RemoveItem(const ItemType *item, uint32_t count)
 		ObjectTask task{ [=](TESObjectREFR *ref) {
 			if (form)
 			{
-				cd::RemoveItem(ref, form, count, true, nullptr);
+				if (SAFE_ITEM_REMOVE != FALSE)
+					cd::RemoveItem(ref, form, count, true, nullptr);
+				else
+					sd::RemoveItem(ref, form, count, true, nullptr);
 			}
 		} };
 		if (!MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))

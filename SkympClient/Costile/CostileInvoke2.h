@@ -7,7 +7,7 @@
 #include <thread>
 
 #define CAPTURE_LOCKS						FALSE
-#define COSTILE_INVOKE_DEBUG				FALSE
+#define COSTILE_INVOKE_DEBUG				TRUE
 
 #if COSTILE_INVOKE_DEBUG != FALSE
 #include "../CoreInterface/CoreInterface.h"
