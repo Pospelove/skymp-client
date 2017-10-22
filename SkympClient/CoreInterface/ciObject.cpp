@@ -9,7 +9,7 @@ std::set<ci::Object *> allObjects;
 
 extern std::map<const ci::ItemType *, uint32_t> inventory;
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
-extern dlf_mutex localPlMutex;
+extern ErrorHandling::DeadlockFreeMutex<75U> localPlMutex;
 
 namespace ci
 {

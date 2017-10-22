@@ -24,6 +24,7 @@ enum class InvisibleFoxEngine {
 #define MAX_PLAYERS_SYNCED_SAFE				0
 
 #define INVISIBLE_FOX_ENGINE				InvisibleFoxEngine::Object
+#define MAX_INVISIBLE_FOXES					3
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 
@@ -37,6 +38,7 @@ namespace ci
 	clock_t lastForceSpawn = 0;
 	RemotePlayer *currentFixingGreyFace = nullptr;
 	dlf_mutex gMutex;
+	uint32_t numInvisibleFoxes = 0;
 
 	inline float GetRespawnRadius(bool isInterior) {
 		return DRAW_DISTANCE;
@@ -308,6 +310,7 @@ namespace ci
 		auto myFox = pimpl->myFox;
 		if (myFox != nullptr)
 		{
+			--numInvisibleFoxes;
 			std::thread([=] {
 				delete myFox;
 			}).detach();
@@ -316,6 +319,7 @@ namespace ci
 		auto myPseudoFox = pimpl->myPseudoFox;
 		if (myPseudoFox != nullptr)
 		{
+			--numInvisibleFoxes;
 			std::thread([=] {
 				delete myPseudoFox;
 			}).detach();
@@ -518,7 +522,8 @@ namespace ci
 						SAFE_CALL("RemotePlayer", [&] {
 							if (bowEquipped)
 							{
-								if (pimpl->myFox == nullptr)
+								if (pimpl->myFox == nullptr 
+									&& numInvisibleFoxes < MAX_INVISIBLE_FOXES)
 								{
 									std::thread([=] {
 										std::lock_guard<dlf_mutex> l1(gMutex);
@@ -526,7 +531,10 @@ namespace ci
 										{
 											std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 											if (pimpl->myFox == nullptr)
+											{
 												pimpl->myFox = new RemotePlayer(*this);
+												++numInvisibleFoxes;
+											}
 										}
 									}).detach();
 								}
@@ -544,6 +552,7 @@ namespace ci
 											{
 												delete pimpl->myFox;
 												pimpl->myFox = nullptr;
+												--numInvisibleFoxes;
 											}
 										}
 									}).detach();
@@ -555,7 +564,9 @@ namespace ci
 					{
 						if (bowEquipped)
 						{
-							if (pimpl->myPseudoFox == nullptr)
+							if (pimpl->myPseudoFox == nullptr 
+								&& numInvisibleFoxes < MAX_INVISIBLE_FOXES
+								&& sd::HasLOS(g_thePlayer, actor))
 							{
 								std::thread([=] {
 									std::lock_guard<dlf_mutex> l1(gMutex);
@@ -567,6 +578,7 @@ namespace ci
 											const uint32_t locationID = pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : pimpl->worldSpaceID;
 											pimpl->myPseudoFox = new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, locationID, { 0,0,0 }, { 0,0,0 });
 											pimpl->myPseudoFox->SetMotionType(Object::Motion_Keyframed);
+											++numInvisibleFoxes;
 										}
 									}
 								}).detach();
@@ -585,6 +597,7 @@ namespace ci
 										{
 											delete pimpl->myPseudoFox;
 											pimpl->myPseudoFox = nullptr;
+											--numInvisibleFoxes;
 										}
 									}
 								}).detach();

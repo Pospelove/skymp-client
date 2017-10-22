@@ -42,7 +42,7 @@ Chat::Chat()
 	if (!TheGUI)
 		return;
 
-	mutex = &TheGUI->mutex;
+	mutex = decltype(mutex)(&TheGUI->mutex);
 	std::lock_guard<dlf_mutex> lck(*mutex);
 
 	m_pGUI = TheGUI->myGUI;
