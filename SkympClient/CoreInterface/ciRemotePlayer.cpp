@@ -21,7 +21,7 @@ enum class InvisibleFoxEngine {
 #define GHOST_AXE_UPDATE_RATE				750
 
 #define MAX_HARDSYNCED_PLAYERS				5
-#define MAX_PLAYERS_SYNCED_SAFE				0
+#define MAX_PLAYERS_SYNCED_SAFE				5
 
 #define INVISIBLE_FOX_ENGINE				InvisibleFoxEngine::Object
 #define MAX_INVISIBLE_FOXES					3

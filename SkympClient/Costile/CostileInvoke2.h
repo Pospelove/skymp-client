@@ -6,9 +6,12 @@
 #include <memory>
 #include <thread>
 
-//#include "../CoreInterface/CoreInterface.h"
+#define CAPTURE_LOCKS						FALSE
+#define COSTILE_INVOKE_DEBUG				FALSE
 
-#define CAPTURE_LOCKS FALSE
+#if COSTILE_INVOKE_DEBUG != FALSE
+#include "../CoreInterface/CoreInterface.h"
+#endif
 
 struct CostileArgument
 {
@@ -31,33 +34,27 @@ public:
 	{
 	}
 
-	explicit operator void()
-	{
+	explicit operator void() {
 		return void();
 	}
 
-	explicit operator SInt32()
-	{
+	explicit operator SInt32() {
 		return var.data.i;
 	}
 
-	explicit operator UInt32()
-	{
+	explicit operator UInt32() {
 		return var.data.u;
 	}
 
-	explicit operator float()
-	{
+	explicit operator float() {
 		return var.data.f;
 	}
 
-	explicit operator std::string()
-	{
+	explicit operator std::string() {
 		return var.data.str;
 	}
 
-	explicit operator bool()
-	{
+	explicit operator bool() {
 		return var.data.b;
 	}
 
@@ -294,8 +291,7 @@ inline void CallVMFunc(const std::string &className, const std::string &funcName
 	if (vmState)
 	{
 		std::thread([=] {
-			try
-			{
+			try {
 				if (CAPTURE_LOCKS != FALSE)
 				{
 					std::lock(vmState->classListLock,
@@ -303,36 +299,32 @@ inline void CallVMFunc(const std::string &className, const std::string &funcName
 						vmState->stackLock,
 						vmState->unk4A50,
 						vmState->unk4A68);
-					std::lock_guard<BSSpinLock> lg1(vmState->classListLock, std::adopt_lock);
-					std::lock_guard<BSSpinLock> lg2(vmState->unk120, std::adopt_lock);
-					std::lock_guard<BSSpinLock> lg3(vmState->stackLock, std::adopt_lock);
-					std::lock_guard<BSSpinLock> lg4(vmState->unk4A50, std::adopt_lock);
-					std::lock_guard<BSSpinLock> lg5(vmState->unk4A68, std::adopt_lock);
+					std::lock_guard<BSSpinLock> lg1(vmState->classListLock, std::adopt_lock),
+						lg2(vmState->unk120, std::adopt_lock),
+						lg3(vmState->stackLock, std::adopt_lock),
+						lg4(vmState->unk4A50, std::adopt_lock),
+						lg5(vmState->unk4A68, std::adopt_lock);
 				}
 				static auto zeroArgs = BSScript::ZeroFunctionArguments();
 
-				if (realFuncName != "ObjectReference_PlaceAtMe"
-					&& realFuncName != "ObjectReference_PlaceActorAtMe"
-					&& realFuncName != "ObjectReference_SetPosition"
-					&& realFuncName != "Debug_SendAnimationEvent"
-					&& realFuncName != "Actor_KeepOffsetFromActor"
-					&& realFuncName != "ObjectReference_TranslateTo"
-					&& realFuncName != "Actor_StartCombat"
-					&& realFuncName != "UILIB_1_ShowList"
-					&& realFuncName != "UILIB_1_ShowListResult"
-					&& realFuncName != "UILIB_1_ShowInput"
-					&& realFuncName != "UILIB_1_ShowInputResult"
-					&& realFuncName != "UILIB_1_SetDataInput")
-				{
+				static const std::set<std::string> autoCalledFns = {
+					"ObjectReference_PlaceAtMe",
+					"ObjectReference_PlaceActorAtMe",
+					"ObjectReference_SetPosition",
+					"Debug_SendAnimationEvent",
+					"Actor_KeepOffsetFromActor",
+					"ObjectReference_TranslateTo",
+					"Actor_StartCombat",
+					"UILIB_1_ShowList",
+					"UILIB_1_ShowListResult",
+					"UILIB_1_ShowInput",
+					"UILIB_1_ShowInputResult",
+					"UILIB_1_SetDataInput"
+				};
+				if (autoCalledFns.find(realFuncName) == autoCalledFns.end())
 					vmState->CallStaticFunction(realScriptName.data(), realFuncName.data(), &zeroArgs, BSScript::IStackCallbackFunctorPtr(callback));
-				}
-				std::stringstream ss;
-				ss << realFuncName;
-				//ci::Chat::AddMessage(StringToWstring(ss.str()));
-				//vmState->CallStaticFunction("Game", realFuncName.data(), &zeroArgs, BSScript::IStackCallbackFunctorPtr(callback));
 			}
-			catch (...)
-			{
+			catch (...) {
 				ErrorHandling::SendError("ERROR:CostileInvoke %s.%s()", className.data(), funcName.data());
 			}
 		}).detach();
@@ -445,7 +437,25 @@ public:
 			T1 first,
 			TN ... nth)
 		{
-			return ExecImpl<ResultT, T1, TN ...>(isAsync, new CostileCallback<ResultT>(callback, isAsync), className, funcName, first, nth ...);
+#if COSTILE_INVOKE_DEBUG != FALSE
+			{
+				const clock_t invokeStart = clock();
+				callback = [=](ResultT result) {
+					const clock_t invokeEnd = clock();
+					if (callback != nullptr)
+						callback(result);
+					const clock_t callbackEnd = clock();
+					std::stringstream ss;
+					ss << className << '.' << funcName << "() ";
+					ss << "invoked in " << invokeEnd - invokeStart << ' ';
+					if (callback != nullptr)
+						ss << "callback exec in " << callbackEnd - invokeEnd << ' ';
+					ci::Chat::AddMessage(StringToWstring(ss.str()));
+				};
+			}
+#endif
+			const auto res = ExecImpl<ResultT, T1, TN ...>(isAsync, new CostileCallback<ResultT>(callback, isAsync), className, funcName, first, nth ...);
+			return res;
 		}
 	};
 
@@ -462,6 +472,23 @@ public:
 			T1 first,
 			TN ... nth)
 		{
+#if COSTILE_INVOKE_DEBUG != FALSE
+			{
+				const clock_t invokeStart = clock();
+				callback = [=] {
+					const clock_t invokeEnd = clock();
+					if (callback != nullptr)
+						callback();
+					const clock_t callbackEnd = clock();
+					std::stringstream ss;
+					ss << className << '.' << funcName << "() ";
+					ss << "invoked in " << invokeEnd - invokeStart << ' ';
+					if (callback != nullptr)
+						ss << "callback exec in " << callbackEnd - invokeEnd << ' ';
+					ci::Chat::AddMessage(StringToWstring(ss.str()));
+				};
+			}
+#endif
 			return ExecImpl<void, T1, TN ...>(isAsync, new CostileCallbackVoid(callback, isAsync), className, funcName, first, nth ...);
 		}
 	};
