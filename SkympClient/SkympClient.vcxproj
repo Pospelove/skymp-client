@@ -42,11 +42,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>..\RakNet\src\;$(IncludePath)</IncludePath>
+    <IncludePath>..\RakNet\src\;C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>..\RakNet\src\;$(IncludePath)</IncludePath>
+    <IncludePath>..\RakNet\src\;C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -139,6 +139,7 @@
     <ClCompile Include="Overlay\Chat.cpp" />
     <ClCompile Include="Overlay\GUI.cpp" />
     <ClCompile Include="Overlay\Input.cpp" />
+    <ClCompile Include="Overlay\3DText.cpp" />
     <ClCompile Include="ScriptDragon\plugin.cpp" />
     <ClCompile Include="SKSEOriginal\Utilities.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -196,6 +197,7 @@
     <ClInclude Include="Overlay\GUI.h" />
     <ClInclude Include="Overlay\Input.h" />
     <ClInclude Include="Overlay\InputConverter.h" />
+    <ClInclude Include="Overlay\3DText.h" />
     <ClInclude Include="ScriptDragon\enums.h" />
     <ClInclude Include="ScriptDragon\invoke.h" />
     <ClInclude Include="ScriptDragon\obscript.h" />

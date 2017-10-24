@@ -131,7 +131,6 @@ HRESULT MyDirect3DDevice9::Present(CONST RECT* pSourceRect, CONST RECT* pDestRec
 {
 	// we may want to draw own things here before flipping surfaces
 	// ... draw own stuff ...
-	//this->ShowWeAreHere();
 
 	OnPresent(this);
 

@@ -142,6 +142,9 @@
     <ClCompile Include="Sync\LookSyncV16.cpp">
       <Filter>core\Sync</Filter>
     </ClCompile>
+    <ClCompile Include="Overlay\3DText.cpp">
+      <Filter>core\Overlay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -367,6 +370,9 @@
     </ClInclude>
     <ClInclude Include="ClientLogic\MessageID.h">
       <Filter>client_logic</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\3DText.h">
+      <Filter>core\Overlay</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

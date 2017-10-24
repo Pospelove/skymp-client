@@ -5,6 +5,7 @@
 #include "Overlay\GUI.h"
 #include "Overlay\Chat.h"
 #include "Overlay\Input.h"
+#include "Overlay\3DText.h"
 
 #include <iomanip>
 #include <chrono>
@@ -151,11 +152,16 @@ public:
 		if (IsSkympDebug())
 			g_hitEventSource.AddEventSink(new DebugHitEventSink);
 
-		auto &logic = ci::IClientLogic::clientLogic;
-		if (logic)
-		{
-			std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-			logic->OnWorldInit();
+		try {
+			auto &logic = ci::IClientLogic::clientLogic;
+			if (logic)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnWorldInit();
+			}
+		}
+		catch (...) {
+			ErrorHandling::SendError("ERROR:ClientLogic OnWorldInit()");
 		}
 
 		PlayerControls_::SetEnabled(Control::SaveGame, false);
@@ -349,17 +355,17 @@ public:
 			}
 		}).detach();
 
+		Text3D::Init();
+
 		while (1)
 		{
+			static auto menuManager = MenuManager::GetSingleton();
 			try
 			{
 				if (sd::GetKeyPressed(VK_LMENU) && sd::GetKeyPressed(VK_F4))
 				{
 					if (Utility::IsForegroundProcess())
-					{
-						//if (ci::IsInPause())
 						std::exit(0);
-					}
 				}
 
 				ci::LocalPlayer::GetSingleton()->Update_OT();
@@ -370,7 +376,6 @@ public:
 				if (!IsSkympDebug())
 					MenuDisabler::Update_OT();
 
-				static auto menuManager = MenuManager::GetSingleton();
 				static bool mainMenuWasOpen = false;
 				static bool attached = false;
 
@@ -419,8 +424,13 @@ public:
 						{
 							onStartupCalled = true;
 							ci::SetTimer(800, [=] {
-								std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-								logic->OnStartup();
+								try {
+									std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+									logic->OnStartup();
+								}
+								catch (...) {
+									ErrorHandling::SendError("ERROR:ClientLogic OnStartup()");
+								}
 							});
 						}
 					}
@@ -494,7 +504,12 @@ public:
 							{
 								const auto cmdText = lexs[0];
 								const std::vector<std::wstring> args = { lexs.begin() + 1, lexs.end() };
-								logic->OnChatCommand(cmdText, args);
+								try {
+									logic->OnChatCommand(cmdText, args);
+								}
+								catch (...) {
+									ErrorHandling::SendError("ERROR:ClientLogic OnChatCommand()");
+								}
 							}
 							else
 							{
@@ -502,7 +517,12 @@ public:
 								for (auto elem : lexs)
 									msg += elem + L' ';
 								msg.erase(--msg.end());
-								logic->OnChatMessage(msg);
+								try {
+									logic->OnChatMessage(msg);
+								}
+								catch (...) {
+									ErrorHandling::SendError("ERROR:ClientLogic OnChatMessage()");
+								}
 							}
 						}
 					}
@@ -514,8 +534,13 @@ public:
 					if (lastOnUpdateCallMoment + ci::updateRateMS <= clock())
 					{
 						lastOnUpdateCallMoment = clock();
-						std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-						logic->OnUpdate();
+						try {
+							std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+							logic->OnUpdate();
+						}
+						catch (...) {
+							ErrorHandling::SendError("ERROR:ClientLogic OnUpdate()");
+						}
 					}
 				}
 

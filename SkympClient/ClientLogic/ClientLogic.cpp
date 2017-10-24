@@ -169,914 +169,927 @@ class ClientLogic : public ci::IClientLogic
 		ci::Chat::AddMessage(net.connectingMsg);
 	}
 
+	void ProcessPacket(RakNet::Packet *packet)
+	{
+		RakNet::BitStream bsOut;
+		RakNet::BitStream bsIn(&packet->data[1], packet->length, false);
+
+		switch (packet->data[0])
+		{
+		case ID_CONNECTION_REQUEST_ACCEPTED:
+			bsOut.Write(ID_HANDSHAKE);
+
+			wchar_t nicknameCStr[MAX_NICKNAME];
+			if (net.nickname.size() > MAX_NICKNAME - 1)
+				net.nickname.resize(MAX_NICKNAME - 1);
+			std::memcpy(nicknameCStr, net.nickname.data(), sizeof(wchar_t) * net.nickname.size());
+			nicknameCStr[net.nickname.size()] = NULL;
+			nicknameCStr[MAX_NICKNAME - 1] = NULL;
+
+			char passwordCStr[MAX_PASSWORD];
+			if (net.password.size() > MAX_PASSWORD - 1)
+				net.password.resize(MAX_PASSWORD - 1);
+			std::memcpy(passwordCStr, net.password.data(), net.password.size());
+			passwordCStr[net.password.size()] = NULL;
+			passwordCStr[MAX_PASSWORD - 1] = NULL;
+
+			for (size_t i = 0; i != MAX_NICKNAME + 1; ++i)
+				bsOut.Write(nicknameCStr[i]);
+			bsOut.Write(passwordCStr, MAX_PASSWORD + 1);
+
+			ci::Chat::AddMessage(L"Connection request sent. Waiting for verification...");
+
+			net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, packet->systemAddress, false);
+			break;
+		case ID_ALREADY_CONNECTED:
+			ci::Chat::AddMessage(L"Already connected");
+			Sleep(250);
+			this->ConnectToServer(net.host, net.port, net.hardcodedPassword, net.password, net.nickname);
+			break;
+		case ID_DISCONNECTION_NOTIFICATION:
+			if (net.fullyConnected)
+				ci::Chat::AddMessage(L"Server closed the connection");
+			break;
+		case ID_CONNECTION_LOST:
+			ci::Chat::AddMessage(L"Connection lost");
+			break;
+		case ID_CONNECTION_BANNED:
+			ci::Chat::AddMessage(L"You are banned from the server");
+			break;
+		case ID_SERVER_CLOSED_THE_CONNECTION:
+			break;
+		case ID_NO_FREE_INCOMING_CONNECTIONS:
+			ci::Chat::AddMessage(L"The server is full. Retrying ...");
+			ci::Chat::AddMessage(net.connectingMsg);
+			net.peer->Connect(net.host.data(), net.port, net.hardcodedPassword.data(), net.hardcodedPassword.size());
+			break;
+		case ID_CONNECTION_ATTEMPT_FAILED:
+			ci::Chat::AddMessage(L"Connection failed. Retrying ...");
+			ci::Chat::AddMessage(net.connectingMsg);
+			net.peer->Connect(net.host.data(), net.port, net.hardcodedPassword.data(), net.hardcodedPassword.size());
+			break;
+
+		case ID_WRONG_PASS:
+			ci::Chat::AddMessage(L"Wrong password (" + StringToWstring(net.password) + L")");
+			break;
+		case ID_NAME_INVALID:
+			ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9 and _");
+			break;
+		case ID_NAME_ALREADY_USED:
+			ci::Chat::AddMessage(L"Player " + net.nickname + L" is already connected to the server");
+			break;
+		case ID_WELCOME:
+			ci::Chat::AddMessage(L"Connected.");
+			bsIn.Read((uint16_t &)net.myID);
+			players[net.myID] = ci::LocalPlayer::GetSingleton();
+			net.fullyConnected = true;
+			break;
+		case ID_MESSAGE:
+		{
+			using T = uint16_t;
+			if (packet->length > (2 * sizeof(RakNet::MessageID)) + sizeof(T))
+			{
+				std::wstring message;
+				T characters;
+				bsIn.Read(characters);
+
+				if (packet->length == (2 * sizeof(RakNet::MessageID)) + sizeof(T) + sizeof(wchar_t) * characters)
+				{
+					for (size_t i = 0; i != characters; ++i)
+					{
+						wchar_t ch;
+						bsIn.Read(ch);
+						message += ch;
+					}
+					bool isNotification;
+					bsIn.Read((uint8_t &)isNotification);
+					ci::Chat::AddMessage(message, isNotification);
+				}
+			}
+			break;
+		}
+		case ID_MOVE_TO:
+		{
+			struct {
+				NiPoint3 pos;
+				uint16_t angleZ;
+				uint32_t cellOrWorldspace;
+			} in;
+			bsIn.Read(in.pos.x);
+			bsIn.Read(in.pos.y);
+			bsIn.Read(in.pos.z);
+			bsIn.Read(in.angleZ);
+			bsIn.Read(in.cellOrWorldspace);
+
+			lastLocation = in.cellOrWorldspace;
+
+			ci::SetTimer(100, [=] {
+				if (ci::IsWorldSpace(in.cellOrWorldspace))
+					localPlayer->SetWorldSpace(in.cellOrWorldspace);
+				else if (ci::IsCell(in.cellOrWorldspace))
+					localPlayer->SetCell(in.cellOrWorldspace);
+
+				if (in.pos.x == in.pos.x && in.pos.y == in.pos.y && in.pos.z == in.pos.z
+					&& in.pos.x != std::numeric_limits<float>::infinity() && in.pos.y != std::numeric_limits<float>::infinity() && in.pos.z != std::numeric_limits<float>::infinity()
+					&& in.pos.x != -std::numeric_limits<float>::infinity() && in.pos.y != -std::numeric_limits<float>::infinity() && in.pos.z != -std::numeric_limits<float>::infinity())
+				{
+					auto distance = (localPlayer->GetPos() - in.pos).Length();
+					if (distance > 32.0)
+						localPlayer->SetPos(in.pos);
+				}
+
+				if (in.angleZ <= 360)
+					localPlayer->SetAngleZ(in.angleZ);
+			});
+			break;
+		}
+		case ID_PLAYER_MOVEMENT:
+		{
+			uint16_t playerid = ~0;
+			bsIn.Read(playerid);
+			ci::MovementData movData;
+			Deserialize(bsIn, movData);
+			uint32_t locationID;
+			bsIn.Read(locationID);
+			try {
+				auto &player = this->players.at(playerid);
+				if (player->GetName() == localPlayer->GetName())
+					movData.pos += NiPoint3{ 128, 128, 0 };
+				player->ApplyMovementData(movData);
+				player->SetCell(localPlayer->GetCell());
+				player->SetWorldSpace(localPlayer->GetWorldSpace());
+			}
+			catch (...) {
+			}
+			break;
+		}
+		case ID_PLAYER_NAME:
+		{
+			using T = uint16_t;
+			if (packet->length > (3 + sizeof(T)))
+			{
+				std::wstring name;
+				T characters;
+				uint16_t id = ~0;
+				bsIn.Read(id);
+				bsIn.Read(characters);
+
+				if (packet->length == (3 + sizeof(T) + sizeof(wchar_t) * characters))
+				{
+					for (size_t i = 0; i != characters; ++i)
+					{
+						wchar_t ch;
+						bsIn.Read(ch);
+						name += ch;
+					}
+					try {
+						players.at(id)->SetName(name);
+					}
+					catch (...) {
+					}
+				}
+			}
+
+			break;
+		}
+		case ID_PLAYER_CREATE:
+		{
+			uint16_t id = ~0;
+			ci::MovementData movement;
+			ci::LookData look;
+			uint32_t locationID = 0;
+
+			bsIn.Read(id);
+			Deserialize(bsIn, movement);
+			Deserialize(bsIn, look);
+			bsIn.Read(locationID);
+
+			uint16_t characters;
+			bsIn.Read(characters);
+
+			std::wstring name;
+			for (size_t i = 0; i != characters; ++i)
+			{
+				wchar_t ch;
+				bsIn.Read(ch);
+				name += ch;
+			}
+
+			uint32_t cellID = localPlayer->GetCell();
+			uint32_t worldSpaceID = localPlayer->GetWorldSpace();
+
+			auto onHit = [this, id](const ci::HitEventData &eventData) {
+				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+				try {
+					this->OnHit(players.at(id), eventData);
+				}
+				catch (...) {
+				}
+			};
+
+			players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
+			break;
+		}
+		case ID_PLAYER_DESTROY:
+		{
+			uint16_t id = ~0;
+			bsIn.Read(id);
+			auto it = players.find(id);
+			if (it != players.end())
+			{
+				delete it->second;
+				players.erase(it);
+			}
+			break;
+		}
+		case ID_PLAYER_PAUSE:
+		{
+			uint16_t id = ~0;
+			uint8_t isPaused;
+
+			bsIn.Read(id);
+			bsIn.Read(isPaused);
+
+			try {
+				auto player = dynamic_cast<ci::RemotePlayer *>(players.at(id));
+				if (player != nullptr)
+					player->SetInAFK(!!isPaused);
+			}
+			catch (...) {
+			}
+			break;
+		}
+		case ID_PLAYER_LOOK:
+		{
+			uint16_t id = ~0;
+			ci::LookData look;
+
+			bsIn.Read(id);
+			Deserialize(bsIn, look);
+			ci::SetTimer(1000, [=] {
+				try {
+					if (!look.isEmpty())
+						players.at(id)->ApplyLookData(look);
+				}
+				catch (...) {
+				}
+			});
+			break;
+		}
+		case ID_PLAYER_FURNITURE:
+		{
+			uint16_t playerID = ~0;
+			uint32_t furnitureID = 0;
+
+			bsIn.Read(playerID);
+			bsIn.Read(furnitureID);
+			try {
+
+				switch (objectsInfo[furnitureID].type)
+				{
+					// Что происходит ниже? Я ни*** не понимаю..
+				case Type::Furniture:
+				{
+					static std::map<uint16_t, uint32_t> lastFurnitureUsed;
+					auto pl = players.at(playerID);
+
+					auto it = objects.find(furnitureID);
+					if (it != objects.end())
+					{
+						pl->UseFurniture(it->second, true);
+						lastFurnitureUsed[playerID] = furnitureID;
+					}
+					else
+					{
+						enum {
+							mustBeTrue = true
+						};
+						pl->UseFurniture(objects.at(lastFurnitureUsed[playerID]), mustBeTrue); // 2nd activate to stop use furniture
+						lastFurnitureUsed.erase(playerID);
+					}
+					break;
+				}
+
+				case Type::Container:
+					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+					break;
+
+				case Type::TeleportDoor:
+					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+					break;
+				}
+			}
+			catch (...) {
+			}
+
+			break;
+		}
+		case ID_SHOW_RACE_MENU:
+			ci::ShowRaceMenu();
+			break;
+		case ID_SHOW_DIALOG:
+			using T = uint16_t;
+			using Index = int32_t;
+			using DialogID = uint32_t;
+			if (packet->length > (1 * sizeof(RakNet::MessageID)) + sizeof(T))
+			{
+				std::wstring title;
+				std::wstring text;
+				T characters;
+				T characters2;
+				bsIn.Read(characters);
+				bsIn.Read(characters2);
+
+
+				if (packet->length == sizeof(DialogID) + sizeof(Index) + sizeof(ci::Dialog::Style) + (1 * sizeof(RakNet::MessageID)) + 2 * sizeof(T) + sizeof(wchar_t) * characters + sizeof(wchar_t) * characters2)
+				{
+					for (size_t i = 0; i != characters; ++i)
+					{
+						wchar_t ch;
+						bsIn.Read(ch);
+						title += ch;
+					}
+					for (size_t i = 0; i != characters2; ++i)
+					{
+						wchar_t ch;
+						bsIn.Read(ch);
+						text += ch;
+					}
+					DialogID dialogID;
+					Index defaultIndex;
+					ci::Dialog::Style style;
+					bsIn.Read(dialogID);
+					bsIn.Read(defaultIndex);
+					bsIn.Read(style);
+
+					if (dialogID == ~0)
+					{
+						ci::Dialog::Hide();
+						break;
+					}
+
+					ci::Dialog::Show(title, style, text, defaultIndex, [=](ci::Dialog::Result result) {
+						std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+						this->OnDialogResponse(dialogID, result);
+					});
+				}
+			}
+			break;
+		case ID_OBJECT_CREATE:
+		{
+			uint32_t id = 0;
+			bool isNative = true;
+			uint32_t baseFormID;
+			uint32_t locationID;
+			NiPoint3 pos, rot;
+
+			bsIn.Read(id);
+			bsIn.Read(isNative);
+			bsIn.Read(baseFormID);
+			bsIn.Read(locationID);
+			bsIn.Read(pos.x);
+			bsIn.Read(pos.y);
+			bsIn.Read(pos.z);
+			bsIn.Read(rot.x);
+			bsIn.Read(rot.y);
+			bsIn.Read(rot.z);
+
+			auto onActivate = [this, id](bool isOpen) {
+				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+				try {
+					this->OnActivate(objects.at(id), isOpen);
+				}
+				catch (...) {
+				}
+			};
+
+			auto onContainerChanged = [this, id](const ci::ItemType *itemType, uint32_t count, bool isAdd) {
+				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+				try {
+					this->OnContainerChanged(objects.at(id), itemType, count, isAdd);
+				}
+				catch (...) {
+				}
+			};
+
+			auto onHit = [this, id](const ci::HitEventData &eventData) {
+				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+				try {
+					this->OnHit(objects.at(id), eventData);
+				}
+				catch (...) {
+				}
+			};
+
+			objects[id] = new ci::Object(isNative ? id : 0, baseFormID, locationID, pos, rot, onActivate, onContainerChanged, onHit);
+			objects[id]->SetDestroyed(true);
+			objectsInfo[id] = {};
+			objectsInfo[id].createMoment = clock();
+			break;
+		}
+		case ID_OBJECT_DESTROY:
+		{
+			uint32_t id = 0;
+			bsIn.Read(id);
+			try {
+				delete objects.at(id);
+				objects.erase(id);
+			}
+			catch (...) {
+			}
+			break;
+		}
+		case ID_OBJECT_POS_ROT_LOCATION:
+		{
+			//ci::Chat::AddMessage(L"ID_OBJECT_POS_ROT_LOCATION");
+			uint32_t id = 0;
+			NiPoint3 pos, rot;
+			uint32_t locationID;
+			bsIn.Read(id);
+			bsIn.Read(pos.x);
+			bsIn.Read(pos.y);
+			bsIn.Read(pos.z);
+			bsIn.Read(rot.x);
+			bsIn.Read(rot.y);
+			bsIn.Read(rot.z);
+			bsIn.Read(locationID);
+			try {
+				auto obj = objects.at(id);
+				if (objectsInfo[id].hostID != net.myID)
+				{
+					if (objectsInfo[id].hostID != 65535)
+					{
+						const float S = (pos - obj->GetPos()).Length();
+						const float t = 0.100f;
+						obj->TranslateTo(pos, rot, S / t, 300);
+					}
+					else
+					{
+						obj->SetPosition(pos);
+						obj->SetAngle(rot);
+					}
+				}
+				obj->SetLocation(locationID);
+			}
+			catch (...) {
+			}
+			break;
+		}
+		case ID_OBJECT_NAME:
+		{
+			uint32_t id = 0;
+			bsIn.Read(id);
+
+			uint16_t characters;
+			bsIn.Read(characters);
+
+			std::wstring name;
+			for (size_t i = 0; i != characters; ++i)
+			{
+				wchar_t ch;
+				bsIn.Read(ch);
+				name += ch;
+			}
+
+			try {
+				objects.at(id)->SetName(name);
+			}
+			catch (...) {
+			}
+			break;
+		}
+		case ID_OBJECT_BEHAVIOR:
+		{
+			uint32_t id = 0;
+			Type type;
+			bool isOpen;
+			uint32_t teleportTargetID = 0;
+			bool isDisabled;
+			uint32_t itemsCount;
+			uint32_t itemTypeID;
+			uint16_t hostPlayerID;
+
+			bsIn.Read(id);
+			bsIn.Read(type);
+			bsIn.Read(isOpen);
+			bsIn.Read(teleportTargetID);
+			bsIn.Read(isDisabled);
+			bsIn.Read(itemsCount);
+			bsIn.Read(itemTypeID);
+			bsIn.Read(hostPlayerID);
+
+			try {
+				auto object = objects.at(id);
+
+				if (type == Type::Container)
+				{
+					uint32_t size;
+					bsIn.Read(size);
+					for (uint32_t i = 0; i != size; ++i)
+					{
+						uint32_t itemTypeID;
+						uint32_t count;
+						bsIn.Read(itemTypeID);
+						const bool read = bsIn.Read(count);
+						if (!read)
+							break;
+						auto type = itemTypes.at(itemTypeID);
+						object->AddItem(itemTypes[itemTypeID], count);
+					}
+
+					bsIn.Read(size);
+					for (uint32_t i = 0; i != size; ++i)
+					{
+						uint32_t itemTypeID;
+						uint32_t count;
+						bsIn.Read(itemTypeID);
+						const bool read = bsIn.Read(count);
+						if (!read)
+							break;
+						auto type = itemTypes.at(itemTypeID);
+						object->RemoveItem(itemTypes[itemTypeID], count);
+					}
+				}
+
+
+				objectsInfo[id].type = type;
+				objectsInfo[id].hostID = hostPlayerID;
+
+				if (hostPlayerID == net.myID)
+				{
+					ci::SetTimer(200, [=] {
+						hostedJustNow.insert(object);
+						ci::SetTimer(1800, [=] {
+							std::thread([=] {
+								std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+								hostedJustNow.erase(object);
+							}).detach();
+						});
+					});
+				}
+
+				object->SetDisabled(isDisabled);
+
+				switch (type)
+				{
+				case Type::Static:
+					break;
+				case Type::Door:
+					object->SetOpen(isOpen);
+					object->SetDestroyed(false);
+					object->BlockActivation(true);
+					break;
+				case Type::TeleportDoor:
+					object->SetOpen(isOpen);
+					switch (object->GetBase())
+					{
+					case 0x31897:
+					case 0x351EB:
+					case 0x180D8:
+						object->SetDestroyed(true);
+						object->BlockActivation(true);
+						break;
+					default:
+						object->SetDestroyed(false);
+						object->BlockActivation(false);
+						break;
+					}
+					break;
+				case Type::Activator:
+				case Type::Furniture:
+					object->SetDestroyed(false);
+					object->BlockActivation(true);
+					break;
+				case Type::Container:
+					object->SetDestroyed(false);
+					object->BlockActivation(true);
+					object->SetOpen(isOpen);
+					break;
+				case Type::Item:
+					object->SetDestroyed(false);
+					object->BlockActivation(true);
+					object->SetBase(itemTypes[itemTypeID]);
+					object->SetCount(itemsCount);
+				}
+			}
+			catch (...) {
+			}
+
+			break;
+		}
+		case ID_PLAYER_INVENTORY:
+		{
+			uint16_t playerID;
+			bool add;
+			uint32_t count1;
+
+			bsIn.Read(playerID);
+			bsIn.Read(add);
+			bsIn.Read(count1);
+
+			for (uint32_t i = 0; i != count1; ++i)
+			{
+				uint32_t itemTypeID;
+				uint32_t count;
+				bsIn.Read(itemTypeID);
+				bsIn.Read(count);
+
+				try {
+					auto asd = itemTypes.at(itemTypeID);
+				}
+				catch (...) {
+					ci::Log("WARN:Logic:AddItem ItemType %d not found", itemTypeID);
+				}
+
+
+				try {
+					if (add)
+					{
+						players.at(playerID)->AddItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
+					}
+					else
+						players.at(playerID)->RemoveItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
+					for (auto it = objects.begin(); it != objects.end(); ++it)
+					{
+						if (it->second)
+							it->second->AddItem(itemTypes.at(itemTypeID), 0);
+					}
+				}
+				catch (...) {
+				}
+			}
+
+			break;
+		}
+		case ID_PLAYER_HIT:
+		{
+			uint16_t playerID;
+			uint8_t hitAnimID;
+			bsIn.Read(playerID);
+			bsIn.Read(hitAnimID);
+			try {
+				players.at(playerID)->PlayHitAnimation(hitAnimID);
+			}
+			catch (...) {
+			}
+			break;
+		}
+		case ID_PLAYER_AV:
+		{
+			uint16_t playerID;
+			bsIn.Read(playerID);
+			while (true)
+			{
+				uint8_t avID;
+				ci::AVData avData;
+				bsIn.Read(avID);
+				bsIn.Read(avData.base);
+				bsIn.Read(avData.modifier);
+				const bool read = bsIn.Read(avData.percentage);
+				if (!read)
+					break;
+				try {
+					currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
+					ci::SetTimer(avID == av.Health ? 200 : 0, [=] {
+						std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+						players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
+					});
+					allowUpdateAVs = true;
+				}
+				catch (...) {
+				}
+			}
+			break;
+		}
+		case ID_PLAYER_EQUIPMENT:
+		{
+			uint16_t playerID;
+			uint32_t ammo, hands[2];
+			bsIn.Read(playerID);
+			bsIn.Read(ammo);
+			bsIn.Read(hands[0]);
+			bsIn.Read(hands[1]);
+
+			ci::IActor *pl = nullptr;
+
+			try {
+				pl = players.at(playerID);
+			}
+			catch (...) {
+				ci::Log("ERROR:ClientLogic Equipment: Player not found");
+				return;
+			}
+
+			auto armorWas = pl->GetEquippedArmor();
+			std::set<ci::ItemType *> armorNow;
+			uint32_t armor;
+			while (bsIn.Read(armor))
+			{
+				try {
+					auto itemType = itemTypes.at(armor);
+					pl->EquipItem(itemType, this->silentInventoryChanges, false);
+					armorNow.insert(itemType);
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic Equipment: Armor not found");
+					return;
+				}
+			}
+			for (auto itemType : armorWas)
+			{
+				if (armorNow.find(itemType) == armorNow.end())
+					pl->UnequipItem(itemType, this->silentInventoryChanges, false);
+			}
+
+			for (int32_t i = 0; i <= 1; ++i)
+			{
+				if (hands[i] != ~0)
+				{
+					try {
+						auto itemType = itemTypes.at(hands[i]);
+						pl->EquipItem(itemType, this->silentInventoryChanges, false);
+					}
+					catch (...) {
+						ci::Log("ERROR:ClientLogic Equipment: Weapon not found");
+						return;
+					}
+				}
+				else
+				{
+					pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, i);
+				}
+			}
+
+			if (ammo != ~0)
+			{
+				try {
+					auto itemType = itemTypes.at(ammo);
+					pl->EquipItem(itemType, this->silentInventoryChanges, false);
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic Equipment: Ammo not found");
+					return;
+				}
+			}
+			else
+			{
+				pl->UnequipItem(pl->GetEquippedAmmo(), true, false);
+			}
+			break;
+		}
+		case ID_ITEMTYPES:
+		{
+			struct
+			{
+				uint32_t id;
+				uint8_t classID;
+				uint8_t subclassID;
+				uint32_t existingFormID;
+				float weight;
+				uint32_t goldVal;
+				float armorRating;
+				float damage;
+				uint32_t equipSlot;
+			} itemType;
+			bsIn.Read(itemType.id);
+			bsIn.Read(itemType.classID);
+			bsIn.Read(itemType.subclassID);
+			bsIn.Read(itemType.existingFormID);
+			bsIn.Read(itemType.weight);
+			bsIn.Read(itemType.goldVal);
+			bsIn.Read(itemType.armorRating);
+			bsIn.Read(itemType.damage);
+			bsIn.Read(itemType.equipSlot);
+
+			if (itemTypes[itemType.id] == nullptr)
+				itemTypes[itemType.id] = new ci::ItemType(
+					static_cast<ci::ItemType::Class>(itemType.classID),
+					static_cast<ci::ItemType::Subclass>(itemType.subclassID),
+					itemType.existingFormID);
+
+			itemTypes[itemType.id]->SetGoldValue(itemType.goldVal);
+			itemTypes[itemType.id]->SetWeight(itemType.weight);
+			itemTypes[itemType.id]->SetArmorRating(itemType.armorRating);
+			itemTypes[itemType.id]->SetDamage(itemType.damage);
+			break;
+		}
+		case ID_WEATHER:
+		{
+			uint32_t wTypeOrID;
+			bsIn.Read(wTypeOrID);
+			switch (wTypeOrID)
+			{
+			case 0:
+			case 1:
+			case 2:
+			case 3:
+				ci::SetWeatherType(wTypeOrID);
+				break;
+			default:
+				ci::SetWeather(wTypeOrID);
+				break;
+			}
+			break;
+		}
+		case ID_GLOBAL_VARIABLE:
+		{
+			uint32_t globalID;
+			float val;
+			bsIn.Read(globalID);
+			bsIn.Read(val);
+			ci::SetGlobalVariable(globalID, val);
+			break;
+		}
+		case ID_SILENT:
+		{
+			bool silent;
+			bsIn.Read(silent);
+			silentInventoryChanges = silent;
+			break;
+		}
+		case ID_COMMAND:
+		{
+			std::string str;
+			ci::CommandType t = ci::CommandType::CDScript;
+			bsIn.Read(t);
+			char ch;
+			while (bsIn.Read(ch))
+				str += ch;
+			if (str.size() > 0)
+				str.erase(str.end() - 1);
+			ci::ExecuteCommand(t, str);
+
+			break;
+		}
+		default:
+			ci::Chat::AddMessage(L"Unknown packet type " + std::to_wstring(packet->data[0]));
+			break;
+
+		}
+	}
+
 	void UpdateNetworking()
 	{
 		if (net.peer == nullptr)
 			return;
 
 		// SEND:
-		auto movementData = localPlayer->GetMovementData();
-		static clock_t cl = 0;
-		auto clNow = clock();
-		const int32_t delay = 
-			movementData.runMode == ci::MovementData::RunMode::Standing ? 50 : 40;
-		if (cl + delay < clNow)
-		{
-			cl = clNow;
-			if (net.remote != RakNet::UNASSIGNED_SYSTEM_ADDRESS && net.fullyConnected
-				&& !movementData.isEmpty()
-				&& !ci::IsInPause())
+		try {
+			auto movementData = localPlayer->GetMovementData();
+			static clock_t cl = 0;
+			auto clNow = clock();
+			const int32_t delay =
+				movementData.runMode == ci::MovementData::RunMode::Standing ? 50 : 40;
+			if (cl + delay < clNow)
 			{
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_UPDATE_MOVEMENT);
-				Serialize(bsOut, movementData);
-				net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+				cl = clNow;
+				if (net.remote != RakNet::UNASSIGNED_SYSTEM_ADDRESS && net.fullyConnected
+					&& !movementData.isEmpty()
+					&& !ci::IsInPause())
+				{
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_UPDATE_MOVEMENT);
+					Serialize(bsOut, movementData);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+				}
+			}
+			for (auto it = objects.begin(); it != objects.end(); ++it)
+			{
+				const auto id = it->first;
+				const auto object = it->second;
+				if (objectsInfo[id].hostID == net.myID)
+				{
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_HOSTED_OBJECT_MOVEMENT);
+					bsOut.Write(id);
+					bsOut.Write(object->GetPos().x);
+					bsOut.Write(object->GetPos().y);
+					bsOut.Write(object->GetPos().z);
+					bsOut.Write(object->GetRot().x);
+					bsOut.Write(object->GetRot().y);
+					bsOut.Write(object->GetRot().z);
+					bsOut.Write(object->IsGrabbed());
+					pos[id] = object->GetPos();
+					net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+				}
 			}
 		}
-		for (auto it = objects.begin(); it != objects.end(); ++it)
-		{
-			const auto id = it->first;
-			const auto object = it->second;
-			if (objectsInfo[id].hostID == net.myID)
-			{
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_HOSTED_OBJECT_MOVEMENT);
-				bsOut.Write(id);
-				bsOut.Write(object->GetPos().x);
-				bsOut.Write(object->GetPos().y);
-				bsOut.Write(object->GetPos().z);
-				bsOut.Write(object->GetRot().x);
-				bsOut.Write(object->GetRot().y);
-				bsOut.Write(object->GetRot().z);
-				bsOut.Write(object->IsGrabbed());
-				pos[id] = object->GetPos();
-				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
-			}
+		catch (...) {
+			ci::Log("ERROR:ClientLogic UpdateNetworking() Send");
 		}
 
 		// RECEIVE:
-		RakNet::Packet *packet;
-		for (packet = net.peer->Receive(); packet; net.peer->DeallocatePacket(packet), packet = net.peer->Receive())
+		for (auto packet = net.peer->Receive(); packet; net.peer->DeallocatePacket(packet), packet = net.peer->Receive())
 		{
 			if (net.remote == RakNet::UNASSIGNED_SYSTEM_ADDRESS)
 				net.remote = packet->systemAddress;
 			if (net.remoteGUID == RakNet::UNASSIGNED_RAKNET_GUID)
 				net.remoteGUID = packet->guid;
-
-			RakNet::BitStream bsOut;
-			RakNet::BitStream bsIn(&packet->data[1], packet->length, false);
-
-			switch (packet->data[0])
-			{
-			case ID_CONNECTION_REQUEST_ACCEPTED:
-				bsOut.Write(ID_HANDSHAKE);
-
-				wchar_t nicknameCStr[MAX_NICKNAME];
-				if (net.nickname.size() > MAX_NICKNAME - 1)
-					net.nickname.resize(MAX_NICKNAME - 1);
-				std::memcpy(nicknameCStr, net.nickname.data(), sizeof(wchar_t) * net.nickname.size());
-				nicknameCStr[net.nickname.size()] = NULL;
-				nicknameCStr[MAX_NICKNAME - 1] = NULL;
-
-				char passwordCStr[MAX_PASSWORD];
-				if (net.password.size() > MAX_PASSWORD - 1)
-					net.password.resize(MAX_PASSWORD - 1);
-				std::memcpy(passwordCStr, net.password.data(), net.password.size());
-				passwordCStr[net.password.size()] = NULL;
-				passwordCStr[MAX_PASSWORD - 1] = NULL;
-
-				for (size_t i = 0; i != MAX_NICKNAME + 1; ++i)
-					bsOut.Write(nicknameCStr[i]);
-				bsOut.Write(passwordCStr, MAX_PASSWORD + 1);
-
-				ci::Chat::AddMessage(L"Connection request sent. Waiting for verification...");
-
-				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, packet->systemAddress, false);
-				break;
-			case ID_ALREADY_CONNECTED:
-				ci::Chat::AddMessage(L"Already connected");
-				Sleep(250);
-				this->ConnectToServer(net.host, net.port, net.hardcodedPassword, net.password, net.nickname);
-				break;
-			case ID_DISCONNECTION_NOTIFICATION:
-				if (net.fullyConnected)
-					ci::Chat::AddMessage(L"Server closed the connection");
-				break;
-			case ID_CONNECTION_LOST:
-				ci::Chat::AddMessage(L"Connection lost");
-				break;
-			case ID_CONNECTION_BANNED:
-				ci::Chat::AddMessage(L"You are banned from the server");
-				break;
-			case ID_SERVER_CLOSED_THE_CONNECTION:
-				break;
-			case ID_NO_FREE_INCOMING_CONNECTIONS:
-				ci::Chat::AddMessage(L"The server is full. Retrying ...");
-				ci::Chat::AddMessage(net.connectingMsg);
-				net.peer->Connect(net.host.data(), net.port, net.hardcodedPassword.data(), net.hardcodedPassword.size());
-				break;
-			case ID_CONNECTION_ATTEMPT_FAILED:
-				ci::Chat::AddMessage(L"Connection failed. Retrying ...");
-				ci::Chat::AddMessage(net.connectingMsg);
-				net.peer->Connect(net.host.data(), net.port, net.hardcodedPassword.data(), net.hardcodedPassword.size());
-				break;
-
-			case ID_WRONG_PASS:
-				ci::Chat::AddMessage(L"Wrong password (" + StringToWstring(net.password) + L")");
-				break;
-			case ID_NAME_INVALID:
-				ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9 and _");
-				break;
-			case ID_NAME_ALREADY_USED:
-				ci::Chat::AddMessage(L"Player " + net.nickname + L" is already connected to the server");
-				break;
-			case ID_WELCOME:
-				ci::Chat::AddMessage(L"Connected.");
-				bsIn.Read((uint16_t &)net.myID);
-				players[net.myID] = ci::LocalPlayer::GetSingleton();
-				net.fullyConnected = true;
-				break;
-			case ID_MESSAGE:
-			{
-				using T = uint16_t;
-				if (packet->length > (2 * sizeof(RakNet::MessageID)) + sizeof(T))
-				{
-					std::wstring message;
-					T characters;
-					bsIn.Read(characters);
-
-					if (packet->length == (2 * sizeof(RakNet::MessageID)) + sizeof(T) + sizeof(wchar_t) * characters)
-					{
-						for (size_t i = 0; i != characters; ++i)
-						{
-							wchar_t ch;
-							bsIn.Read(ch);
-							message += ch;
-						}
-						bool isNotification;
-						bsIn.Read((uint8_t &)isNotification);
-						ci::Chat::AddMessage(message, isNotification);
-					}
-				}
-				break;
+			try {
+				this->ProcessPacket(packet);
 			}
-			case ID_MOVE_TO:
-			{
-				struct {
-					NiPoint3 pos;
-					uint16_t angleZ;
-					uint32_t cellOrWorldspace;
-				} in;
-				bsIn.Read(in.pos.x);
-				bsIn.Read(in.pos.y);
-				bsIn.Read(in.pos.z);
-				bsIn.Read(in.angleZ);
-				bsIn.Read(in.cellOrWorldspace);
-
-				lastLocation = in.cellOrWorldspace;
-
-				ci::SetTimer(100, [=] {
-					if (ci::IsWorldSpace(in.cellOrWorldspace))
-						localPlayer->SetWorldSpace(in.cellOrWorldspace);
-					else if (ci::IsCell(in.cellOrWorldspace))
-						localPlayer->SetCell(in.cellOrWorldspace);
-
-					if (in.pos.x == in.pos.x && in.pos.y == in.pos.y && in.pos.z == in.pos.z
-						&& in.pos.x != std::numeric_limits<float>::infinity() && in.pos.y != std::numeric_limits<float>::infinity() && in.pos.z != std::numeric_limits<float>::infinity()
-						&& in.pos.x != -std::numeric_limits<float>::infinity() && in.pos.y != -std::numeric_limits<float>::infinity() && in.pos.z != -std::numeric_limits<float>::infinity())
-					{
-						auto distance = (localPlayer->GetPos() - in.pos).Length();
-						if (distance > 32.0)
-							localPlayer->SetPos(in.pos);
-					}
-
-					if (in.angleZ <= 360)
-						localPlayer->SetAngleZ(in.angleZ);
-				});
-				break;
-			}
-			case ID_PLAYER_MOVEMENT:
-			{
-				uint16_t playerid = ~0;
-				bsIn.Read(playerid);
-				ci::MovementData movData;
-				Deserialize(bsIn, movData);
-				uint32_t locationID;
-				bsIn.Read(locationID);
-				try {
-					auto &player = this->players.at(playerid);
-					if (player->GetName() == localPlayer->GetName())
-						movData.pos += NiPoint3{ 128, 128, 0 };
-					player->ApplyMovementData(movData);
-					player->SetCell(localPlayer->GetCell());
-					player->SetWorldSpace(localPlayer->GetWorldSpace());
-				}
-				catch (...) {
-				}
-				break;
-			}
-			case ID_PLAYER_NAME:
-			{
-				using T = uint16_t;
-				if (packet->length > (3 + sizeof(T)))
-				{
-					std::wstring name;
-					T characters;
-					uint16_t id = ~0;
-					bsIn.Read(id);
-					bsIn.Read(characters);
-
-					if (packet->length == (3 + sizeof(T) + sizeof(wchar_t) * characters))
-					{
-						for (size_t i = 0; i != characters; ++i)
-						{
-							wchar_t ch;
-							bsIn.Read(ch);
-							name += ch;
-						}
-						try {
-							players.at(id)->SetName(name);
-						}
-						catch (...) {
-						}
-					}
-				}
-
-				break;
-			}
-			case ID_PLAYER_CREATE:
-			{
-				uint16_t id = ~0;
-				ci::MovementData movement;
-				ci::LookData look;
-				uint32_t locationID = 0;
-
-				bsIn.Read(id);
-				Deserialize(bsIn, movement);
-				Deserialize(bsIn, look);
-				bsIn.Read(locationID);
-
-				uint16_t characters;
-				bsIn.Read(characters);
-
-				std::wstring name;
-				for (size_t i = 0; i != characters; ++i)
-				{
-					wchar_t ch;
-					bsIn.Read(ch);
-					name += ch;
-				}
-
-				uint32_t cellID = localPlayer->GetCell();
-				uint32_t worldSpaceID = localPlayer->GetWorldSpace();
-
-				auto onHit = [this, id](const ci::HitEventData &eventData) {
-					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-					try {
-						this->OnHit(players.at(id), eventData);
-					}
-					catch (...) {
-					}
-				};
-
-				players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
-				break;
-			}
-			case ID_PLAYER_DESTROY:
-			{
-				uint16_t id = ~0;
-				bsIn.Read(id);
-				auto it = players.find(id);
-				if (it != players.end())
-				{
-					delete it->second;
-					players.erase(it);
-				}
-				break;
-			}
-			case ID_PLAYER_PAUSE:
-			{
-				uint16_t id = ~0;
-				uint8_t isPaused;
-
-				bsIn.Read(id);
-				bsIn.Read(isPaused);
-				
-				try {
-					auto player = dynamic_cast<ci::RemotePlayer *>(players.at(id));
-					if (player != nullptr)
-						player->SetInAFK(!!isPaused);
-				}
-				catch (...) {
-				}
-				break;
-			}
-			case ID_PLAYER_LOOK:
-			{
-				uint16_t id = ~0;
-				ci::LookData look;
-
-				bsIn.Read(id);
-				Deserialize(bsIn, look);
-				ci::SetTimer(1000, [=] {
-					try {
-						if (!look.isEmpty())
-							players.at(id)->ApplyLookData(look);
-					}
-					catch (...) {
-					}
-				});
-				break;
-			}
-			case ID_PLAYER_FURNITURE:
-			{
-				uint16_t playerID = ~0;
-				uint32_t furnitureID = 0;
-
-				bsIn.Read(playerID);
-				bsIn.Read(furnitureID);
-				try {
-
-					switch (objectsInfo[furnitureID].type)
-					{
-						// Что происходит ниже? Я ни*** не понимаю..
-					case Type::Furniture:
-					{
-						static std::map<uint16_t, uint32_t> lastFurnitureUsed;
-						auto pl = players.at(playerID);
-
-						auto it = objects.find(furnitureID);
-						if (it != objects.end())
-						{
-							pl->UseFurniture(it->second, true);
-							lastFurnitureUsed[playerID] = furnitureID;
-						}
-						else
-						{
-							enum {
-								mustBeTrue = true
-							};
-							pl->UseFurniture(objects.at(lastFurnitureUsed[playerID]), mustBeTrue); // 2nd activate to stop use furniture
-							lastFurnitureUsed.erase(playerID);
-						}
-						break;
-					}
-
-					case Type::Container:
-						players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
-						break;
-
-					case Type::TeleportDoor:
-						players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
-						break;
-					}
-				}
-				catch (...) {
-				}
-
-				break;
-			}
-			case ID_SHOW_RACE_MENU:
-				ci::ShowRaceMenu();
-				break;
-			case ID_SHOW_DIALOG:
-				using T = uint16_t;
-				using Index = int32_t;
-				using DialogID = uint32_t;
-				if (packet->length > (1 * sizeof(RakNet::MessageID)) + sizeof(T))
-				{
-					std::wstring title;
-					std::wstring text;
-					T characters;
-					T characters2;
-					bsIn.Read(characters);
-					bsIn.Read(characters2);
-
-
-					if (packet->length == sizeof(DialogID) + sizeof(Index) + sizeof(ci::Dialog::Style) + (1 * sizeof(RakNet::MessageID)) + 2 * sizeof(T) + sizeof(wchar_t) * characters + sizeof(wchar_t) * characters2)
-					{
-						for (size_t i = 0; i != characters; ++i)
-						{
-							wchar_t ch;
-							bsIn.Read(ch);
-							title += ch;
-						}
-						for (size_t i = 0; i != characters2; ++i)
-						{
-							wchar_t ch;
-							bsIn.Read(ch);
-							text += ch;
-						}
-						DialogID dialogID;
-						Index defaultIndex;
-						ci::Dialog::Style style;
-						bsIn.Read(dialogID);
-						bsIn.Read(defaultIndex);
-						bsIn.Read(style);
-
-						if (dialogID == ~0)
-						{
-							ci::Dialog::Hide();
-							break;
-						}
-
-						ci::Dialog::Show(title, style, text, defaultIndex, [=](ci::Dialog::Result result) {
-							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-							this->OnDialogResponse(dialogID, result);
-						});
-					}
-				}
-				break;
-			case ID_OBJECT_CREATE:
-			{
-				uint32_t id = 0;
-				bool isNative = true;
-				uint32_t baseFormID;
-				uint32_t locationID;
-				NiPoint3 pos, rot;
-
-				bsIn.Read(id);
-				bsIn.Read(isNative);
-				bsIn.Read(baseFormID);
-				bsIn.Read(locationID);
-				bsIn.Read(pos.x);
-				bsIn.Read(pos.y);
-				bsIn.Read(pos.z);
-				bsIn.Read(rot.x);
-				bsIn.Read(rot.y);
-				bsIn.Read(rot.z);
-
-				auto onActivate = [this, id](bool isOpen) {
-					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-					try {
-						this->OnActivate(objects.at(id), isOpen);
-					}
-					catch (...) {
-					}
-				};
-
-				auto onContainerChanged = [this, id](const ci::ItemType *itemType, uint32_t count, bool isAdd) {
-					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-					try {
-						this->OnContainerChanged(objects.at(id), itemType, count, isAdd);
-					}
-					catch (...) {
-					}
-				};
-
-				auto onHit = [this, id](const ci::HitEventData &eventData) {
-					std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-					try {
-						this->OnHit(objects.at(id), eventData);
-					}
-					catch (...) {
-					}
-				};
-
-				objects[id] = new ci::Object(isNative ? id : 0, baseFormID, locationID, pos, rot, onActivate, onContainerChanged, onHit);
-				objects[id]->SetDestroyed(true);
-				objectsInfo[id] = {};
-				objectsInfo[id].createMoment = clock();
-				break;
-			}
-			case ID_OBJECT_DESTROY:
-			{
-				uint32_t id = 0; 
-				bsIn.Read(id);
-				try {
-					delete objects.at(id);
-					objects.erase(id);
-				}
-				catch (...) {
-				}
-				break;
-			}
-			case ID_OBJECT_POS_ROT_LOCATION:
-			{
-				//ci::Chat::AddMessage(L"ID_OBJECT_POS_ROT_LOCATION");
-				uint32_t id = 0;
-				NiPoint3 pos, rot;
-				uint32_t locationID;
-				bsIn.Read(id);
-				bsIn.Read(pos.x);
-				bsIn.Read(pos.y);
-				bsIn.Read(pos.z);
-				bsIn.Read(rot.x);
-				bsIn.Read(rot.y);
-				bsIn.Read(rot.z);
-				bsIn.Read(locationID);
-				try {
-					auto obj = objects.at(id);
-					if (objectsInfo[id].hostID != net.myID)
-					{
-						if (objectsInfo[id].hostID != 65535)
-						{
-							const float S = (pos - obj->GetPos()).Length();
-							const float t = 0.100f;
-							obj->TranslateTo(pos, rot, S / t, 300);
-						}
-						else
-						{
-							obj->SetPosition(pos);
-							obj->SetAngle(rot);
-						}
-					}
-					obj->SetLocation(locationID);
-				}
-				catch (...) {
-				}
-				break;
-			}
-			case ID_OBJECT_NAME:
-			{
-				uint32_t id = 0;
-				bsIn.Read(id);
-
-				uint16_t characters;
-				bsIn.Read(characters);
-
-				std::wstring name;
-				for (size_t i = 0; i != characters; ++i)
-				{
-					wchar_t ch;
-					bsIn.Read(ch);
-					name += ch;
-				}
-
-				try {
-					objects.at(id)->SetName(name);
-				}
-				catch (...) {
-				}
-				break;
-			}
-			case ID_OBJECT_BEHAVIOR:
-			{
-				uint32_t id = 0;
-				Type type;
-				bool isOpen;
-				uint32_t teleportTargetID = 0;
-				bool isDisabled;
-				uint32_t itemsCount;
-				uint32_t itemTypeID;
-				uint16_t hostPlayerID;
-
-				bsIn.Read(id);
-				bsIn.Read(type);
-				bsIn.Read(isOpen);
-				bsIn.Read(teleportTargetID);
-				bsIn.Read(isDisabled);
-				bsIn.Read(itemsCount);
-				bsIn.Read(itemTypeID);
-				bsIn.Read(hostPlayerID);
-
-				try {
-					auto object = objects.at(id);
-
-					if (type == Type::Container)
-					{
-						uint32_t size;
-						bsIn.Read(size);
-						for (uint32_t i = 0; i != size; ++i)
-						{
-							uint32_t itemTypeID;
-							uint32_t count;
-							bsIn.Read(itemTypeID);
-							const bool read = bsIn.Read(count);
-							if (!read)
-								break;
-							auto type = itemTypes.at(itemTypeID);
-							object->AddItem(itemTypes[itemTypeID], count);
-						}
-
-						bsIn.Read(size);
-						for (uint32_t i = 0; i != size; ++i)
-						{
-							uint32_t itemTypeID;
-							uint32_t count;
-							bsIn.Read(itemTypeID);
-							const bool read = bsIn.Read(count);
-							if (!read)
-								break;
-							auto type = itemTypes.at(itemTypeID);
-							object->RemoveItem(itemTypes[itemTypeID], count);
-						}
-					}
-
-
-					objectsInfo[id].type = type;
-					objectsInfo[id].hostID = hostPlayerID;
-
-					if (hostPlayerID == net.myID)
-					{
-						ci::SetTimer(200, [=] {
-							hostedJustNow.insert(object);
-							ci::SetTimer(1800, [=] {
-								std::thread([=] {
-									std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-									hostedJustNow.erase(object);
-								}).detach();
-							});
-						});
-					}
-
-					object->SetDisabled(isDisabled);
-
-					switch (type)
-					{
-					case Type::Static:
-						break;
-					case Type::Door:
-						object->SetOpen(isOpen);
-						object->SetDestroyed(false);
-						object->BlockActivation(true);
-						break;
-					case Type::TeleportDoor:
-						object->SetOpen(isOpen);
-						switch (object->GetBase())
-						{
-						case 0x31897:
-						case 0x351EB:
-						case 0x180D8:
-							object->SetDestroyed(true);
-							object->BlockActivation(true);
-							break;
-						default:
-							object->SetDestroyed(false);
-							object->BlockActivation(false);
-							break;
-						}
-						break;
-					case Type::Activator:
-					case Type::Furniture:
-						object->SetDestroyed(false);
-						object->BlockActivation(true);
-						break;
-					case Type::Container:
-						object->SetDestroyed(false);
-						object->BlockActivation(true);
-						object->SetOpen(isOpen);
-						break;
-					case Type::Item:
-						object->SetDestroyed(false);
-						object->BlockActivation(true);
-						object->SetBase(itemTypes[itemTypeID]);
-						object->SetCount(itemsCount);
-					}
-				}
-				catch (...) {
-				}
-
-				break;
-			}
-			case ID_PLAYER_INVENTORY:
-			{
-				uint16_t playerID;
-				bool add;
-				uint32_t count1;
-
-				bsIn.Read(playerID);
-				bsIn.Read(add);
-				bsIn.Read(count1);
-
-				for (uint32_t i = 0; i != count1; ++i)
-				{
-					uint32_t itemTypeID;
-					uint32_t count;
-					bsIn.Read(itemTypeID);
-					bsIn.Read(count);
-
-					try {
-						auto asd = itemTypes.at(itemTypeID);
-					}
-					catch (...) {
-						ci::Log("WARN:Logic:AddItem ItemType %d not found", itemTypeID);
-					}
-
-
-					try {
-						if (add)
-						{
-							players.at(playerID)->AddItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
-						}
-						else
-							players.at(playerID)->RemoveItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
-						for (auto it = objects.begin(); it != objects.end(); ++it)
-						{
-							if (it->second)
-								it->second->AddItem(itemTypes.at(itemTypeID), 0);
-						}
-					}
-					catch (...) {
-					}
-				}
-
-				break;
-			}
-			case ID_PLAYER_HIT:
-			{
-				uint16_t playerID;
-				uint8_t hitAnimID;
-				bsIn.Read(playerID);
-				bsIn.Read(hitAnimID);
-				try {
-					players.at(playerID)->PlayHitAnimation(hitAnimID);
-				}
-				catch (...) {
-				}
-				break;
-			}
-			case ID_PLAYER_AV:
-			{
-				uint16_t playerID;
-				bsIn.Read(playerID);
-				while (true)
-				{
-					uint8_t avID;
-					ci::AVData avData;
-					bsIn.Read(avID);
-					bsIn.Read(avData.base);
-					bsIn.Read(avData.modifier);
-					const bool read = bsIn.Read(avData.percentage);
-					if (!read)
-						break;
-					try {
-						currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
-						ci::SetTimer(avID == av.Health ? 200 : 0, [=] {
-							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-							players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
-						});
-						allowUpdateAVs = true;
-					}
-					catch (...) {
-					}
-				}
-				break;
-			}
-			case ID_PLAYER_EQUIPMENT:
-			{
-				uint16_t playerID;
-				uint32_t ammo, hands[2];
-				bsIn.Read(playerID);
-				bsIn.Read(ammo);
-				bsIn.Read(hands[0]);
-				bsIn.Read(hands[1]);
-
-				ci::IActor *pl = nullptr;
-
-				try {
-					pl = players.at(playerID);
-				}
-				catch (...) {
-					ci::Log("ERROR:ClientLogic Equipment: Player not found");
-					return;
-				}
-
-				auto armorWas = pl->GetEquippedArmor();
-				std::set<ci::ItemType *> armorNow;
-				uint32_t armor;
-				while (bsIn.Read(armor))
-				{
-					try {
-						auto itemType = itemTypes.at(armor);
-						pl->EquipItem(itemType, this->silentInventoryChanges, false);
-						armorNow.insert(itemType);
-					}
-					catch (...) {
-						ci::Log("ERROR:ClientLogic Equipment: Armor not found");
-						return;
-					}
-				}
-				for (auto itemType : armorWas)
-				{
-					if (armorNow.find(itemType) == armorNow.end())
-						pl->UnequipItem(itemType, this->silentInventoryChanges, false);
-				}
-
-				for (int32_t i = 0; i <= 1; ++i)
-				{
-					if (hands[i] != ~0)
-					{
-						try {
-							auto itemType = itemTypes.at(hands[i]);
-							pl->EquipItem(itemType, this->silentInventoryChanges, false);
-						}
-						catch (...) {
-							ci::Log("ERROR:ClientLogic Equipment: Weapon not found");
-							return;
-						}
-					}
-					else
-					{
-						pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, i);
-					}
-				}
-
-				if (ammo != ~0)
-				{
-					try {
-						auto itemType = itemTypes.at(ammo);
-						pl->EquipItem(itemType, this->silentInventoryChanges, false);
-					}
-					catch (...) {
-						ci::Log("ERROR:ClientLogic Equipment: Ammo not found");
-						return;
-					}
-				}
-				else
-				{
-					pl->UnequipItem(pl->GetEquippedAmmo(), true, false);
-				}
-				break;
-			}
-			case ID_ITEMTYPES:
-			{
-				struct
-				{
-					uint32_t id;
-					uint8_t classID;
-					uint8_t subclassID;
-					uint32_t existingFormID;
-					float weight;
-					uint32_t goldVal;
-					float armorRating;
-					float damage;
-					uint32_t equipSlot;
-				} itemType;
-				bsIn.Read(itemType.id);
-				bsIn.Read(itemType.classID);
-				bsIn.Read(itemType.subclassID);
-				bsIn.Read(itemType.existingFormID);
-				bsIn.Read(itemType.weight);
-				bsIn.Read(itemType.goldVal);
-				bsIn.Read(itemType.armorRating);
-				bsIn.Read(itemType.damage);
-				bsIn.Read(itemType.equipSlot);
-
-				if (itemTypes[itemType.id] == nullptr)
-					itemTypes[itemType.id] = new ci::ItemType(
-						static_cast<ci::ItemType::Class>(itemType.classID), 
-						static_cast<ci::ItemType::Subclass>(itemType.subclassID), 
-						itemType.existingFormID);
-
-				itemTypes[itemType.id]->SetGoldValue(itemType.goldVal);
-				itemTypes[itemType.id]->SetWeight(itemType.weight);
-				itemTypes[itemType.id]->SetArmorRating(itemType.armorRating);
-				itemTypes[itemType.id]->SetDamage(itemType.damage);
-				break;
-			}
-			case ID_WEATHER:
-			{
-				uint32_t wTypeOrID;
-				bsIn.Read(wTypeOrID);
-				switch (wTypeOrID)
-				{
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-					ci::SetWeatherType(wTypeOrID);
-					break;
-				default:
-					ci::SetWeather(wTypeOrID);
-					break;
-				}
-				break;
-			}
-			case ID_GLOBAL_VARIABLE:
-			{
-				uint32_t globalID;
-				float val;
-				bsIn.Read(globalID);
-				bsIn.Read(val);
-				ci::SetGlobalVariable(globalID, val);
-				break;
-			}
-			case ID_SILENT:
-			{
-				bool silent;
-				bsIn.Read(silent);
-				silentInventoryChanges = silent;
-				break;
-			}
-			case ID_COMMAND:
-			{
-				std::string str;
-				ci::CommandType t = ci::CommandType::CDScript;
-				bsIn.Read(t);
-				char ch;
-				while (bsIn.Read(ch))
-					str += ch;
-				if (str.size() > 0)
-					str.erase(str.end() - 1);
-				ci::ExecuteCommand(t, str);
-
-				break;
-			}
-			default:
-				ci::Chat::AddMessage(L"Unknown packet type " + std::to_wstring(packet->data[0]));
-				break;
-				
+			catch (...) {
+				ci::Log("ERROR:ClientLogic UpdateNetworking() Receive %d", packet->data[0]);
 			}
 		}
 	}
@@ -1230,20 +1243,55 @@ class ClientLogic : public ci::IClientLogic
 		{
 			try {
 				cl = clNow;
-				UpdateNetworking();
-				UpdateObjects();
-				UpdateCombat();
-				UpdateActorValues();
-				UpdateEquippedArmor();
-				UpdateEquippedWeapon<0>();
-				UpdateEquippedWeapon<1>();
-				UpdateEquippedAmmo();
+				try {
+					UpdateNetworking();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateNetworking()");
+				}
+				try {
+					UpdateObjects();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateObjects()");
+				}
+				try {
+					UpdateCombat();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateCombat()");
+				}
+				try {
+					UpdateActorValues();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateActorValues()");
+				}
+				try {
+					UpdateEquippedArmor();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateEquippedArmor()");
+				}
+				try {
+					UpdateEquippedWeapon<0>();
+					UpdateEquippedWeapon<1>();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateEquippedWeapon<>()");
+				}
+				try {
+					UpdateEquippedAmmo();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateEquippedAmmo()");
+				}
 			}
 			catch (const std::exception &e) {
 				ci::Log("ERROR:ClientLogic OnUpdate() %s", e.what());
 			}
 			catch (...) {
-				ci::Log("ERROR:ClientLogic OnUpdate() unk");
+				ci::Log("ERROR:ClientLogic OnUpdate()");
 			}
 		}
 	}

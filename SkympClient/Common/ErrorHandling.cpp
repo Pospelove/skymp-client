@@ -10,38 +10,54 @@ namespace ErrorHandling
 		va_start(args, fmt);
 		vsnprintf(buffer, sizeof(buffer), fmt, args);
 		va_end(args);
-		std::string str = buffer;
-		Timer::Set(0, [=] {
-			sd::PrintNote((char *)str.data());
-		});
+		const std::string str = buffer;
+		if (!MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
+		{
+			Timer::Set(0, [=] {
+				sd::PrintNote((char *)str.data());
+			});
+		}
+		try {
+			static std::mutex mutex;
+			std::lock_guard<std::mutex> l(mutex);
 
-		std::thread([=] {
-			try {
-				static std::mutex mutex;
-				std::lock_guard<std::mutex> l(mutex);
+			tm *newtime;
+			time_t aclock;
+			time(&aclock);
+			newtime = localtime(&aclock);
+			auto timeStamp = std::string(asctime(newtime));
+			const auto pos = timeStamp.find(L':');
+			timeStamp = '[' + std::string(timeStamp.begin() + pos - 2, timeStamp.begin() + pos + 6) + "]";
 
-				tm *newtime;
-				time_t aclock;
-				time(&aclock);
-				newtime = localtime(&aclock);
-				auto result = std::string(asctime(newtime));
-				const auto pos = result.find(L':');
-				result = '[' + std::string(result.begin() + pos - 2, result.begin() + pos + 6) + "]";
+			std::ofstream ofstream;
+			ofstream.open("skymp_log.txt", std::ios_base::app);
 
-				std::ofstream ofstream;
-				ofstream.open("skymp_log.txt", std::ios_base::app);
+			static std::string lastOutput = "";
+			static uint64_t i = 0;
 
-				static bool firstWrite = true;
-				if (firstWrite)
-				{
-					ofstream << std::endl;
-					firstWrite = false;
-				}
+			if (lastOutput.empty())
+				ofstream << std::endl;
 
-				ofstream << result << ' ' << str << std::endl;
+			std::string output = timeStamp + ' ' + str;
+			if (lastOutput == output)
+			{
+				++i;
+				if (i % 5 == 0 || i == 1)
+					output = ' ' + std::to_string(i);
+				else
+					output = "";
 			}
-			catch (...) {
+			else
+			{
+				lastOutput = output;
+				output = "\n" + output;
+				i =0;
 			}
-		}).detach();
+
+			ofstream << output;
+			ofstream.flush();
+		}
+		catch (...) {
+		}
 	}
 }
