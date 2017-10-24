@@ -48,4 +48,6 @@ namespace ci
 	void Log(const std::wstring &str);
 	void Log(const std::string &str);
 	void Log(const char *fmt, ...);
+
+	void TraceCDCalls(bool trace);
 }

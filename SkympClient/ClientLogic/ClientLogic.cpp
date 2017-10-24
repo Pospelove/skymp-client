@@ -1437,6 +1437,12 @@ class ClientLogic : public ci::IClientLogic
 				this->OnChatCommand(L"//eq", {});
 			};
 		}
+		else if (cmdText == L"//cddbg" || cmdText == L"//cdtrace")
+		{
+			static bool tr = true;
+			ci::TraceCDCalls(tr);
+			tr = !tr;
+		}
 		else
 		{
 			std::wstring str = cmdText;

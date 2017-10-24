@@ -311,4 +311,8 @@ namespace ci
 		va_end(arg);
 		Log(std::string(buffer));
 	}
+
+	void TraceCDCalls(bool trace) {
+		_putenv_s("IsTraceCDCalls", trace ? "1" : "0");
+	}
 }

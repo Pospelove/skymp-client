@@ -7,11 +7,18 @@
 #include <thread>
 
 #define CAPTURE_LOCKS						FALSE
-#define COSTILE_INVOKE_DEBUG				TRUE
 
-#if COSTILE_INVOKE_DEBUG != FALSE
-#include "../CoreInterface/CoreInterface.h"
-#endif
+namespace ci
+{
+	namespace Chat
+	{
+		void AddMessage(const std::wstring &message, bool isNotification = false);
+	}
+} // nice architectural solution
+
+inline bool IsTraceCDCalls() {
+	return getenv("IsTraceCDCalls") != nullptr && !strcmp(getenv("IsTraceCDCalls"), "1");
+}
 
 struct CostileArgument
 {
@@ -437,7 +444,7 @@ public:
 			T1 first,
 			TN ... nth)
 		{
-#if COSTILE_INVOKE_DEBUG != FALSE
+			if(IsTraceCDCalls())
 			{
 				const clock_t invokeStart = clock();
 				callback = [=](ResultT result) {
@@ -453,7 +460,6 @@ public:
 					ci::Chat::AddMessage(StringToWstring(ss.str()));
 				};
 			}
-#endif
 			const auto res = ExecImpl<ResultT, T1, TN ...>(isAsync, new CostileCallback<ResultT>(callback, isAsync), className, funcName, first, nth ...);
 			return res;
 		}
@@ -472,7 +478,7 @@ public:
 			T1 first,
 			TN ... nth)
 		{
-#if COSTILE_INVOKE_DEBUG != FALSE
+			if(IsTraceCDCalls())
 			{
 				const clock_t invokeStart = clock();
 				callback = [=] {
@@ -488,7 +494,6 @@ public:
 					ci::Chat::AddMessage(StringToWstring(ss.str()));
 				};
 			}
-#endif
 			return ExecImpl<void, T1, TN ...>(isAsync, new CostileCallbackVoid(callback, isAsync), className, funcName, first, nth ...);
 		}
 	};
