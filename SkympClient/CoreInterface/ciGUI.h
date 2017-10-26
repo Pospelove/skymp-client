@@ -31,4 +31,24 @@ namespace ci
 		void Show(const std::wstring &title, Style dialogStyle, const std::wstring &text, int32_t defaultIndex, Callback callback);
 		bool Hide();
 	}
+
+	class Text3D
+	{
+	public:
+		Text3D(const std::wstring &str, NiPoint3 pos);
+		~Text3D();
+
+		void SetText(const std::wstring &str);
+		void SetPos(const NiPoint3 &pos);
+
+		std::wstring GetText() const;
+		NiPoint3 GetPos() const;
+
+	private:
+		Text3D(const Text3D &) = delete;
+		Text3D & operator=(const Text3D &) = delete;
+
+		struct Impl;
+		Impl *pimpl;
+	};
 }

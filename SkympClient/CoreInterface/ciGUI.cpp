@@ -1,6 +1,7 @@
 #include "../stdafx.h"
 #include "../Overlay/GUI.h"
 #include "../Overlay/Chat.h"
+#include "../Overlay/3DText.h"
 #include "CoreInterface.h"
 
 void ci::Chat::Init()
@@ -54,3 +55,49 @@ bool ci::Dialog::Hide()
 {
 	return SkyUILib::HideDialog();
 }
+
+struct ci::Text3D::Impl
+{
+	::Text3D label;
+};
+
+ci::Text3D::Text3D(const std::wstring &str, NiPoint3 pos) :
+	pimpl(new Impl)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	pimpl->label.is2D = false;
+	pimpl->label.pos = pos;
+	pimpl->label.text2d.str = str;
+	pimpl->label.text2d.color = -1;
+}
+
+ci::Text3D::~Text3D()
+{
+	delete pimpl;
+}
+
+void ci::Text3D::SetText(const std::wstring &str)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	pimpl->label.text2d.str = str;
+}
+
+void ci::Text3D::SetPos(const NiPoint3 &pos)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	pimpl->label.pos = pos;
+}
+
+std::wstring ci::Text3D::GetText() const
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	return pimpl->label.text2d.str;
+}
+
+
+NiPoint3 ci::Text3D::GetPos() const
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	return pimpl->label.pos;
+}
+

@@ -159,6 +159,7 @@ namespace ci
 		dlf_mutex mutex;
 		FormID formID = 0;
 		std::wstring name;
+		std::unique_ptr<ci::Text3D> nicknameLabel;
 		LookData lookData;
 		ILookSynchronizer *lookSync = ILookSynchronizer::GetV17();
 		TESObjectCELL *currentNonExteriorCell = nullptr;
@@ -174,8 +175,6 @@ namespace ci
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::set<uint32_t> knownArmor;
-		std::set<TESForm *> knownWeaps;
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData, avDataLast;
@@ -339,6 +338,8 @@ namespace ci
 			{
 			case SpawnStage::NonSpawned:
 			{
+				pimpl->nicknameLabel = nullptr;
+
 				if (Utility::IsForegroundProcess())
 				{
 					const FormID worldSpaceID = sd::GetWorldSpace(g_thePlayer) ? sd::GetWorldSpace(g_thePlayer)->formID : NULL;
@@ -406,6 +407,23 @@ namespace ci
 					this->ApplyLookData(lookData);
 					return;
 				}
+
+				// Nickname
+				SAFE_CALL("RemotePlayer", [&] {
+					if (this->GetName() != L"Invisible Fox"
+						&& this->GetName() != L"Ghost Axe")
+					{
+						const auto nicknamePos = cd::GetPosition(actor) += {0, 0, 128 + 16};
+
+						if (pimpl->nicknameLabel == nullptr)
+							pimpl->nicknameLabel.reset(new ci::Text3D(this->GetName(), nicknamePos));
+
+						pimpl->nicknameLabel->SetPos(nicknamePos);
+
+						if (pimpl->nicknameLabel->GetText() != this->GetName())
+							pimpl->nicknameLabel->SetText(this->GetName());
+					}
+				});
 
 				if (pimpl->greyFaceFixed)
 				{
@@ -533,6 +551,7 @@ namespace ci
 											if (pimpl->myFox == nullptr)
 											{
 												pimpl->myFox = new RemotePlayer(*this);
+												pimpl->myFox->SetName(L"Invisible Fox");
 												++numInvisibleFoxes;
 											}
 										}
@@ -752,6 +771,7 @@ namespace ci
 					cd::SetPosition(ac, pimpl->movementData.pos);
 					sd::RemoveFromAllFactions(actor);
 					sd::BlockActivation(actor, true);
+					sd::AllowPCDialogue(actor, false);
 
 					enum {
 						CWPlayerAlly = 0x0008F36D,

@@ -186,15 +186,6 @@ public:
 		while (1)
 		{
 			try {
-
-				/*static int16_t stateWas;
-				const auto state = (int16_t)sd::Obscript::GetAttackState(g_thePlayer);
-				if (stateWas != state)
-				{
-					stateWas = state;
-					ci::Chat::AddMessage(std::to_wstring(state));
-				}*/
-
 				this->lastUpdateMT = clock();
 
 				sd::Wait(0);
@@ -354,8 +345,6 @@ public:
 				}
 			}
 		}).detach();
-
-		Text3D::Init();
 
 		while (1)
 		{

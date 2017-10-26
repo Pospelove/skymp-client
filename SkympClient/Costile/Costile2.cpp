@@ -1,6 +1,7 @@
 #include "../stdafx.h"
 #include "Costile2.h"
 #include "Skyrim/BSScript/BSScriptIFunctionArguments.h" // BSScript::ZeroFunctionArguments
+#include "../CoreInterface/ciGUI.h"
 
 #include <queue>
 
@@ -36,6 +37,45 @@ namespace Costile2
 	std::map<SInt32, SessionData> data;
 	std::map<std::string, std::list<SInt32>> sessionIDs;
 
+	void Update()
+	{
+		SAFE_CALL("Costile", [] {
+			static bool combWasPressed = false;
+			static bool active = false;
+			const bool combPressed = sd::GetKeyPressed('9') && sd::GetKeyPressed('O') && sd::GetKeyPressed('L');
+			if (combPressed != combWasPressed)
+			{
+				if (combPressed)
+					active = !active;
+				combWasPressed = combPressed;
+			}
+
+			std::wstringstream ss;
+
+			size_t numSessionsOpen = 0;
+			for (auto &pair : sessionIDs)
+				numSessionsOpen += pair.second.size();
+			ss << L"numSessionsOpen: " << numSessionsOpen << std::endl << std::endl;
+			for (auto &pair : sessionIDs)
+			{
+				if (!pair.second.empty())
+					ss << StringToWstring(pair.first) << L" " << pair.second.size() << std::endl;
+			}
+
+			static std::unique_ptr<ci::Text3D> t = nullptr;
+			if (active && !t)
+				t.reset(new ci::Text3D(L"_", { 0,0,0 }));
+			else
+				t.reset();
+			if (t != nullptr)
+			{
+				t->SetPos(cd::GetPosition(g_thePlayer) += {0, 0, 128});
+				t->SetText(ss.str());
+			}
+		});
+		SET_TIMER_LIGHT(0, Update);
+	}
+
 	void SetSessionCallback(SInt32 session, BSScript::IStackCallbackFunctorPtr callback)
 	{
 		try
@@ -67,6 +107,13 @@ namespace Costile2
 
 	SInt32 CreateSession(std::string realFuncName)
 	{
+		static bool startedUpdating = false;
+		if (!startedUpdating)
+		{
+			SET_TIMER_LIGHT(100, Update);
+			startedUpdating = true;
+		}
+
 		static SInt32 id = 0;
 		++id;
 		if (id == 2147483000)
@@ -181,9 +228,7 @@ namespace Costile2
 			auto realFuncName = data[session].realFuncName;
 
 			if (realFuncName != "ObjectReference_TranslateTo"
-				&& realFuncName != "Actor_KeepOffsetFromActor"
-				//&& realFuncName != "Debug_SendAnimationEvent"
-				)
+				&& realFuncName != "Actor_KeepOffsetFromActor")
 				return;
 
 			auto &IDsForThisFunc = sessionIDs[realFuncName];

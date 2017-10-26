@@ -4221,7 +4221,7 @@ float cd::GetPositionX(Value<TESObjectREFR> self, std::function<void(float)> cal
 	TESObjectREFR *refr = self;
 	float result = 0;
 	if (refr)
-		result = refr->GetPositionX();
+		result = sd::GetPositionX(refr);
 
 	if (callback)
 	{
@@ -4236,7 +4236,7 @@ float cd::GetPositionY(Value<TESObjectREFR> self, std::function<void(float)> cal
 	TESObjectREFR *refr = self;
 	float result = 0;
 	if (refr)
-		result = refr->GetPositionY();
+		result = sd::GetPositionY(refr);
 
 	if (callback)
 	{
@@ -4251,7 +4251,7 @@ float cd::GetPositionZ(Value<TESObjectREFR> self, std::function<void(float)> cal
 	TESObjectREFR *refr = self;
 	float result = 0;
 	if (refr)
-		result = refr->GetPositionZ();
+		result = sd::GetPositionZ(refr);
 
 	if (callback)
 	{

@@ -5,6 +5,8 @@ namespace Costile2
 {
 	extern Signal<void(TESObjectREFR *, std::string)> OnAnimationEvent;
 
+	// Called from C++
+	void Register();
 	bool CallSimpleFunction(const char *constexprFuncName, BSScript::IStackCallbackFunctorPtr callback = nullptr);
 	SInt32 CreateSession(std::string realFuncName);
 	void SetSessionCallback(SInt32 session, BSScript::IStackCallbackFunctorPtr callback);
@@ -14,13 +16,12 @@ namespace Costile2
 	void SetFloat(SInt32 session, SInt32 idx, float val);
 	void SetString(SInt32 session, SInt32 idx, const std::string &val);
 	void SetTESForm(SInt32 session, SInt32 idx, TESForm *val);
-	//void SetTESForm(SInt32 session, SInt32 idx, BSScript::BSScriptObjectPtr val);
 	void SetTESForm(SInt32 session, SInt32 idx, RefHandle val);
 	void FinalisePacking(SInt32 session);
 	void CreateStaticString(const std::string &source, int32_t strID);
 
-	// Функции для вызова из Papyrus:
-	float GetPi(); // Для теста
+	// Called from Papyrus
+	float GetPi(); // Test
 	SInt32 GetSession(BSFixedString realFuncName);
 	SInt32 GetInt(SInt32 session, SInt32 idx);
 	UInt32 GetUInt(SInt32 session, SInt32 idx);
@@ -36,9 +37,6 @@ namespace Costile2
 	void OnAnimEvent(TESObjectREFR *src, BSFixedString eventName);
 	BSFixedString GetStringTest();
 	BSFixedString GetStaticString(SInt32 id);
-
-	// Зарегистрировать ф-ции выше в виртуальной машине Skyrim
-	void Register();
 }
 
 			
