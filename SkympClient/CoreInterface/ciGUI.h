@@ -44,6 +44,12 @@ namespace ci
 		std::wstring GetText() const;
 		NiPoint3 GetPos() const;
 
+		void SetVisible(bool v);
+		bool IsVisible() const;
+
+		void SetDrawDistance(float distance);
+		float GetDrawDistance() const;
+
 	private:
 		Text3D(const Text3D &) = delete;
 		Text3D & operator=(const Text3D &) = delete;

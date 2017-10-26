@@ -88,12 +88,23 @@ void ci::Text3D::SetPos(const NiPoint3 &pos)
 	pimpl->label.pos = pos;
 }
 
+void ci::Text3D::SetVisible(bool v)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	pimpl->label.text2d.visible = v;
+}
+
+void ci::Text3D::SetDrawDistance(float d)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	pimpl->label.drawDistance = d;
+}
+
 std::wstring ci::Text3D::GetText() const
 {
 	std::lock_guard<dlf_mutex> l(pimpl->label.m);
 	return pimpl->label.text2d.str;
 }
-
 
 NiPoint3 ci::Text3D::GetPos() const
 {
@@ -101,3 +112,14 @@ NiPoint3 ci::Text3D::GetPos() const
 	return pimpl->label.pos;
 }
 
+bool ci::Text3D::IsVisible() const
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	return pimpl->label.text2d.visible;
+}
+
+float ci::Text3D::GetDrawDistance() const
+{
+	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	return pimpl->label.drawDistance;
+}

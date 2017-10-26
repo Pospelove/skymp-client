@@ -14,6 +14,7 @@ struct Text2DData
 	NiPoint2 screenPos;
 	D3DCOLOR color;
 	DWORD format = DT_NOCLIP | DT_CENTER | DT_VCENTER;
+	bool visible = true;
 };
 
 class Text3D
@@ -25,6 +26,7 @@ public:
 	NiPoint3 pos;
 	bool is2D = false;
 	Text2DData text2d;
+	float drawDistance = 1000 * 1000 * 1000;
 	dlf_mutex m;
 
 private:

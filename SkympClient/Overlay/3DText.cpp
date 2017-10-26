@@ -10,6 +10,8 @@
 #include "../CoreInterface/ciOther.h" //ci::IsInPause()
 #include "../DirectX/DirectXHook.h"
 
+#include "../CoreInterface/CoreInterface.h" // ci::LocalPlayer::GetPos()
+
 #pragma comment(lib, "Dwmapi.lib")
 
 class Font
@@ -78,7 +80,8 @@ void Draw(const Text2DData &text)
 	if (text.font != nullptr)
 	{
 		auto textRes = text.str;
-		LPD3DXFONT(*text.font)->DrawTextW(NULL, textRes.data(), -1, &FontPos, text.format, text.color);
+		if (text.visible)
+			LPD3DXFONT(*text.font)->DrawTextW(NULL, textRes.data(), -1, &FontPos, text.format, text.color);
 	}
 	else
 		ErrorHandling::SendError("ERROR:3DText Null font");
@@ -138,7 +141,8 @@ void Text3D::Render()
 					const int32_t width = rect.right - rect.left,
 						height = rect.bottom - rect.top;
 
-					if (screenPoint.z >= 0)
+					if (screenPoint.z >= 0
+						&& (text3D->pos - (ci::LocalPlayer::GetSingleton()->GetPos() + NiPoint3{ 0, 0, 128 + 16 })).Length() <= text3D->drawDistance)
 					{
 						text3D->text2d.screenPos.x = screenPoint.x * width;
 						text3D->text2d.screenPos.y = (1 - screenPoint.y) * height;

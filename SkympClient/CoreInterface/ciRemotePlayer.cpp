@@ -15,6 +15,7 @@ enum class InvisibleFoxEngine {
 };
 
 #define DRAW_DISTANCE						int32_t(70.0218818381 * 100) // 100 metres
+#define NICKNAME_DISTANCE					512
 
 #define GHOST_AXE_COUNT 					1
 #define GHOST_AXE_OFFSET_Z 					2048
@@ -413,7 +414,8 @@ namespace ci
 					if (this->GetName() != L"Invisible Fox"
 						&& this->GetName() != L"Ghost Axe")
 					{
-						const auto nicknamePos = cd::GetPosition(actor) += {0, 0, 128 + 16};
+						const NiPoint3 offset = { 0, 0, 128 + 16 };
+						const auto nicknamePos = cd::GetPosition(actor) + offset;
 
 						if (pimpl->nicknameLabel == nullptr)
 							pimpl->nicknameLabel.reset(new ci::Text3D(this->GetName(), nicknamePos));
@@ -422,6 +424,8 @@ namespace ci
 
 						if (pimpl->nicknameLabel->GetText() != this->GetName())
 							pimpl->nicknameLabel->SetText(this->GetName());
+
+						pimpl->nicknameLabel->SetDrawDistance(NICKNAME_DISTANCE);
 					}
 				});
 
