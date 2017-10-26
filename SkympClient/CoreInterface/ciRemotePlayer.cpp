@@ -28,6 +28,7 @@ enum class InvisibleFoxEngine {
 
 #define MAX_CD_LAG							1000
 #define CD_LAG_RECOVER_TIME					3333
+#define MAX_OUT_OF_POS						256.f
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 extern clock_t localPlCrosshairRefUpdateMoment;
@@ -173,6 +174,7 @@ namespace ci
 		clock_t timer250ms = 0;
 		clock_t timer1000ms = 0;
 		clock_t unsafeSyncTimer = 0;
+		clock_t lastOutOfPos = 0;
 		bool greyFaceFixed = false;
 		MovementData movementData;
 		MovementData_::SyncState syncState;
@@ -539,6 +541,12 @@ namespace ci
 				if (pimpl->timer250ms + 250 < clock())
 				{
 					pimpl->timer250ms = clock();
+
+					// 'lastOutOfPos'
+					SAFE_CALL("RemotePlayer", [&] {
+						if ((this->GetPos() - cd::GetPosition(actor)).Length() > MAX_OUT_OF_POS)
+							pimpl->lastOutOfPos = clock();
+					});
 
 					// Create/Destroy My Fox
 					const bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
@@ -1175,7 +1183,7 @@ namespace ci
 		if (!actor)
 			return;
 
-		if (clock() - localPlCrosshairRefUpdateMoment > MAX_CD_LAG)
+		if (clock() - localPlCrosshairRefUpdateMoment > MAX_CD_LAG || clock() - pimpl->lastOutOfPos < 1000)
 			pimpl->unsafeSyncTimer = clock() + CD_LAG_RECOVER_TIME;
 		pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > MAX_PLAYERS_SYNCED_SAFE || pimpl->unsafeSyncTimer > clock();
 
