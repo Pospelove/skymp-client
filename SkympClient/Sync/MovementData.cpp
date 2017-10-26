@@ -216,7 +216,7 @@ namespace MovementData_
 		});
 	}
 
-	void ApplyImpl(ci::MovementData md, Actor *ac, SyncState &syncStatus, GhostAxeVector ghostAxes)
+	void ApplyImpl(ci::MovementData md, Actor *ac, SyncState &syncStatus, uint32_t ghostAxeID)
 	{
 		if (!syncStatus.appliedOnce)
 		{
@@ -548,11 +548,9 @@ namespace MovementData_
 					{
 						if (sd::GetCombatTarget(ac) == myFox)
 							sd::StopCombat(ac);
-						if (ghostAxes.empty() == false)
-						{
-							auto ghostAxe = (Actor *)LookupFormByID(ghostAxes.front());
+						auto ghostAxe = (Actor *)LookupFormByID(ghostAxeID);
+						if (ghostAxe != nullptr)
 							sd::StartCombat(ac, ghostAxe);
-						}
 					}
 					ac->DrawSheatheWeapon(true);
 				}
@@ -636,7 +634,7 @@ namespace MovementData_
 			SendAnimationEvent(g_thePlayer, md.isBlocking ? "BlockStart" : "BlockStop", false);
 	}
 
-	void Apply(ci::MovementData md, Actor *actor, SyncState *syncState, GhostAxeVector ghostAxes)
+	void Apply(ci::MovementData md, Actor *actor, SyncState *syncState, uint32_t ghostAxeID)
 	{
 		if (actor == nullptr)
 			return;
@@ -645,6 +643,6 @@ namespace MovementData_
 			return ApplyToThePlayer(md);
 
 		if (syncState != nullptr)
-			ApplyImpl(md, actor, *syncState, ghostAxes);
+			ApplyImpl(md, actor, *syncState, ghostAxeID);
 	}
 }

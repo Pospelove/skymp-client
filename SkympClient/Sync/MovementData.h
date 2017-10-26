@@ -58,8 +58,7 @@ namespace MovementData_
 		clock_t lastShot = 0;
 	};
 
-	using GhostAxeVector = std::vector<RefHandle>;
 
 	ci::MovementData GetFromPlayer();
-	void Apply(ci::MovementData movementData, Actor *actor, SyncState *syncState, GhostAxeVector ghostAxes);
+	void Apply(ci::MovementData movementData, Actor *actor, SyncState *syncState, uint32_t ghostAxeID);
 }

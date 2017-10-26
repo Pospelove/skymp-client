@@ -17,7 +17,6 @@ enum class InvisibleFoxEngine {
 #define DRAW_DISTANCE						int32_t(70.0218818381 * 100) // 100 metres
 #define NICKNAME_DISTANCE					512
 
-#define GHOST_AXE_COUNT 					1
 #define GHOST_AXE_OFFSET_Z 					2048
 #define GHOST_AXE_UPDATE_RATE				750
 
@@ -33,7 +32,7 @@ namespace ci
 {
 	RemotePlayer *CreateGhostAxe();
 	std::set<RemotePlayer *> allRemotePlayers;
-	std::vector<RemotePlayer *> ghostAxes;
+	RemotePlayer *ghostAxe = nullptr;
 	RemotePlayer *currentSpawning = nullptr;
 	uint32_t currentSpawningBaseID = 0;
 	clock_t lastForceSpawn = 0;
@@ -889,27 +888,16 @@ namespace ci
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			if (ghostAxes.empty())
-			{
-				if (GHOST_AXE_COUNT == 0)
-					ErrorHandling::SendError("ERROR:RemotePlayer GHOST_AXE_COUNT == 0");
-				for (SInt32 i = 0; i != GHOST_AXE_COUNT; ++i)
-					ghostAxes.push_back(CreateGhostAxe());
-			}
-		});
-		SAFE_CALL("RemotePlayer", [&] {
-			for	(auto it = ghostAxes.begin(); it != ghostAxes.end(); ++it)
-			{
-				auto ptr = (*it);
-				auto movData = MovementData_::GetFromPlayer();
-				movData.pos.z += GHOST_AXE_OFFSET_Z;
-				movData.pos.x += GetRespawnRadius(false) * 0.85;
-				ptr->ApplyMovementData(movData);
-				static auto localPl = ci::LocalPlayer::GetSingleton();
-				ptr->SetCell(localPl->GetCell());
-				ptr->SetWorldSpace(localPl->GetWorldSpace());
-				ptr->Update();
-			}
+			if (ghostAxe == nullptr)
+				ghostAxe = CreateGhostAxe();
+			auto movData = MovementData_::GetFromPlayer();
+			movData.pos.z += GHOST_AXE_OFFSET_Z;
+			movData.pos.x += GetRespawnRadius(false) * 0.85;
+			ghostAxe->ApplyMovementData(movData);
+			static auto localPl = ci::LocalPlayer::GetSingleton();
+			ghostAxe->SetCell(localPl->GetCell());
+			ghostAxe->SetWorldSpace(localPl->GetWorldSpace());
+			ghostAxe->Update();
 		});
 	}
 
@@ -1182,11 +1170,6 @@ namespace ci
 		if (!actor)
 			return;
 
-		std::vector<RefHandle> ghostAxeHandles;
-		ghostAxeHandles.reserve(ghostAxes.size());
-		for (auto it = ghostAxes.begin(); it != ghostAxes.end(); ++it)
-			ghostAxeHandles.push_back((*it)->pimpl->formID);
-
 		if (allRemotePlayers.size() <= MAX_PLAYERS_SYNCED_SAFE)
 			pimpl->syncState.fullyUnsafeSync = false;
 		else
@@ -1196,7 +1179,7 @@ namespace ci
 			&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
 			pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
 		{
-			MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxeHandles);
+			MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxe ? ghostAxe->pimpl->formID : 0);
 
 			if (pimpl->afk)
 				sd::EnableAI(actor, false);
