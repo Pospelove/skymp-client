@@ -26,7 +26,11 @@ enum class InvisibleFoxEngine {
 #define INVISIBLE_FOX_ENGINE				InvisibleFoxEngine::Object
 #define MAX_INVISIBLE_FOXES					3
 
+#define MAX_CD_LAG							1000
+#define CD_LAG_RECOVER_TIME					3333
+
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
+extern clock_t localPlCrosshairRefUpdateMoment;
 
 namespace ci
 {
@@ -168,6 +172,7 @@ namespace ci
 		clock_t spawnMoment = 0;
 		clock_t timer250ms = 0;
 		clock_t timer1000ms = 0;
+		clock_t unsafeSyncTimer = 0;
 		bool greyFaceFixed = false;
 		MovementData movementData;
 		MovementData_::SyncState syncState;
@@ -1170,10 +1175,9 @@ namespace ci
 		if (!actor)
 			return;
 
-		if (allRemotePlayers.size() <= MAX_PLAYERS_SYNCED_SAFE)
-			pimpl->syncState.fullyUnsafeSync = false;
-		else
-			pimpl->syncState.fullyUnsafeSync = true;
+		if (clock() - localPlCrosshairRefUpdateMoment > MAX_CD_LAG)
+			pimpl->unsafeSyncTimer = clock() + CD_LAG_RECOVER_TIME;
+		pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > MAX_PLAYERS_SYNCED_SAFE || pimpl->unsafeSyncTimer > clock();
 
 		if (pimpl->rating < MAX_HARDSYNCED_PLAYERS
 			&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)

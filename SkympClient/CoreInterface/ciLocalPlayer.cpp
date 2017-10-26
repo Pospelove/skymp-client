@@ -84,6 +84,7 @@ const ci::ItemType *localPlEquippedWeap[] = { nullptr, nullptr };
 const ci::ItemType *localPlEquippedAmmo = nullptr;
 clock_t lastLocalPlUpdate = 0;
 bool registered = false;
+clock_t localPlCrosshairRefUpdateMoment = 0;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::map<TESForm *, const ci::ItemType *> knownItems;
@@ -706,6 +707,7 @@ void ci::LocalPlayer::Update()
 		{
 			calling = true;
 			cd::GetCurrentCrosshairRef([](cd::Value<TESObjectREFR> ref) {
+				localPlCrosshairRefUpdateMoment = clock();
 				localPlCrosshairRef = ref.GetFormID();
 				ci::SetTimer(200, [] {
 					calling = false;
