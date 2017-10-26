@@ -9,7 +9,7 @@
 
 #pragma comment(lib, "winmm")
 
-#define DISABLE_PLAYER_DAMAGE			FALSE
+#define DISABLE_PLAYER_DAMAGE			TRUE
 #define NORMAL_PROCESSING_WITH_MENUS	TRUE
 #define MUTE_SOUND_ON_TP				TRUE
 
@@ -665,12 +665,16 @@ void ci::LocalPlayer::Update()
 	SAFE_CALL("LocalPlayer", [&] {
 		if (DISABLE_PLAYER_DAMAGE)
 		{
-			const bool cursorOpen = MenuManager::GetSingleton()->IsMenuOpen("Cursor Menu");
-			static bool cursorOpenWas = false;
-			if (cursorOpen != cursorOpenWas)
+			float dmgMult;
+			static float dmgMultLast = -1;
+			if (sd::Obscript::GetAttackState(g_thePlayer) != 0)
+				dmgMult = 0;
+			else
+				dmgMult = 1;
+			if (dmgMult != dmgMultLast)
 			{
-				cursorOpenWas = cursorOpen;
-				sd::SetActorValue(g_thePlayer, "attackdamagemult", cursorOpen ? 1.0 : 0.0);
+				dmgMultLast = dmgMult;
+				sd::SetActorValue(g_thePlayer, "attackdamagemult", dmgMult);
 			}
 		}
 	});
