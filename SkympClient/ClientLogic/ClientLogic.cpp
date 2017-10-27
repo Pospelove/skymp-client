@@ -75,6 +75,8 @@ class ClientLogic : public ci::IClientLogic
 		Type type = Type::Static;
 		uint16_t hostID = ~0;
 		clock_t createMoment = 0;
+
+		float lastSpeed = 0;
 	};
 	std::map<uint32_t, ObjectInfo> objectsInfo;
 
@@ -615,8 +617,13 @@ class ClientLogic : public ci::IClientLogic
 				auto obj = objects.at(id);
 				if (objectsInfo[id].hostID != net.myID)
 				{
-					if (objectsInfo[id].hostID != 65535)
+					enum : uint16_t {
+						INVALID_HOST_ID = (uint16_t)~0,
+					};
+					if (objectsInfo[id].hostID != INVALID_HOST_ID)
 					{
+						if (obj->GetMotionType() != ci::Object::Motion_Keyframed)
+							obj->SetMotionType(ci::Object::Motion_Keyframed);
 						const float S = (pos - obj->GetPos()).Length();
 						const float t = 0.100f;
 						obj->TranslateTo(pos, rot, S / t, 300);
@@ -1521,8 +1528,75 @@ class ClientLogic : public ci::IClientLogic
 
 	void UpdateObjects()
 	{
-		for (auto it = objects.begin(); it != objects.end(); ++it)
+		const uint32_t sendingInterval = 50;
+		bool sendMovement = false;
+		static clock_t lastSend = 0;
+		if (clock() - lastSend > sendingInterval)
 		{
+			lastSend = clock();
+			sendMovement = true;
+		}
+
+		for (auto &pair : objects)
+		{
+			const auto id = pair.first;
+			const auto object = pair.second;
+
+			auto &info = objectsInfo[id];
+
+			enum : uint16_t {
+				INVALID_HOST_ID = (uint16_t)~0,
+			};
+
+			int32_t motionType = ci::Object::Motion_Keyframed;
+
+			const bool hostedByOther =
+				info.hostID != INVALID_HOST_ID && info.hostID != net.myID;
+			if (!hostedByOther)
+			{
+				const float distance = (object->GetPos() - localPlayer->GetPos()).Length();
+				if (object->IsCrosshairRef() || object->IsGrabbed() || distance < 256)
+				{
+					motionType = ci::Object::Motion_Dynamic;
+					if (info.hostID == INVALID_HOST_ID)
+					{
+						RakNet::BitStream bsOut;
+						bsOut.Write(ID_HOST_START);
+						bsOut.Write(id);
+						net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+					}
+				}
+			}
+
+			const bool hostedByMe =
+				info.hostID == net.myID;
+			if (hostedByMe && sendMovement)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_HOSTED_OBJECT_MOVEMENT);
+				bsOut.Write(id);
+				const auto pos = object->GetPos();
+				bsOut.Write(pos.x);
+				bsOut.Write(pos.y);
+				bsOut.Write(pos.z);
+				const auto rot = object->GetRot();
+				bsOut.Write(rot.x);
+				bsOut.Write(rot.y);
+				bsOut.Write(rot.z);
+				const bool isGrabbed = object->IsGrabbed();
+				bsOut.Write(isGrabbed);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+			}
+
+			info.lastSpeed = (object->GetSpeed() + info.lastSpeed) / 2;
+			if(info.lastSpeed > 2.0)
+				motionType = ci::Object::Motion_Dynamic;
+
+			if (hostedByOther)
+				motionType = ci::Object::Motion_Keyframed;
+
+			if (object->GetMotionType() != motionType)
+				object->SetMotionType(motionType);
 		}
 	}
 

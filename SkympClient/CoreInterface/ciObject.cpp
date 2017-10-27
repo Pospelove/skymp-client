@@ -687,6 +687,12 @@ uint32_t ci::Object::GetBase() const
 	return pimpl->baseID;
 }
 
+int32_t ci::Object::GetMotionType() const
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+	return pimpl->motionType;
+}
+
 void ci::Object::Update()
 {
 	auto calcUpdateRate = [](const ci::Object::Impl *pimpl) {

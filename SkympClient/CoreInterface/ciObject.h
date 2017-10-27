@@ -65,6 +65,7 @@ namespace ci
 		bool IsCrosshairRef() const;
 		float GetSpeed() const;
 		uint32_t GetBase() const;
+		int32_t GetMotionType() const;
 
 		enum {
 			Motion_Dynamic = 1,
