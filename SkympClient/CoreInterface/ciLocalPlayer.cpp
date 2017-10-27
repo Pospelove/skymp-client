@@ -651,8 +651,6 @@ void ci::LocalPlayer::Update()
 				sd::SetActorValue(g_thePlayer, "StaminaRate", 0);
 				cd::SetGameSettingFloat("fSprintStaminaDrainMult", 0.0f);
 				cd::SetGameSettingFloat("fDifficultyDamageMultiplier", 0.0f);
-				if (DISABLE_PLAYER_DAMAGE)
-					sd::SetActorValue(g_thePlayer, "attackdamagemult", 0.0);
 				cd::SetGameSettingFloat("fVATSSkillFactor", 0.0f);
 				cd::SetGameSettingFloat("fVATSChanceHitMult", 0.0f);
 				cd::SetGameSettingFloat("fVATSMaxChance", 0.0f);
