@@ -65,7 +65,7 @@ private:
 };
 
 std::shared_ptr<Font> GetDefaultFont() {
-	const std::shared_ptr<Font> p{ new Font("futuralightc", 20, FW_MEDIUM, "MyGUI\\futuralightc.otf") };
+	const std::shared_ptr<Font> p{ new Font("futuralightc", 20, FW_MEDIUM, "MyGUI\\futuralightc1.otf") };
 	return p;
 }
 
