@@ -74,11 +74,9 @@ class ClientLogic : public ci::IClientLogic
 	{
 		Type type = Type::Static;
 		uint16_t hostID = ~0;
-		bool isDynamic = false;
 		clock_t createMoment = 0;
 	};
 	std::map<uint32_t, ObjectInfo> objectsInfo;
-	std::map<uint32_t, NiPoint3> pos;
 
 	std::map<uint8_t, float> currentAVsOnServer; // percentage
 
@@ -1060,26 +1058,6 @@ class ClientLogic : public ci::IClientLogic
 					net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
 				}
 			}
-			for (auto it = objects.begin(); it != objects.end(); ++it)
-			{
-				const auto id = it->first;
-				const auto object = it->second;
-				if (objectsInfo[id].hostID == net.myID)
-				{
-					RakNet::BitStream bsOut;
-					bsOut.Write(ID_HOSTED_OBJECT_MOVEMENT);
-					bsOut.Write(id);
-					bsOut.Write(object->GetPos().x);
-					bsOut.Write(object->GetPos().y);
-					bsOut.Write(object->GetPos().z);
-					bsOut.Write(object->GetRot().x);
-					bsOut.Write(object->GetRot().y);
-					bsOut.Write(object->GetRot().z);
-					bsOut.Write(object->IsGrabbed());
-					pos[id] = object->GetPos();
-					net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
-				}
-			}
 		}
 		catch (...) {
 			ci::Log("ERROR:ClientLogic UpdateNetworking() Send");
@@ -1545,59 +1523,6 @@ class ClientLogic : public ci::IClientLogic
 	{
 		for (auto it = objects.begin(); it != objects.end(); ++it)
 		{
-			const uint32_t id = it->first;
-			const auto object = it->second;
-			if (objectsInfo[id].isDynamic)
-			{
-				OnObjectMove(object);
-			}
-
-			if (object->IsGrabbed())
-			{
-				static bool timerSet = false;
-				if (!timerSet)
-				{
-					timerSet = true;
-					ci::SetTimer(1333, [=] {
-						try {
-							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
-							auto object = objects.at(id);
-							if (objectsInfo[id].hostID != net.myID)
-							{
-								auto pos = object->GetPos();
-								object->Respawn();
-								object->SetPosition(pos);
-							}
-						}
-						catch (...) {
-						}
-						timerSet = false;
-					});
-				}
-			}
-
-			const auto hostPlayerID = objectsInfo[id].hostID;
-			if ((hostedJustNow.find(object) != hostedJustNow.end() || object->IsCrosshairRef() || (localPlayer->GetPos() - object->GetPos()).Length() < 128)
-				&& (hostPlayerID == 65535 || hostPlayerID == net.myID))
-			{
-				if (!objectsInfo[id].isDynamic)
-				{
-					object->SetMotionType(ci::Object::Motion_Dynamic);
-					objectsInfo[id].isDynamic = true;
-				}
-			}
-
-			else
-			{
-				if (object->GetSpeed() == 0)
-				{
-					if (objectsInfo[id].isDynamic)
-					{
-						object->SetMotionType(ci::Object::Motion_Keyframed);
-						objectsInfo[id].isDynamic = false;
-					}
-				}
-			}
 		}
 	}
 
@@ -1748,42 +1673,6 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			ammoWas = ammo;
-		}
-	}
-
-	void OnObjectMove(ci::Object *object)
-	{
-		uint32_t id = 0;
-		for (auto it = objects.begin(); it != objects.end(); it++)
-		{
-			if (it->second == object)
-			{
-				id = it->first;
-				break;
-			}
-		}
-		if (!id)
-			return;
-
-		static clock_t lastPausedMoment = 0;
-		if (ci::IsInPause())
-		{
-			lastPausedMoment = clock();
-		}
-
-		static clock_t lastHostReq = 0;
-		if (objectsInfo[id].hostID == 65535)
-		{
-			if(lastPausedMoment + 2000 < clock())
-				if ((object->GetPos() - pos[id]).Length() > 8.0f && lastHostReq + 0 <= clock())
-				{
-					lastHostReq = clock();
-					RakNet::BitStream bsOut;
-					bsOut.Write(ID_HOST_START);
-					bsOut.Write(id);
-					net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
-					pos[id] = object->GetPos();
-				}
 		}
 	}
 
