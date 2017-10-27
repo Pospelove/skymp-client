@@ -121,5 +121,37 @@ namespace Equipment_
 				known.insert(src);
 			}
 		}
+
+		static std::map<uint32_t, Equipment> lastEquipment;
+
+		const auto formID = actor->formID;
+		lastEquipment[formID] = equipment;
+
+		// Check if equipped incorrect
+		SET_TIMER(400, [=] {
+			auto actor = (Actor *)LookupFormByID(formID);
+			if (!actor || actor->formType != FormType::Reference)
+				return;
+			
+			for (int32_t i = 0; i <= 1; ++i)
+				if (equipment.hands[i] != lastEquipment[formID].hands[i])
+					return;
+
+			for (int32_t i = 0; i <= 1; ++i)
+			{
+				const bool isLeftHand = (i == 1); 
+				const auto form = sd::GetEquippedWeapon(actor, isLeftHand);
+				if (equipment.hands[i] == nullptr)
+				{
+					if (form != nullptr && form != CustomWeapHand(nullptr, isLeftHand))
+						return ApplyHands(actor, equipment);
+				}
+				else
+				{
+					if (form == nullptr || form == CustomWeapHand(nullptr, isLeftHand))
+						return ApplyHands(actor, equipment);
+				}
+			}
+		});
 	}
 }
