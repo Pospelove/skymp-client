@@ -887,8 +887,10 @@ class ClientLogic : public ci::IClientLogic
 			{
 				try {
 					auto itemType = itemTypes.at(armor);
-					pl->EquipItem(itemType, this->silentInventoryChanges, false);
+					pl->EquipItem(itemType, this->silentInventoryChanges, false, false);
 					armorNow.insert(itemType);
+					if(itemType->GetClass() != ci::ItemType::Class::Armor)
+						ci::Log("ERROR:ClientLogic Equipment: Armor is not armor");
 				}
 				catch (...) {
 					ci::Log("ERROR:ClientLogic Equipment: Armor not found");
@@ -898,16 +900,19 @@ class ClientLogic : public ci::IClientLogic
 			for (auto itemType : armorWas)
 			{
 				if (armorNow.find(itemType) == armorNow.end())
-					pl->UnequipItem(itemType, this->silentInventoryChanges, false);
+					pl->UnequipItem(itemType, this->silentInventoryChanges, false, false);
 			}
 
 			for (int32_t i = 0; i <= 1; ++i)
 			{
+				const bool isLeftHand = (i == 1);
 				if (hands[i] != ~0)
 				{
 					try {
 						auto itemType = itemTypes.at(hands[i]);
-						pl->EquipItem(itemType, this->silentInventoryChanges, false);
+						pl->EquipItem(itemType, this->silentInventoryChanges, false, isLeftHand);
+						if (itemType->GetClass() != ci::ItemType::Class::Weapon)
+							ci::Log("ERROR:ClientLogic Equipment: Weapon is not weapon");
 					}
 					catch (...) {
 						ci::Log("ERROR:ClientLogic Equipment: Weapon not found");
@@ -916,7 +921,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 				else
 				{
-					pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, i);
+					pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, isLeftHand);
 				}
 			}
 
@@ -924,7 +929,9 @@ class ClientLogic : public ci::IClientLogic
 			{
 				try {
 					auto itemType = itemTypes.at(ammo);
-					pl->EquipItem(itemType, this->silentInventoryChanges, false);
+					pl->EquipItem(itemType, this->silentInventoryChanges, false, false);
+					if (itemType->GetClass() != ci::ItemType::Class::Ammo)
+						ci::Log("ERROR:ClientLogic Equipment: Ammo is not ammo");
 				}
 				catch (...) {
 					ci::Log("ERROR:ClientLogic Equipment: Ammo not found");
@@ -933,7 +940,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 			else
 			{
-				pl->UnequipItem(pl->GetEquippedAmmo(), true, false);
+				pl->UnequipItem(pl->GetEquippedAmmo(), true, false, false);
 			}
 			break;
 		}
@@ -1425,7 +1432,7 @@ class ClientLogic : public ci::IClientLogic
 				auto armorWas = p->GetEquippedArmor();
 				for (auto item : armorWas)
 				{
-					p->UnequipItem(item, true, false);
+					p->UnequipItem(item, true, false, false);
 					p->RemoveItem(item, 1, false);
 				}
 				auto armor = localPlayer->GetEquippedArmor();
@@ -1439,10 +1446,10 @@ class ClientLogic : public ci::IClientLogic
 				if (ammo)
 				{
 					p->AddItem(ammo, 1, true);
-					p->EquipItem(ammo, true, false);
+					p->EquipItem(ammo, true, false, false);
 				}
 				else
-					p->UnequipItem(p->GetEquippedAmmo(), true, false);
+					p->UnequipItem(p->GetEquippedAmmo(), true, false, false);
 
 				auto m = localPlayer->GetMovementData();
 				m.pos += {128, 128, 0};

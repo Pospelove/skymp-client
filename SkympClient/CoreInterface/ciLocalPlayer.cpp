@@ -401,7 +401,6 @@ void ci::LocalPlayer::EquipItem(const ItemType *item, bool silent, bool preventR
 		{
 			if (sd::GetItemCount(g_thePlayer, form) == 0)
 			{
-				//ci::Chat::AddMessage(L"EquipItem forced AddItem");
 				SET_TIMER(200, [=] {
 					this->EquipItem(item, silent, preventRemoval, leftHand);
 				});

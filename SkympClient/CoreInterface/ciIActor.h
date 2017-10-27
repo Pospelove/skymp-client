@@ -32,8 +32,8 @@ namespace ci
 		virtual void UseFurniture(const Object *target, bool withAnimation) = 0;
 		virtual void AddItem(const ItemType *item, uint32_t count, bool silent) = 0;
 		virtual void RemoveItem(const ItemType *item, uint32_t count, bool silent) = 0;
-		virtual void EquipItem(const ItemType *item, bool silent, bool preventRemoval, bool leftHand = false) = 0;
-		virtual void UnequipItem(const ItemType *item, bool silent, bool preventEquip, bool leftHand = false) = 0;
+		virtual void EquipItem(const ItemType *item, bool silent, bool preventRemoval, bool leftHand) = 0;
+		virtual void UnequipItem(const ItemType *item, bool silent, bool preventEquip, bool leftHand) = 0;
 		virtual void PlayHitAnimation(uint8_t animID) = 0;
 		virtual void UpdateAVData(const std::string &avName, const AVData &data) = 0;
 
