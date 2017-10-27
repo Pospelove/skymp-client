@@ -144,12 +144,20 @@ namespace Equipment_
 				if (equipment.hands[i] == nullptr)
 				{
 					if (form != nullptr && form != CustomWeapHand(nullptr, isLeftHand))
+					{
+						ErrorHandling::SendError("ERROR:Equipment 1");
+						sd::RemoveAllItems(actor, 0, 0, 0);
 						return ApplyHands(actor, equipment);
+					}
 				}
 				else
 				{
 					if (form == nullptr || form == CustomWeapHand(nullptr, isLeftHand))
+					{
+						ErrorHandling::SendError("ERROR:Equipment 2");
+						sd::RemoveAllItems(actor, 0, 0, 0);
 						return ApplyHands(actor, equipment);
+					}
 				}
 			}
 		});
