@@ -25,19 +25,6 @@ namespace ci
 	extern UInt32 updateRateMS;
 }
 
-bool IsSkympDebug()
-{
-	static std::mutex mutex;
-	std::lock_guard<std::mutex> l(mutex);
-	static bool *isSkympDebugPtr = nullptr;
-	if (isSkympDebugPtr == nullptr)
-	{
-		std::ifstream is_file("skymp_debug.txt");
-		isSkympDebugPtr = new bool(is_file.good());
-	}
-	return *isSkympDebugPtr;
-}
-
 void other_thread(void *);
 
 class SkympClientDll : public SKSEPlugin
@@ -75,83 +62,8 @@ public:
 		Costile2::Register();
 	}
 
-	class DebugHitEventSink : public BSTEventSink<TESHitEvent>
-	{
-	public:
-		virtual ~DebugHitEventSink()
-		{
-		}
-
-	private:
-		virtual	EventResult	ReceiveEvent(TESHitEvent *evn, BSTEventSource<TESHitEvent> *source) override
-		{
-			if (evn->caster != g_thePlayer)
-				return {};
-			auto ref = evn->target;
-			SET_TIMER(0, [ref] {
-				uint32_t locationID = 0;
-				const char *locationName = "";
-				auto cell = sd::GetParentCell(ref);
-				if (!cell)
-				{
-					return;
-				}
-				if (cell->IsInterior())
-				{
-					locationID = cell->formID;
-					locationName = cell->GetName();
-				}
-				else
-				{
-					locationID = ref->GetWorldSpace()->formID;
-					locationName = ref->GetWorldSpace()->GetName();
-				}
-
-				std::stringstream ss;
-				ss << "Debug\\OnHit\\Teleports.txt";
-
-				std::ofstream of(ss.str().data(), std::ios::app);
-
-				static std::stringstream *ssp = nullptr;
-				if (ssp == nullptr)
-				{
-					ssp = new std::stringstream;
-					*ssp << "obj1 = Object.Create(";
-					*ssp << "0x" << std::hex << std::setfill('0') << std::setw(8) << ref->formID << ", ";
-					*ssp << "0x" << std::hex << std::setfill('0') << std::setw(8) << ref->baseForm->formID << ", ";
-					*ssp << "Location(" << "0x" << std::hex << std::setfill('0') << std::setw(8) << locationID << "), ";
-					*ssp << ref->GetPositionX() << ", " << ref->GetPositionY() << ", " << ref->GetPositionZ() << ")" << std::endl;
-
-					*ssp << "obj1:SetAngle(" << sd::GetAngleX(ref) << ", " << sd::GetAngleY(ref) << ", " << sd::GetAngleZ(ref) << ")" << std::endl;
-					sd::PrintNote("Selected 1");
-				}
-				else
-				{
-					*ssp << "obj2 = Object.Create(";
-					*ssp << "0x" << std::hex << std::setfill('0') << std::setw(8) << ref->formID << ", ";
-					*ssp << "0x" << std::hex << std::setfill('0') << std::setw(8) << ref->baseForm->formID << ", ";
-					*ssp << "Location(" << "0x" << std::hex << std::setfill('0') << std::setw(8) << locationID << "), ";
-					*ssp << ref->GetPositionX() << ", " << ref->GetPositionY() << ", " << ref->GetPositionZ() << ")" << std::endl;
-
-					*ssp << "obj2:SetAngle(" << sd::GetAngleX(ref) << ", " << sd::GetAngleY(ref) << ", " << sd::GetAngleZ(ref) << ")" << std::endl;
-
-					*ssp << "obj1:RegisterAsTeleportDoor(obj2)" << std::endl;
-					*ssp << "obj2:RegisterAsTeleportDoor(obj1)" << std::endl;
-
-					of << ssp->str();
-					ssp = nullptr;
-					sd::PrintNote("Selected 2; Saved");
-				}
-			});
-			return {};
-		}
-	};
-
 	void OnScriptDragonLoaded()
 	{
-		if (IsSkympDebug())
-			g_hitEventSource.AddEventSink(new DebugHitEventSink);
-
 		try {
 			auto &logic = ci::IClientLogic::clientLogic;
 			if (logic)
@@ -273,18 +185,16 @@ public:
 
 	void OnOtherThreadReady()
 	{
-		if (IsSkympDebug() == false)
-		{
-			ci::SetTimer(1000, [] {
-				const auto hModule = GetModuleHandle("SkyrimSouls.dll");
-				if (!hModule)
-				{
-					ErrorHandling::SendError("FATAL:Client SkyrimSouls.dll not found");
-					Sleep(1000);
-					std::exit(EXIT_FAILURE);
-				}
-			});
-		}
+		ci::SetTimer(1000, [] {
+			const auto hModule = GetModuleHandle("SkyrimSouls.dll");
+			if (!hModule)
+			{
+				ErrorHandling::SendError("FATAL:Client SkyrimSouls.dll not found");
+				Sleep(1000);
+				std::exit(EXIT_FAILURE);
+			}
+		});
+
 		HWND fore = //GetForegroundWindow(); // Every window has it's own current language (keyboard layout)
 			Utility::FindMainWindow();
 		DWORD tpid = GetWindowThreadProcessId(fore, 0);
@@ -362,8 +272,7 @@ public:
 				if (TheChat)
 					TheChat->Update_OT();
 
-				if (!IsSkympDebug())
-					MenuDisabler::Update_OT();
+				MenuDisabler::Update_OT();
 
 				static bool mainMenuWasOpen = false;
 				static bool attached = false;
@@ -426,7 +335,7 @@ public:
 
 					if (!TheChat || !TheChat->IsTyping())
 					{
-						if (Utility::IsForegroundProcess() && !IsSkympDebug())
+						if (Utility::IsForegroundProcess())
 						{
 							keybd_event(VK_UP, DIK_DOWNARROW, NULL, NULL);
 							keybd_event(VK_UP, DIK_DOWNARROW, KEYEVENTF_KEYUP, NULL);
@@ -448,7 +357,7 @@ public:
 					if (!tryCloseCursorMenu)
 					{
 						tryCloseCursorMenu = [&] {
-							if (menuManager->IsMenuOpen("Cursor Menu") && !IsSkympDebug())
+							if (menuManager->IsMenuOpen("Cursor Menu"))
 							{
 								if (closeCursorMenuLock.TryLock(&tryCloseCursorMenu))
 								{

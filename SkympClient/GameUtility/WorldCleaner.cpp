@@ -62,65 +62,6 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	if (this->IsFormProtected(refID) || this->IsFormProtected(baseFormID))
 		return;
 
-	if (IsSkympDebug())
-	{
-		switch (formType)
-		{
-		case FormType::NPC:
-		case FormType::LeveledCharacter:
-			sd::Delete(ref);
-			break;
-		case FormType::Door:
-		case FormType::Container:
-		{
-			static std::set<uint32_t> saved;
-			if (saved.insert(ref->formID).second)
-			{
-				uint32_t locationID = 0;
-				const char *locationName = "";
-				auto cell = sd::GetParentCell(ref);
-				if (!cell)
-				{
-					saved.erase(ref->formID);
-					return;
-				}
-				if (cell->IsInterior())
-				{
-					locationID = cell->formID;
-					locationName = cell->GetName();
-				}
-				else
-				{
-					locationID = ref->GetWorldSpace()->formID;
-					locationName = ref->GetWorldSpace()->GetName();
-				}
-
-				std::stringstream ss;
-				//ss << "Debug\\Auto\\" << std::hex << std::setfill('0') << std::setw(8) << locationID << "_" << locationName << ".txt";
-
-				ss << "Debug\\Auto\\" << std::hex << std::setfill('0') << std::setw(8) << 0 << "_" << "Any" << ".txt";
-
-				std::ofstream of(ss.str().data(), std::ios::app);
-				of << "obj = Object.Create(";
-				of << "0x" << std::hex << std::setfill('0') << std::setw(8) << ref->formID << ", ";
-				of << "0x" << std::hex << std::setfill('0') << std::setw(8) << ref->baseForm->formID << ", ";
-				of << "Location(" << "0x" << std::hex << std::setfill('0') << std::setw(8) << locationID << "), ";
-				of << ref->GetPositionX() << ", " << ref->GetPositionY() << ", " << ref->GetPositionZ() << ")" << std::endl;
-
-				of << "obj:SetAngle(" << sd::GetAngleX(ref) << ", " << sd::GetAngleY(ref) << ", " << sd::GetAngleZ(ref) << ")" << std::endl;
-				if (ref->baseForm->formType == FormType::Door)
-					of << "obj:RegisterAsDoor()" << std::endl;
-				if (ref->baseForm->formType == FormType::Container)
-					of << "obj:RegisterAsContainer()" << std::endl;
-			}
-
-		}
-		default:
-			sd::Lock(ref, false, false);
-			break;
-		}
-		return;
-	}
 	switch (formType)
 	{
 	case FormType::NPC:

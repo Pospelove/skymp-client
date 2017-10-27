@@ -1103,12 +1103,6 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnStartup() override
 	{
-		if (ci::IsInDebug())
-		{
-			ci::Chat::AddMessage(L"#eeeeeeSkyMP Debug");
-			return;
-		}
-
 		ci::Chat::Init();
 		ci::Chat::AddMessage(L"#eeeeeeSkyMP Client Started");
 		ci::LocalPlayer::GetSingleton()->SetName(L"Player");
@@ -1216,8 +1210,6 @@ class ClientLogic : public ci::IClientLogic
 		if (testUpd)
 			testUpd();
 
-		if (ci::IsInDebug())
-			return;
 		try {
 			static bool was = false;
 			bool nowOpen = ci::IsLoadScreenOpen();
@@ -1305,8 +1297,6 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnChatMessage(const std::wstring &text) override
 	{
-		if (ci::IsInDebug())
-			return;
 		if (!this->haveName)
 		{
 			this->haveName = true;
@@ -1334,8 +1324,6 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnChatCommand(const std::wstring &cmdText, const std::vector<std::wstring> &arguments) override
 	{
-		if (ci::IsInDebug())
-			return;
 		static ci::LookData testLookData;
 		static ci::Object *obj = nullptr;
 		static ci::IActor *p = nullptr;
@@ -1509,30 +1497,22 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnRaceMenuExit() override
 	{
-		if (ci::IsInDebug())
-		{
+		ci::SetTimer(1300, [&] {
+			auto newLook = localPlayer->GetLookData();
+			ld = newLook;
 
-		}
-		else
-		{
-			ci::SetTimer(1300, [&] {
-				auto newLook = localPlayer->GetLookData();
-				ld = newLook;
+			RakNet::BitStream bsOut;
+			bsOut.Write(ID_UPDATE_LOOK);
+			Serialize(bsOut, newLook);
 
-				RakNet::BitStream bsOut;
-				bsOut.Write(ID_UPDATE_LOOK);
-				Serialize(bsOut, newLook);
+			net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 
-				net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+			RakNet::BitStream bs;
+			Serialize(bs, newLook);
+			Deserialize(bs, newLook);
+			localPlayer->ApplyLookData(newLook);
 
-
-				RakNet::BitStream bs;
-				Serialize(bs, newLook);
-				Deserialize(bs, newLook);
-				localPlayer->ApplyLookData(newLook);
-
-			});
-		}
+		});
 	}
 
 	void OnItemDropped(const ci::ItemType *itemType, uint32_t count) override

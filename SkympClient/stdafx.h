@@ -65,6 +65,4 @@
 std::string WstringToString(const std::wstring &wstring);
 std::wstring StringToWstring(const std::string &string);
 
-bool IsSkympDebug();
-
 #endif

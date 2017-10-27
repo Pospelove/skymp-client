@@ -123,7 +123,7 @@ namespace ci
 
 	bool IsInDebug()
 	{
-		return ::IsSkympDebug();
+		return false;
 	}
 
 	bool IsWorldSpace(uint32_t formID)
