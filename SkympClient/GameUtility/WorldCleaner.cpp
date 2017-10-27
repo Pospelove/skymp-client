@@ -3,6 +3,8 @@
 #include "../CoreInterface/CoreInterface.h"
 #include  <iomanip>
 
+#define CELL_SEARCH_DEEPTH				40
+
 bool forceUpdate = false;
 
 WorldCleaner *WorldCleaner::GetSingleton()
@@ -67,14 +69,19 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	case FormType::NPC:
 	case FormType::LeveledCharacter:
 		sd::Delete(ref); // was cd::delete
-		break;
+		return;
+	case FormType::Projectile:
+		sd::Delete(ref);
+		return;
+	case FormType::Ammo:
+		sd::Delete(ref);
+		return;
 	case FormType::Ingredient:
 	case FormType::ScrollItem:
 	case FormType::Armor:
 	case FormType::Book:
 	case FormType::Misc:
 	case FormType::Weapon:
-	case FormType::Ammo:
 	case FormType::Key:
 	case FormType::Potion:
 	case FormType::SoulGem:
@@ -92,7 +99,7 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	case FormType::Flora:
 		if (((TESFlora *)baseForm)->produce)
 			sd::Delete(ref);
-		break;
+		return;
 	case FormType::Container:
 		sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);
 		sd::RemoveAllItems(ref, nullptr, false, true);
@@ -118,7 +125,20 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	default:
 		break;
 	}
-	if (ref->formID >= 0xFF000000 && (ref->baseForm->formID <= 0xFF000000 || ref->baseForm->formID >= 0xFF00F000))
+
+	static const std::set<UInt32> toDel = {
+		//891015, 891013, 891011, 891009, 891007, 891003, 891005, 464980, 1050496,	// Алтари
+		0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169,	// Летающие насекомые
+		0x10581f, 0x105824,															// Птицы
+		0xad0cc, 0xd337f, 0x106d28, 0x106d29, 0x106d2A, 0x106d2B, 0x106d2C,			// Рыбы
+		0xe1fb2, 0xb6fb9, 0x89a8a, 0xe2ff9, 0xb6fcb,								// Корни нирна, корзины с яйцами (оригмы?)
+		0x10b035, 0x10c3ba															// waterfall salmons
+	};
+	if (toDel.find(ref->baseForm->formID) != toDel.end())
+		sd::Delete(ref);
+
+	if (ref->formID >= 0xFF000000 && 
+		(ref->baseForm->formID <= 0xFF000000 || ref->baseForm->formID >= 0xFF00F000)) // To prevent water deletion
 	{
 		sd::Delete(ref);
 	}
@@ -126,7 +146,7 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 
 void WorldCleaner::Update()
 {
-	const NiPoint3 pos = { sd::GetPositionX(g_thePlayer), sd::GetPositionY(g_thePlayer), sd::GetPositionZ(g_thePlayer) };
+	const NiPoint3 pos = cd::GetPosition(g_thePlayer);
 
 	// Far actors
 	{
@@ -139,26 +159,6 @@ void WorldCleaner::Update()
 		}
 	}
 
-	static const std::set<UInt32> baseIDsToDestroy = {
-		//891015, 891013, 891011, 891009, 891007, 891003, 891005, 464980, 1050496,	// Алтари
-		/*0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169,	// Летающие насекомые
-		0x10581f, 0x105824,															// Птицы
-		0xad0cc, 0xd337f, 0x106d28, 0x106d29, 0x106d2A, 0x106d2B, 0x106d2C,			// Рыбы
-		0xe1fb2, 0xb6fb9, 0x89a8a, 0xe2ff9, 0xb6fcb,								// Корни нирна, корзины с яйцами (оригмы?)
-		0x10b035, 0x10c3ba															// waterfall salmons
-	*/};
-	std::for_each(baseIDsToDestroy.begin(), baseIDsToDestroy.end(), [=] (UInt32 formID) {
-		TESForm *form = LookupFormByID(formID);
-		for (SInt32 i = 0; i != 10; ++i)
-		{
-			auto refr = sd::FindClosestReferenceOfType(form, pos.x, pos.y, pos.z, 100 * 1024);
-			if (!refr)
-				break;
-			else
-				sd::Delete(refr);
-		}
-	});
-
 	static void *cellWas = nullptr;
 	auto currentCell = sd::GetParentCell(g_thePlayer);
 	if (currentCell != cellWas || forceUpdate)
@@ -168,7 +168,7 @@ void WorldCleaner::Update()
 		if (currentCell)
 		{
 			const UInt32 formID = currentCell->formID;
-			enum { deepth = 40 };
+			const auto deepth = CELL_SEARCH_DEEPTH;
 			for (UInt32 tmpFormID = (formID > deepth) ? formID - deepth : 0; tmpFormID != formID + deepth; ++tmpFormID)
 			{
 				TESObjectCELL *tmpCell = (TESObjectCELL *)LookupFormByID(tmpFormID);
