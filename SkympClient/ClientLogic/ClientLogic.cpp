@@ -1597,6 +1597,30 @@ class ClientLogic : public ci::IClientLogic
 
 			if (object->GetMotionType() != motionType)
 				object->SetMotionType(motionType);
+
+			if (object->IsGrabbed())
+			{
+				static bool timerSet = false;
+				if (!timerSet)
+				{
+					timerSet = true;
+					ci::SetTimer(1333, [=] {
+						try {
+							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+							auto object = objects.at(id);
+							if (objectsInfo[id].hostID != net.myID)
+							{
+								auto pos = object->GetPos();
+								object->Respawn();
+								object->SetPosition(pos);
+							}
+						}
+						catch (...) {
+						}
+						timerSet = false;
+					});
+				}
+			}
 		}
 	}
 
