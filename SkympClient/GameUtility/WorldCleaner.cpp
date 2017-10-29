@@ -13,11 +13,9 @@ WorldCleaner *WorldCleaner::GetSingleton()
 	return &worldCleaner;
 }
 
-
 void WorldCleaner::SetFormProtected(RefHandle formID, bool val)
 {
-	static std::mutex mtx;
-	std::lock_guard<std::mutex> lock(mtx);
+	std::lock_guard<dlf_mutex> lock(mutex);
 
 	static std::map<RefHandle, SInt32> sums;
 	if (sums.find(formID) == sums.end())
@@ -40,6 +38,7 @@ void WorldCleaner::SetFormProtected(RefHandle formID, bool val)
 
 bool WorldCleaner::IsFormProtected(RefHandle formID) const
 {
+	std::lock_guard<dlf_mutex> lock(mutex);
 	if (formID == g_thePlayer->formID)
 		return true;
 	if (!formID)
@@ -50,6 +49,7 @@ bool WorldCleaner::IsFormProtected(RefHandle formID) const
 
 void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 {
+	std::lock_guard<dlf_mutex> lock(mutex);
 	if (ref == nullptr)
 		return;
 
@@ -64,66 +64,77 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	if (this->IsFormProtected(refID) || this->IsFormProtected(baseFormID))
 		return;
 
-	switch (formType)
+	auto pred = preds[ref->formID],
+		pred2 = preds[ref->baseForm->formID];
+	if (pred)
 	{
-	case FormType::NPC:
-	case FormType::LeveledCharacter:
-		sd::Delete(ref); // was cd::delete
-		return;
-	case FormType::Projectile:
-		sd::Delete(ref);
-		return;
-	case FormType::Ammo:
-		sd::Delete(ref);
-		return;
-	case FormType::Ingredient:
-	case FormType::ScrollItem:
-	case FormType::Armor:
-	case FormType::Book:
-	case FormType::Misc:
-	case FormType::Weapon:
-	case FormType::Key:
-	case FormType::Potion:
-	case FormType::SoulGem:
-	case FormType::LeveledItem:
-		//case FormType::MovableStatic:
-		sd::Delete(ref);
-		return;
-	case FormType::Tree:
-		if (((TESObjectTREE *)baseForm)->produce)
+		if (pred(ref))
+			return;
+	}
+	else if (pred2)
+	{
+		if (pred2(ref))
+			return;
+	}
+	else
+	{
+		switch (formType)
 		{
+		case FormType::NPC:
+		case FormType::LeveledCharacter:
+			sd::Delete(ref); // was cd::delete
+			return;
+		case FormType::Projectile:
+		case FormType::Ammo:
+		case FormType::Ingredient:
+		case FormType::ScrollItem:
+		case FormType::Armor:
+		case FormType::Book:
+		case FormType::Misc:
+		case FormType::Weapon:
+		case FormType::Key:
+		case FormType::Potion:
+		case FormType::SoulGem:
+		case FormType::LeveledItem:
+			//case FormType::MovableStatic:
 			sd::Delete(ref);
 			return;
+		case FormType::Tree:
+			if (((TESObjectTREE *)baseForm)->produce)
+			{
+				sd::Delete(ref);
+				return;
+			}
+			break;
+		case FormType::Flora:
+			if (((TESFlora *)baseForm)->produce)
+				sd::Delete(ref);
+			return;
+		case FormType::Container:
+			sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);
+			sd::RemoveAllItems(ref, nullptr, false, true);
+			sd::BlockActivation(ref, true);
+			sd::SetDestroyed(ref, true);
+			break;
+		case FormType::Door:
+			sd::Lock(ref, false, false);
+			sd::SetOpen(ref, true);
+			sd::BlockActivation(ref, true);
+			sd::SetDestroyed(ref, true);
+			//sd::PrintNote("Deal with door %08x", ref->formID);
+			break;
+		case FormType::Furniture:
+			sd::BlockActivation(ref, true);
+			sd::SetDestroyed(ref, true);
+			break;
+		case FormType::Activator:
+			//return;
+			sd::BlockActivation(ref, true);
+			sd::SetDestroyed(ref, true);
+			break;
+		default:
+			break;
 		}
-		break;
-	case FormType::Flora:
-		if (((TESFlora *)baseForm)->produce)
-			sd::Delete(ref);
-		return;
-	case FormType::Container:
-		sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);
-		sd::RemoveAllItems(ref, nullptr, false, true);
-		sd::BlockActivation(ref, true);
-		sd::SetDestroyed(ref, true);
-		break;
-	case FormType::Door:
-		sd::Lock(ref, false, false);
-		sd::SetOpen(ref, true);
-		sd::BlockActivation(ref, true);
-		sd::SetDestroyed(ref, true);
-		//sd::PrintNote("Deal with door %08x", ref->formID);
-		break;
-	case FormType::Furniture:
-		sd::BlockActivation(ref, true);
-		sd::SetDestroyed(ref, true);
-		break;
-	case FormType::Activator:
-		//return;
-		sd::BlockActivation(ref, true);
-		sd::SetDestroyed(ref, true);
-		break;
-	default:
-		break;
 	}
 
 	static const std::set<UInt32> toDel = {
@@ -146,6 +157,8 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 
 void WorldCleaner::Update()
 {
+	std::lock_guard<dlf_mutex> lock(mutex);
+
 	const NiPoint3 pos = cd::GetPosition(g_thePlayer);
 
 	// Far actors
@@ -183,4 +196,10 @@ void WorldCleaner::Update()
 			}
 		}
 	}
+}
+
+void WorldCleaner::OverrideDefaultProcess(uint32_t formID, std::function<bool(TESObjectREFR *)> pred)
+{
+	std::lock_guard<dlf_mutex> lock(mutex);
+	preds[formID] = pred;
 }

@@ -33,6 +33,15 @@ enum class InvisibleFoxEngine {
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 extern clock_t localPlCrosshairRefUpdateMoment;
 
+
+class CIAccess
+{
+public:
+	static ci::Mutex &GetMutex() {
+		return ci::IClientLogic::callbacksMutex;
+	}
+};
+
 namespace ci
 {
 	RemotePlayer *CreateGhostAxe();
@@ -265,6 +274,7 @@ namespace ci
 						if (onHit)
 						{
 							std::thread([=] {
+								std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 								onHit(hitEventData);
 							}).detach();
 						}

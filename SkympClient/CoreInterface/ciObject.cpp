@@ -6,6 +6,14 @@
 
 #define SAFE_ITEM_REMOVE				FALSE
 
+class CIAccess
+{
+public:
+	static ci::Mutex &GetMutex() {
+		return ci::IClientLogic::callbacksMutex;
+	}
+};
+
 dlf_mutex gMutex;
 std::set<ci::Object *> allObjects;
 
@@ -120,6 +128,7 @@ struct ci::Object::Impl
 	std::map<OverrideChannel, ObjectTask> overridableTasks;
 
 	OnActivate onActivate;
+
 	OnContainerChanged onConatinerChanged;
 	OnHit onHit;
 
@@ -173,6 +182,7 @@ struct ci::Object::Impl
 					auto onActivate = owner->pimpl->onActivate;
 					auto resendOnActivate = [=] {
 						SET_TIMER(0, [=] {
+							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 							onActivate(false);
 						});
 					};
@@ -187,12 +197,13 @@ struct ci::Object::Impl
 				}
 				}
 
-				if (owner->pimpl->onActivate != nullptr)
+				if (owner->pimpl->onActivate)
 				{
 					auto onActivate = owner->pimpl->onActivate;
 					auto refID = owner->pimpl->refID;
 					owner->UpdateContainer();
 					std::thread([=] {
+						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 						onActivate(isOpening);
 					}).detach();
 				}
@@ -225,7 +236,7 @@ struct ci::Object::Impl
 
 				auto form = LookupFormByID(evn->item);
 				auto count = evn->count;
-				if (form)
+				if (form && owner->pimpl->refID != 0)
 				{
 					if (evn->from == g_thePlayer->formID && evn->to == owner->pimpl->refID) //put
 					{
@@ -234,7 +245,10 @@ struct ci::Object::Impl
 							try {
 								auto itemType = knownItems.at(form);
 								std::thread([=] {
-									onConatinerChanged(itemType, count, true);
+									{
+										std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+										onConatinerChanged(itemType, count, true);
+									}
 									std::lock_guard<dlf_mutex> l(localPlMutex);
 									if (inventory[itemType] > count)
 										inventory[itemType] -= count;
@@ -262,7 +276,10 @@ struct ci::Object::Impl
 							try {
 								auto itemType = knownItems.at(form);
 								std::thread([=] {
-									onConatinerChanged(itemType, count, false);
+									{
+										std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+										onConatinerChanged(itemType, count, false);
+									}
 									std::lock_guard<dlf_mutex> l(localPlMutex);
 									inventory[itemType] += count;
 								}).detach();
@@ -339,6 +356,7 @@ struct ci::Object::Impl
 					if (onHit)
 					{
 						std::thread([=] {
+							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 							onHit(hitEventData);
 						}).detach();
 					}
@@ -611,9 +629,7 @@ void ci::Object::AddItem(const ItemType *item, uint32_t count)
 
 		ObjectTask task{ [=](TESObjectREFR *ref) {
 			if (form)
-			{
 				cd::AddItem(ref, form, count, true);
-			}
 		} };
 		if (!MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 			pimpl->simpleTasks.push_back(task);
@@ -642,6 +658,18 @@ void ci::Object::RemoveItem(const ItemType *item, uint32_t count)
 			pimpl->simpleTasks.push_back(task);
 		pimpl->inventoryTasks.push_back(task);
 	}
+}
+
+void ci::Object::AddEventHandler(OnActivate onActivate)
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+	auto prev = pimpl->onActivate;
+	pimpl->onActivate = [=] (bool a){
+		if (prev != nullptr)
+			prev(a);
+		if (onActivate != nullptr)
+			onActivate(a);
+	};
 }
 
 NiPoint3 ci::Object::GetPos() const
@@ -862,7 +890,7 @@ void ci::Object::Update_OT()
 							if (allObjects.find(this) == allObjects.end())
 								return;
 							std::lock_guard<dlf_mutex> l(pimpl->mutex);
-							this->ForceDespawn("Geme reinit");
+							this->ForceDespawn("Game reinit");
 						});
 					});
 				}).detach();
@@ -987,6 +1015,7 @@ void ci::Object::UpdateContainer()
 
 void ci::Object::ForceDespawn(const std::string &r)
 {
+	ci::Chat::AddMessage(StringToWstring(r));
 	SAFE_CALL("Object", [&] {
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->spawnStage == SpawnStage::Spawned)

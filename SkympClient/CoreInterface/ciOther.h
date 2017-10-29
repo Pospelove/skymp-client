@@ -2,6 +2,7 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace ci
 {
@@ -50,4 +51,40 @@ namespace ci
 	void Log(const char *fmt, ...);
 
 	void TraceCDCalls(bool trace);
+
+	template <class Func>
+	class Signal
+	{
+	public:
+		Signal() : mutex(new ci::Mutex)
+		{
+		}
+
+		template <class T>
+		void Add(T f)
+		{
+			std::lock_guard<ci::Mutex> l(*mutex);
+			mFunctions.push_back(f);
+		}
+
+		template <class... Args>
+		void operator()(Args... args) const
+		{
+			std::lock_guard<ci::Mutex> l(*mutex);
+			for (auto itor : mFunctions)
+			{
+				if (itor != nullptr)
+					itor(args...);
+			}
+		}
+
+		operator bool() const
+		{
+			return mFunctions.size() > 0;
+		}
+
+	private:
+		std::shared_ptr<ci::Mutex> mutex;
+		std::vector<std::function<Func>> mFunctions;
+	};
 }

@@ -2,12 +2,22 @@
 #include "../Sync/LookData.h"
 #include "ciGUI.h"
 #include "ciOther.h"
+#include "ciItemType.h"
+#include "ciMain.h"
 #include <stdlib.h>
 #include <mutex>
 #include "../ScriptDragon/enums.h"
 #include "../Costile/CDScript.h"
 
 extern LockTimer closeCursorMenuLock;
+
+class CIAccess
+{
+public:
+	static ci::Mutex &GetMutex() {
+		return ci::IClientLogic::callbacksMutex;
+	}
+};
 
 namespace ci
 {
@@ -60,17 +70,15 @@ namespace ci
 
 	void SetTimer(uint32_t ms, std::function<void()> fn)
 	{
-		static std::mutex fnMutex;
-
 		if (ms == 0)
 		{
-			std::lock_guard<std::mutex> l(fnMutex);
+			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 			return fn();
 		}
 
 		std::thread([=] {
 			Sleep(ms);
-			std::lock_guard<std::mutex> l(fnMutex);
+			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 			fn();
 		}).detach();
 	}

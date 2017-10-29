@@ -2,6 +2,7 @@
 
 class SkympClientDll;
 class ActivateEventSink;
+class PlayerBowShotEventSink;
 
 namespace ci
 {
@@ -19,6 +20,7 @@ namespace ci
 	{
 		friend class ::SkympClientDll;
 		friend class ::ActivateEventSink;
+		friend class ::PlayerBowShotEventSink;
 
 		friend class RemotePlayer;
 		friend class LocalPlayer;
@@ -58,6 +60,8 @@ namespace ci
 		void Respawn() {
 			this->ForceDespawn("Script");
 		}
+
+		void AddEventHandler(OnActivate onActivate);
 
 		NiPoint3 GetPos() const;
 		NiPoint3 GetRot() const;

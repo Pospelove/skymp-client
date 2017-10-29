@@ -41,12 +41,21 @@ void ci::Chat::AddMessage(const std::wstring &message, bool isNotification)
 	}
 }
 
+class CIAccess
+{
+public:
+	static ci::Mutex &GetMutex() {
+		return ci::IClientLogic::callbacksMutex;
+	}
+};
+
 void ci::Dialog::Show(const std::wstring &title, Style dialogStyle, const std::wstring &text, int32_t defaultIndex, Callback callback)
 {
 	SkyUILib::ShowPlayerDialog(title, (int32_t)dialogStyle, text, defaultIndex, [=](SkyUILib::DialogResult result) {
 		ci::Dialog::Result ciResult;
 		ciResult.inputText = StringToWstring(result.inputText);
 		ciResult.listItem = result.listItem;
+		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		return callback(ciResult);
 	});
 }

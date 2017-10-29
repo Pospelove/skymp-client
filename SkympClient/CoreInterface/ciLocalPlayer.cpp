@@ -89,7 +89,7 @@ clock_t localPlCrosshairRefUpdateMoment = 0;
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::map<TESForm *, const ci::ItemType *> knownItems;
 
-const ci::ItemType *GetEquippedAmmo() 
+const ci::ItemType *GetEquippedAmmo(TESForm **outTESForm = nullptr) 
 {
 	for (auto it1 = inventory.begin(); it1 != inventory.end(); ++it1)
 	{
@@ -105,6 +105,8 @@ const ci::ItemType *GetEquippedAmmo()
 			&& form->formType == FormType::Ammo
 			&& sd::IsEquipped(g_thePlayer, form))
 		{
+			if(outTESForm != nullptr)
+				*outTESForm = form;
 			return itemType;
 		}
 	};
@@ -124,6 +126,10 @@ public:
 				logic->OnItemDropped(itemType, count);
 			}
 		}).detach();
+	}
+
+	static ci::Mutex &GetMutex() {
+		return ci::IClientLogic::callbacksMutex;
 	}
 };
 
@@ -151,16 +157,17 @@ public:
 		if (evn->from == g_thePlayer->formID)
 			if (evn->to == 0)
 			{
-				std::lock_guard<std::mutex> l(this->removesToIgnoreMutex);
-				if (this->removesToIgnore > 0)
-					this->removesToIgnore--;
-				else
-				{
-					WorldCleaner::GetSingleton()->SetFormProtected(0, true);
-					WorldCleaner::GetSingleton()->SetFormProtected(0, false);
-					auto count = evn->count;
-					auto form = LookupFormByID(evn->item);
-					SET_TIMER(0, [=] {
+				WorldCleaner::GetSingleton()->SetFormProtected(0, true);
+				WorldCleaner::GetSingleton()->SetFormProtected(0, false);
+				auto count = evn->count;
+				auto form = LookupFormByID(evn->item);
+				SET_TIMER(0, [=] {
+
+					std::lock_guard<std::mutex> l(this->removesToIgnoreMutex);
+					if (this->removesToIgnore > 0)
+						this->removesToIgnore--;
+					else
+					{
 						try {
 							auto itemType = knownItems.at(form);
 							CIAccess().OnItemDropped(itemType, count);
@@ -173,8 +180,8 @@ public:
 						}
 						catch (...) {
 						}
-					});
-				}
+					}
+				});
 			}
 		return EventResult::kEvent_Continue;
 	}
@@ -186,6 +193,73 @@ private:
 
 	int32_t removesToIgnore = 0;
 	std::mutex removesToIgnoreMutex;
+};
+
+class PlayerBowShotEventSink : public BSTEventSink<TESPlayerBowShotEvent>
+{
+public:
+	static PlayerBowShotEventSink *GetSingleton()
+	{
+		static PlayerBowShotEventSink sink;
+		return &sink;
+	}
+
+	~PlayerBowShotEventSink() override
+	{
+	}
+
+	virtual	EventResult	ReceiveEvent(TESPlayerBowShotEvent *evn, BSTEventSource<TESPlayerBowShotEvent> *) override
+	{
+		struct MyTESPlayerBowShotEvent
+		{
+			uint32_t weapID;
+			uint32_t ammoID;
+			float power;
+		};
+		auto evnCopy = *(MyTESPlayerBowShotEvent *)evn;
+
+		ContainerChangedEventSink::GetSingleton()->IgnoreItemRemove();
+		SET_TIMER_LIGHT(0, [evnCopy] {
+			auto weap = (TESObjectWEAP *)LookupFormByID(evnCopy.weapID);
+			if (weap == nullptr)
+				return;
+			TESAmmo *ammo = (TESAmmo *)LookupFormByID(evnCopy.ammoID);
+			if (ammo == nullptr)
+				return;
+
+			auto worldCleaner = WorldCleaner::GetSingleton();
+
+			auto pr = [=](TESObjectREFR *ref) {
+				worldCleaner->SetFormProtected(ref->formID, true);
+				worldCleaner->OverrideDefaultProcess(ammo->formID, nullptr);
+				sd::BlockActivation(ref, true);
+
+				auto cell = sd::GetParentCell(g_thePlayer);
+				uint32_t locationID = (cell && cell->IsInterior()) ? cell->formID : 0;
+				if (locationID == 0)
+					locationID = sd::GetWorldSpace(g_thePlayer)->formID;
+
+				const std::shared_ptr<ci::Object> obj(
+					new ci::Object(ref->formID, evnCopy.ammoID, locationID, cd::GetPosition(ref), { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) })
+				);
+				std::thread([=] {
+					std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+					ci::LocalPlayer::GetSingleton()->onPlayerBowShot(obj, evnCopy.power);
+				}).detach();
+				return true;
+			};
+
+			auto projectile = ((TESAmmo *)ammo)->settings.projectile;
+			if (projectile != nullptr)
+				worldCleaner->OverrideDefaultProcess(projectile->formID, pr);
+		});
+		return EventResult::kEvent_Continue;
+	}
+
+private:
+	PlayerBowShotEventSink()
+	{
+	}
 };
 
 struct Task
@@ -216,6 +290,7 @@ ci::LocalPlayer *ci::LocalPlayer::GetSingleton()
 ci::LocalPlayer::LocalPlayer()
 {
 	g_containerChangedEventSource.AddEventSink(ContainerChangedEventSink::GetSingleton());
+	g_playerBowShotEventSource.AddEventSink(PlayerBowShotEventSink::GetSingleton());
 }
 
 void ci::LocalPlayer::SetName(const std::wstring &name)
@@ -833,47 +908,6 @@ void ci::LocalPlayer::Update()
 	static float defaultSpeedmultWas = 100.0;
 	static float defaultSpeedmult = 100.0;
 	static bool combPressedWas = 0;
-
-	/*auto combPressed = sd::GetKeyPressed(0x31) && sd::GetKeyPressed(0x32) && sd::GetKeyPressed(0x33);
-	if (combPressed != combPressedWas)
-	{
-		combPressedWas = combPressed;
-		if (combPressed)
-		{
-			if (defaultSpeedmult == 100)
-			{
-				sd::SetGodMode(true);
-				defaultSpeedmult = 1000;
-			}
-			else if (defaultSpeedmult == 1000)
-			{
-				defaultSpeedmult = 100;
-				sd::SetGodMode(false);
-			}
-		}
-	}
-
-	{
-		auto combPressed = sd::GetKeyPressed(0x34);
-		static bool combPressedWas = false;
-		if (combPressed != combPressedWas)
-		{
-			combPressedWas = combPressed;
-			if (combPressed)
-			{
-				sd::ExecuteConsoleCommand("tcl", nullptr);
-			}
-		}
-	}
-
-	{
-		auto combPressed = sd::GetKeyPressed(0x35);
-		if (combPressed)
-		{
-			Sleep(5000);
-		}
-	}
-	*/
 
 	float newSpeedmult = defaultSpeedmult;
 	if (movData.runMode == ci::MovementData::RunMode::Walking)

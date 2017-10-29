@@ -23,7 +23,8 @@ public:
 		std::lock_guard<std::mutex> l(mutex);
 		for (auto itor : mFunctions)
 		{
-			itor(args...);
+			if (itor != nullptr)
+				itor(args...);
 		}
 	}
 

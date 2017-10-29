@@ -1,8 +1,11 @@
 #pragma once
+#include <memory>
 
 class SkympClientDll;
 namespace ci
 {
+	class Object;
+
 	class LocalPlayer : public IActor
 	{
 		friend class ::SkympClientDll;
@@ -36,6 +39,11 @@ namespace ci
 		AVData GetAVData(const std::string &avName) const override;
 
 		std::shared_ptr<uint8_t> GetNextHitAnim();
+
+		using _Projectile = std::shared_ptr<ci::Object>;
+		using _Power = float;
+		ci::Signal<void(_Projectile, _Power)> onPlayerBowShot;
+
 
 		virtual ~LocalPlayer() {}
 

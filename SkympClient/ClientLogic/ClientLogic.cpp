@@ -22,7 +22,7 @@ ci::LookData ld;
 
 class ClientLogic : public ci::IClientLogic
 {
-	ci::IActor *const localPlayer = ci::LocalPlayer::GetSingleton();
+	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
 	std::map<uint16_t, ci::IActor *> players;
 	std::map<uint32_t, ci::Object *> objects;
 	std::map<uint32_t, ci::ItemType *> itemTypes;
@@ -379,7 +379,6 @@ class ClientLogic : public ci::IClientLogic
 			uint32_t worldSpaceID = localPlayer->GetWorldSpace();
 
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
-				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 				try {
 					this->OnHit(players.at(id), eventData);
 				}
@@ -529,7 +528,6 @@ class ClientLogic : public ci::IClientLogic
 					}
 
 					ci::Dialog::Show(title, style, text, defaultIndex, [=](ci::Dialog::Result result) {
-						std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 						this->OnDialogResponse(dialogID, result);
 					});
 				}
@@ -555,7 +553,6 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(rot.z);
 
 			auto onActivate = [this, id](bool isOpen) {
-				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 				try {
 					this->OnActivate(objects.at(id), isOpen);
 				}
@@ -564,7 +561,6 @@ class ClientLogic : public ci::IClientLogic
 			};
 
 			auto onContainerChanged = [this, id](const ci::ItemType *itemType, uint32_t count, bool isAdd) {
-				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 				try {
 					this->OnContainerChanged(objects.at(id), itemType, count, isAdd);
 				}
@@ -573,7 +569,6 @@ class ClientLogic : public ci::IClientLogic
 			};
 
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
-				std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 				try {
 					this->OnHit(objects.at(id), eventData);
 				}
@@ -725,10 +720,9 @@ class ClientLogic : public ci::IClientLogic
 					ci::SetTimer(200, [=] {
 						hostedJustNow.insert(object);
 						ci::SetTimer(1800, [=] {
-							std::thread([=] {
-								std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+							ci::SetTimer(1, [=] {
 								hostedJustNow.erase(object);
-							}).detach();
+							});
 						});
 					});
 				}
@@ -855,8 +849,7 @@ class ClientLogic : public ci::IClientLogic
 					break;
 				try {
 					currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
-					ci::SetTimer(avID == av.Health ? 200 : 0, [=] {
-						std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
+					ci::SetTimer(avID == av.Health ? 200 : 1, [=] {
 						players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
 					});
 					allowUpdateAVs = true;
@@ -1186,6 +1179,16 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnWorldInit() override
 	{
+		localPlayer->onPlayerBowShot.Add([=](std::shared_ptr<ci::Object> arrow, float power) {
+
+			arrow->BlockActivation(true);
+
+			arrow->AddEventHandler((ci::Object::OnActivate)[](bool open) {
+				// ...
+			});
+
+			new std::shared_ptr<ci::Object>(arrow);
+		});
 	}
 
 	std::function<void()> testUpd;
@@ -1606,7 +1609,6 @@ class ClientLogic : public ci::IClientLogic
 					timerSet = true;
 					ci::SetTimer(1333, [=] {
 						try {
-							std::lock_guard<ci::Mutex> l(IClientLogic::callbacksMutex);
 							auto object = objects.at(id);
 							if (objectsInfo[id].hostID != net.myID)
 							{
