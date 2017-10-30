@@ -40,9 +40,8 @@ namespace ci
 
 		std::shared_ptr<uint8_t> GetNextHitAnim();
 
-		using _Projectile = std::shared_ptr<ci::Object>;
 		using _Power = float;
-		ci::Signal<void(_Projectile, _Power)> onPlayerBowShot;
+		ci::Signal<void(_Power)> onPlayerBowShot;
 
 
 		virtual ~LocalPlayer() {}

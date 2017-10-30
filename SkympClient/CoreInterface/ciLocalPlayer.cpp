@@ -219,40 +219,18 @@ public:
 		auto evnCopy = *(MyTESPlayerBowShotEvent *)evn;
 
 		ContainerChangedEventSink::GetSingleton()->IgnoreItemRemove();
-		SET_TIMER_LIGHT(0, [evnCopy] {
+		auto f = [evnCopy] {
 			auto weap = (TESObjectWEAP *)LookupFormByID(evnCopy.weapID);
 			if (weap == nullptr)
 				return;
 			TESAmmo *ammo = (TESAmmo *)LookupFormByID(evnCopy.ammoID);
 			if (ammo == nullptr)
 				return;
-
-			auto worldCleaner = WorldCleaner::GetSingleton();
-
-			auto pr = [=](TESObjectREFR *ref) {
-				worldCleaner->SetFormProtected(ref->formID, true);
-				worldCleaner->OverrideDefaultProcess(ammo->formID, nullptr);
-				sd::BlockActivation(ref, true);
-
-				auto cell = sd::GetParentCell(g_thePlayer);
-				uint32_t locationID = (cell && cell->IsInterior()) ? cell->formID : 0;
-				if (locationID == 0)
-					locationID = sd::GetWorldSpace(g_thePlayer)->formID;
-
-				const std::shared_ptr<ci::Object> obj(
-					new ci::Object(ref->formID, evnCopy.ammoID, locationID, cd::GetPosition(ref), { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) })
-				);
-				std::thread([=] {
-					std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-					ci::LocalPlayer::GetSingleton()->onPlayerBowShot(obj, evnCopy.power);
-				}).detach();
-				return true;
-			};
-
-			auto projectile = ((TESAmmo *)ammo)->settings.projectile;
-			if (projectile != nullptr)
-				worldCleaner->OverrideDefaultProcess(projectile->formID, pr);
-		});
+			std::thread([=] {
+				ci::LocalPlayer::GetSingleton()->onPlayerBowShot(evnCopy.power);
+			}).detach();
+		};
+		SET_TIMER_LIGHT(0, f);
 		return EventResult::kEvent_Continue;
 	}
 
@@ -730,6 +708,7 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fVATSChanceHitMult", 0.0f);
 				cd::SetGameSettingFloat("fVATSMaxChance", 0.0f);
 				cd::SetGameSettingFloat("fPowerAttackDefaultBonus", 0.0f);
+				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
 			});
 			set = true;
 		}

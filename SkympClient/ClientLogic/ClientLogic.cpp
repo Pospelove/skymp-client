@@ -1162,6 +1162,7 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(weaponID);
 		bsOut.Write(eventData.powerAttack);
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
 	}
 
 	void OnHit(ci::Object *self, const ci::HitEventData &eventData)
@@ -1179,15 +1180,8 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnWorldInit() override
 	{
-		localPlayer->onPlayerBowShot.Add([=](std::shared_ptr<ci::Object> arrow, float power) {
+		localPlayer->onPlayerBowShot.Add([=](float power) {
 
-			arrow->BlockActivation(true);
-
-			arrow->AddEventHandler((ci::Object::OnActivate)[](bool open) {
-				// ...
-			});
-
-			new std::shared_ptr<ci::Object>(arrow);
 		});
 	}
 
@@ -1314,7 +1308,7 @@ class ClientLogic : public ci::IClientLogic
 	{
 		static ci::LookData testLookData;
 		static ci::Object *obj = nullptr;
-		static ci::IActor *p = nullptr;
+		static ci::RemotePlayer *p = nullptr;
 
 		if (cmdText == L"/q")
 		{
@@ -1463,6 +1457,10 @@ class ClientLogic : public ci::IClientLogic
 				p->AddItem(handL, 1, true);
 				p->EquipItem(handL, true, false, true);
 			}
+
+			localPlayer->onPlayerBowShot.Add([=](float power) {
+				p->Fire(power);
+			});
 
 			testUpd = [=] {
 				this->OnChatCommand(L"//eq", {});

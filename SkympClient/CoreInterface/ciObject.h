@@ -9,11 +9,12 @@ namespace ci
 	class RemotePlayer;
 	class LocalPlayer;
 	class ItemType;
+	class Object;
 
 	struct HitEventData
 	{
-		bool powerAttack;
-		const ci::ItemType *weapon;
+		bool powerAttack = false;
+		const ci::ItemType *weapon = nullptr;
 	};
 
 	class Object
@@ -70,6 +71,7 @@ namespace ci
 		float GetSpeed() const;
 		uint32_t GetBase() const;
 		int32_t GetMotionType() const;
+		bool IsActivationBlocked() const;
 
 		enum {
 			Motion_Dynamic = 1,

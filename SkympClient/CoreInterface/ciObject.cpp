@@ -337,7 +337,11 @@ struct ci::Object::Impl
 			}
 
 			const uint32_t targetID = evn->target->formID;
-			const HitEventData hitEventData{ evn->flags.powerAttack, weapon};
+
+			HitEventData hitEventData;
+			hitEventData.powerAttack = evn->flags.powerAttack;
+			hitEventData.weapon = weapon;
+
 			std::thread([=] {
 				std::lock_guard<dlf_mutex> l(gMutex);
 				for (auto it = allObjects.begin(); it != allObjects.end(); ++it)
@@ -569,14 +573,29 @@ void ci::Object::SetMotionType(int32_t type)
 void ci::Object::SetDisabled(bool disabled)
 {
 	std::lock_guard<dlf_mutex> l(pimpl->mutex);
+
 	auto task = ObjectTask{ [=](TESObjectREFR *ref) {
 		if (disabled)
 			sd::DisableNoWait(ref, true);
 		else
 			sd::EnableNoWait(ref, true);
 	} };
-	pimpl->simpleTasks.push_back(task);
-	pimpl->isDisabled = disabled;
+
+	auto ref = (TESObjectREFR *)LookupFormByID(pimpl->refID);
+	if (ref && ref->baseForm->formType == FormType::Projectile)
+	{
+		const auto refID = pimpl->refID;
+		SET_TIMER(0, [=] {
+			auto ref = (TESObjectREFR *)LookupFormByID(refID);
+			if (ref)
+				task.func(ref);
+		});
+	}
+	else
+	{
+		pimpl->simpleTasks.push_back(task);
+		pimpl->isDisabled = disabled;
+	}
 }
 
 void ci::Object::SetBase(const ci::ItemType *itemType)
@@ -719,6 +738,12 @@ int32_t ci::Object::GetMotionType() const
 {
 	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 	return pimpl->motionType;
+}
+
+bool ci::Object::IsActivationBlocked() const
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+	return pimpl->blockedActivation;
 }
 
 void ci::Object::Update()
@@ -1015,7 +1040,6 @@ void ci::Object::UpdateContainer()
 
 void ci::Object::ForceDespawn(const std::string &r)
 {
-	ci::Chat::AddMessage(StringToWstring(r));
 	SAFE_CALL("Object", [&] {
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->spawnStage == SpawnStage::Spawned)

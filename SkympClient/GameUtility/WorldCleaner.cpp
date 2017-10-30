@@ -64,77 +64,66 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	if (this->IsFormProtected(refID) || this->IsFormProtected(baseFormID))
 		return;
 
-	auto pred = preds[ref->formID],
-		pred2 = preds[ref->baseForm->formID];
-	if (pred)
+
+	switch (formType)
 	{
-		if (pred(ref))
-			return;
-	}
-	else if (pred2)
-	{
-		if (pred2(ref))
-			return;
-	}
-	else
-	{
-		switch (formType)
+	case FormType::NPC:
+	case FormType::LeveledCharacter:
+		sd::Delete(ref); // was cd::delete
+		return;
+	case FormType::Projectile:
+		sd::SetDestroyed(ref, true);
+		sd::BlockActivation(ref, true);
+		return;
+	case FormType::Ammo:
+	case FormType::Ingredient:
+	case FormType::ScrollItem:
+	case FormType::Armor:
+	case FormType::Book:
+	case FormType::Misc:
+	case FormType::Weapon:
+	case FormType::Key:
+	case FormType::Potion:
+	case FormType::SoulGem:
+	case FormType::LeveledItem:
+		//case FormType::MovableStatic:
+		sd::Delete(ref);
+		return;
+	case FormType::Tree:
+		if (((TESObjectTREE *)baseForm)->produce)
 		{
-		case FormType::NPC:
-		case FormType::LeveledCharacter:
-			sd::Delete(ref); // was cd::delete
-			return;
-		case FormType::Projectile:
-		case FormType::Ammo:
-		case FormType::Ingredient:
-		case FormType::ScrollItem:
-		case FormType::Armor:
-		case FormType::Book:
-		case FormType::Misc:
-		case FormType::Weapon:
-		case FormType::Key:
-		case FormType::Potion:
-		case FormType::SoulGem:
-		case FormType::LeveledItem:
-			//case FormType::MovableStatic:
 			sd::Delete(ref);
 			return;
-		case FormType::Tree:
-			if (((TESObjectTREE *)baseForm)->produce)
-			{
-				sd::Delete(ref);
-				return;
-			}
-			break;
-		case FormType::Flora:
-			if (((TESFlora *)baseForm)->produce)
-				sd::Delete(ref);
-			return;
-		case FormType::Container:
-			sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);
-			sd::RemoveAllItems(ref, nullptr, false, true);
-			sd::BlockActivation(ref, true);
-			sd::SetDestroyed(ref, true);
-			break;
-		case FormType::Door:
-			sd::Lock(ref, false, false);
-			sd::SetOpen(ref, true);
-			sd::BlockActivation(ref, true);
-			sd::SetDestroyed(ref, true);
-			//sd::PrintNote("Deal with door %08x", ref->formID);
-			break;
-		case FormType::Furniture:
-			sd::BlockActivation(ref, true);
-			sd::SetDestroyed(ref, true);
-			break;
-		case FormType::Activator:
-			//return;
-			sd::BlockActivation(ref, true);
-			sd::SetDestroyed(ref, true);
-			break;
-		default:
-			break;
 		}
+		break;
+	case FormType::Flora:
+		if (((TESFlora *)baseForm)->produce)
+			sd::Delete(ref);
+		return;
+	case FormType::Container:
+		sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);
+		sd::RemoveAllItems(ref, nullptr, false, true);
+		sd::BlockActivation(ref, true);
+		sd::SetDestroyed(ref, true);
+		break;
+	case FormType::Door:
+		sd::Lock(ref, false, false);
+		sd::SetOpen(ref, true);
+		sd::BlockActivation(ref, true);
+		sd::SetDestroyed(ref, true);
+		//sd::PrintNote("Deal with door %08x", ref->formID);
+		break;
+	case FormType::Furniture:
+		sd::BlockActivation(ref, true);
+		sd::SetDestroyed(ref, true);
+		break;
+	case FormType::Activator:
+		//return;
+		sd::BlockActivation(ref, true);
+		sd::SetDestroyed(ref, true);
+		break;
+	default:
+		break;
 	}
 
 	static const std::set<UInt32> toDel = {
@@ -148,7 +137,7 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	if (toDel.find(ref->baseForm->formID) != toDel.end())
 		sd::Delete(ref);
 
-	if (ref->formID >= 0xFF000000 && 
+	if (ref->formID >= 0xFF000000 &&
 		(ref->baseForm->formID <= 0xFF000000 || ref->baseForm->formID >= 0xFF00F000)) // To prevent water deletion
 	{
 		sd::Delete(ref);
@@ -196,10 +185,4 @@ void WorldCleaner::Update()
 			}
 		}
 	}
-}
-
-void WorldCleaner::OverrideDefaultProcess(uint32_t formID, std::function<bool(TESObjectREFR *)> pred)
-{
-	std::lock_guard<dlf_mutex> lock(mutex);
-	preds[formID] = pred;
 }

@@ -196,6 +196,7 @@ namespace ci
 		std::map<std::string, ci::AVData> avData, avDataLast;
 		RemotePlayer *myFox = nullptr;
 		Object *myPseudoFox = nullptr;
+		Object *dispenser = nullptr;
 		std::function<void(Actor *)> foxTask = nullptr;
 
 		struct Equipment
@@ -234,6 +235,9 @@ namespace ci
 
 			virtual	EventResult	ReceiveEvent(TESHitEvent *evn, BSTEventSource<TESHitEvent> * source) override
 			{
+				if(LookupFormByID(evn->sourceFormID) != nullptr && LookupFormByID(evn->sourceFormID)->formType == FormType::Enchantment)
+					return EventResult::kEvent_Continue;
+
 				if (evn->caster != g_thePlayer || evn->target == nullptr || evn->projectileFormID != NULL)
 					return EventResult::kEvent_Continue;
 
@@ -278,6 +282,7 @@ namespace ci
 								onHit(hitEventData);
 							}).detach();
 						}
+						break;
 					}
 				}).detach();
 
@@ -338,6 +343,14 @@ namespace ci
 			--numInvisibleFoxes;
 			std::thread([=] {
 				delete myPseudoFox;
+			}).detach();
+		}
+
+		auto dispenser = pimpl->dispenser;
+		if (dispenser != nullptr)
+		{
+			std::thread([=] {
+				delete dispenser;
 			}).detach();
 		}
 	}
@@ -425,10 +438,12 @@ namespace ci
 					return;
 				}
 
+				const bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
+					|| sd::GetEquippedItemType(actor, 1) == 7;
+
 				// Nickname
 				SAFE_CALL("RemotePlayer", [&] {
-					if (this->GetName() != L"Invisible Fox"
-						&& this->GetName() != L"Ghost Axe")
+					if (this->IsDerived() == false)
 					{
 						const NiPoint3 offset = { 0, 0, 128 + 16 };
 						const auto nicknamePos = cd::GetPosition(actor) + offset;
@@ -447,6 +462,31 @@ namespace ci
 
 				if (pimpl->greyFaceFixed)
 				{
+					// Delete projectile
+					// BEFORE APPLY MOVEMENT
+					SAFE_CALL("RemotePlayer", [&] {
+						if (bowEquipped)
+						{
+							if (pimpl->syncState.last.attackState != this->GetMovementData().attackState)
+							{
+								auto ammoItemType = this->GetEquippedAmmo();
+								if (ammoItemType != nullptr)
+								{
+									auto ammoForm = (TESAmmo *)LookupFormByID(ammoItemType->GetFormID());
+									if (ammoForm != nullptr)
+									{
+										const auto pos = this->GetPos();
+										SET_TIMER_LIGHT(30, [=] {
+											auto ref = sd::FindClosestReferenceOfType(ammoForm->settings.projectile, pos.x, pos.y, pos.z, 256);
+											if (ref != nullptr)
+												sd::Delete(ref);
+										});
+									}
+								}
+							}
+						}
+					});
+
 					// Apply Movement
 					SAFE_CALL("RemotePlayer", [&] {
 						this->ApplyMovementDataImpl();
@@ -552,15 +592,60 @@ namespace ci
 				{
 					pimpl->timer250ms = clock();
 
+					const uint32_t locationID = 
+						pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : pimpl->worldSpaceID;
+
 					// 'lastOutOfPos'
 					SAFE_CALL("RemotePlayer", [&] {
 						if ((this->GetPos() - cd::GetPosition(actor)).Length() > MAX_OUT_OF_POS)
 							pimpl->lastOutOfPos = clock();
 					});
 
+					// Create/Destroy and Move Dispenser
+					SAFE_CALL("RemotePlayer", [&] {
+						if (bowEquipped)
+						{
+							if (pimpl->dispenser == nullptr)
+							{
+								std::thread([=] {
+									std::lock_guard<dlf_mutex> l1(gMutex);
+									if (allRemotePlayers.find(this) != allRemotePlayers.end())
+									{
+										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+										if (pimpl->dispenser == nullptr)
+										{
+											pimpl->dispenser = new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, locationID, { 0,0,0 }, { 0,0,0 });
+											pimpl->dispenser->SetMotionType(Object::Motion_Keyframed);
+										}
+									}
+								}).detach();
+							}
+							if (pimpl->dispenser != nullptr)
+							{
+								auto pos = this->GetPos();
+								pos += {0, 0, this->GetMovementData().isSneaking ? 64.0f : 96.0f};
+								const float distance = 32.f;
+								const float angleRad = this->GetAngleZ() / 180 * acos(-1);
+								pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
+
+								const auto rot = NiPoint3{ 
+									(float)this->GetMovementData().aimingAngle,
+									0.0f,
+									this->GetAngleZ() 
+								};
+
+								pimpl->dispenser->SetLocation(locationID);
+								pimpl->dispenser->TranslateTo(pos, rot, 10000.f, 10000.f);
+							}
+						}
+						else
+						{
+							if (pimpl->dispenser != nullptr)
+								pimpl->dispenser->SetLocation(-1);
+						}
+					});
+
 					// Create/Destroy My Fox
-					const bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
-						|| sd::GetEquippedItemType(actor, 1) == 7;
 					if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::RemotePlayer)
 					{
 						SAFE_CALL("RemotePlayer", [&] {
@@ -620,7 +705,6 @@ namespace ci
 										std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 										if (pimpl->myPseudoFox == nullptr)
 										{
-											const uint32_t locationID = pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : pimpl->worldSpaceID;
 											pimpl->myPseudoFox = new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, locationID, { 0,0,0 }, { 0,0,0 });
 											pimpl->myPseudoFox->SetMotionType(Object::Motion_Keyframed);
 											++numInvisibleFoxes;
@@ -1175,6 +1259,56 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->afk = val;
+	}
+
+	void RemotePlayer::Fire(float power)
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		if (pimpl->spawnStage == SpawnStage::Spawned)
+		{
+			const auto refID = pimpl->formID;
+			const auto dispenserID = pimpl->dispenser ? pimpl->dispenser->GetRefID() : 0;
+			const auto weap = this->GetEquippedWeapon();
+			const auto ammo = this->GetEquippedAmmo();
+			if (ammo != nullptr 
+				&& weap != nullptr && weap->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow)
+			{
+				SET_TIMER_LIGHT(1, [=] {
+					auto actor = (Actor *)LookupFormByID(refID);
+					if (actor != nullptr)
+					{
+						auto dispenserRef = (TESObjectREFR *)LookupFormByID(dispenserID);
+						if (dispenserRef != nullptr)
+						{
+							auto ammoSrc = (TESAmmo *)LookupFormByID(ammo->GetFormID());
+
+							auto ammoCopy = FormHeap_Allocate<TESAmmo>();
+							memcpy(ammoCopy, ammoSrc, sizeof TESAmmo);
+							ammoCopy->formID = 0;
+							ammoCopy->SetFormID(Utility::NewFormID(), 1);
+
+							auto projSrc = ammoSrc->settings.projectile;
+							auto projCopy = FormHeap_Allocate<BGSProjectile>();
+							memcpy(projCopy, projSrc, sizeof BGSProjectile);
+							projCopy->formID = 0;
+							projCopy->SetFormID(Utility::NewFormID(), 1);
+
+							ammoCopy->settings.projectile = projCopy;
+
+							auto &speed = projCopy->data.unk08;
+							auto &range = projCopy->data.unk0C;
+							auto &fadeDuration = projCopy->data.unk30;
+							auto &collisionRadius = projCopy->data.unk48;
+
+							const auto lastSpeed = speed;
+							speed = pow(power, 2) * speed;
+
+							sd::Weapon::Fire((TESObjectWEAP *)LookupFormByID(weap->GetFormID()), dispenserRef, ammoCopy);
+						}
+					}
+				});
+			}
+		}
 	}
 
 	TESNPC *RemotePlayer::AllocateNPC() const

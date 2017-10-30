@@ -53,6 +53,7 @@ namespace ci
 		AVData GetAVData(const std::string &avName) const override;
 
 		void SetInAFK(bool val);
+		void Fire(float power);
 
 	private:
 		static void UpdateAll();
