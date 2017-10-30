@@ -1294,6 +1294,7 @@ namespace ci
 							projCopy->SetFormID(Utility::NewFormID(), 1);
 
 							ammoCopy->settings.projectile = projCopy;
+							ammoCopy->settings.damage = 0;
 
 							auto &speed = projCopy->data.unk08;
 							auto &range = projCopy->data.unk0C;
@@ -1303,7 +1304,14 @@ namespace ci
 							const auto lastSpeed = speed;
 							speed = pow(power, 2) * speed;
 
-							sd::Weapon::Fire((TESObjectWEAP *)LookupFormByID(weap->GetFormID()), dispenserRef, ammoCopy);
+							auto bowSrc = (TESObjectWEAP *)LookupFormByID(weap->GetFormID());
+							auto bowCopy = FormHeap_Allocate<TESObjectWEAP>();
+							memcpy(bowCopy, bowSrc, sizeof TESObjectWEAP);
+							bowCopy->formID = 0;
+							bowCopy->SetFormID(Utility::NewFormID(), 1);
+							bowCopy->attackDamage = 0;
+
+							sd::Weapon::Fire(bowCopy, dispenserRef, ammoCopy);
 						}
 					}
 				});
