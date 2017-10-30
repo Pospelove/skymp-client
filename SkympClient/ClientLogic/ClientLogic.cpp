@@ -942,6 +942,23 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
+		case ID_PLAYER_BOW_SHOT:
+		{
+			ci::Chat::AddMessage(L"ID_PLAYER_BOW_SHOT");
+			uint16_t playerID;
+			uint32_t power;
+			bsIn.Read(playerID);
+			bsIn.Read(power);
+
+			try {
+				auto remotePlayer = dynamic_cast<ci::RemotePlayer *>(players.at(playerID));
+				if (remotePlayer)
+					remotePlayer->Fire(power * 0.01f);
+			}
+			catch (...) {
+			}
+			break;
+		}
 		case ID_ITEMTYPES:
 		{
 			struct
@@ -1182,6 +1199,11 @@ class ClientLogic : public ci::IClientLogic
 	{
 		localPlayer->onPlayerBowShot.Add([=](float power) {
 
+			const auto powerInt = int32_t(power * 100);
+			RakNet::BitStream bsOut;
+			bsOut.Write(ID_BOW_SHOT);
+			bsOut.Write(powerInt);
+			net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 		});
 	}
 

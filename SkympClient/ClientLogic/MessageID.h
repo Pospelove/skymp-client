@@ -24,6 +24,7 @@ enum : RakNet::MessageID {
 	ID_AV_CHANGED,
 	ID_EQUIP_ITEM,
 	ID_UNEQUIP_ITEM,
+	ID_BOW_SHOT,
 
 	// client <---> server
 	ID_MESSAGE,
@@ -46,6 +47,7 @@ enum : RakNet::MessageID {
 	ID_PLAYER_HIT,
 	ID_PLAYER_AV,
 	ID_PLAYER_EQUIPMENT,
+	ID_PLAYER_BOW_SHOT,
 	ID_SHOW_RACE_MENU,
 	ID_SHOW_DIALOG,
 	ID_OBJECT_CREATE,

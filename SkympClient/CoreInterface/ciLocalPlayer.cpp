@@ -709,6 +709,7 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fVATSMaxChance", 0.0f);
 				cd::SetGameSettingFloat("fPowerAttackDefaultBonus", 0.0f);
 				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
+				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
 			});
 			set = true;
 		}
