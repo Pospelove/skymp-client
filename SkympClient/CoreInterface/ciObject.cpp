@@ -322,7 +322,7 @@ struct ci::Object::Impl
 
 		virtual	EventResult	ReceiveEvent(TESHitEvent *evn, BSTEventSource<TESHitEvent> * source) override
 		{
-			if (evn->caster != g_thePlayer || evn->target == nullptr || evn->projectileFormID != NULL)
+			if (evn->caster != g_thePlayer || evn->target == nullptr)
 				return EventResult::kEvent_Continue;
 			
 			const ci::ItemType *weapon = nullptr;
