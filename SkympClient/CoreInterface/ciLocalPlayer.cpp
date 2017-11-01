@@ -81,6 +81,7 @@ ci::MovementData localPlMovementData = {};
 uint32_t localPlCrosshairRef = 0;
 std::vector<const ci::ItemType *> localPlEquippedArmor = {};
 const ci::ItemType *localPlEquippedWeap[] = { nullptr, nullptr };
+const ci::Spell *localPlEquippedSpells[] = { nullptr, nullptr };
 const ci::ItemType *localPlEquippedAmmo = nullptr;
 clock_t lastLocalPlUpdate = 0;
 bool registered = false;
@@ -88,6 +89,7 @@ clock_t localPlCrosshairRefUpdateMoment = 0;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::map<TESForm *, const ci::ItemType *> knownItems;
+std::map<TESForm *, const ci::Spell *> knownSpells;
 
 const ci::ItemType *GetEquippedAmmo(TESForm **outTESForm = nullptr) 
 {
@@ -475,6 +477,56 @@ void ci::LocalPlayer::UnequipItem(const ItemType *item, bool silent, bool preven
 	});
 }
 
+void ci::LocalPlayer::AddSpell(const Spell *spell, bool silent)
+{
+	if (!spell)
+		return;
+	SET_TIMER(300, [=] {
+		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
+		if (form)
+		{
+			knownSpells[form] = spell;
+			sd::AddSpell(g_thePlayer, form, !silent);
+		}
+	});
+}
+
+void ci::LocalPlayer::RemoveSpell(const Spell *spell, bool silent)
+{
+	if (!spell)
+		return;
+	SET_TIMER(300, [=] {
+		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
+		if (form)
+			sd::RemoveSpell(g_thePlayer, form);
+	});
+}
+
+void ci::LocalPlayer::EquipSpell(const Spell *spell, bool leftHand)
+{
+	if (!spell)
+		return;
+	SET_TIMER(300, [=] {
+		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
+		if (form)
+		{
+			knownSpells[form] = spell;
+			sd::EquipSpell(g_thePlayer, form, leftHand ? 0 : 1);
+		}
+	});
+}
+
+void ci::LocalPlayer::UnequipSpell(const Spell *spell, bool leftHand)
+{
+	if (!spell)
+		return;
+	SET_TIMER(300, [=] {
+		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
+		if (form)
+			sd::UnequipSpell(g_thePlayer, form, leftHand ? 0 : 1);
+	});
+}
+
 
 void ci::LocalPlayer::PlayHitAnimation(uint8_t hitAnimID)
 {
@@ -663,6 +715,18 @@ ci::ItemType *ci::LocalPlayer::GetEquippedAmmo() const
 	return const_cast<ci::ItemType *>(localPlEquippedAmmo);
 }
 
+const ci::Spell *ci::LocalPlayer::GetEquippedSpell(bool isLeftHand) const
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	return localPlEquippedSpells[isLeftHand];
+}
+
+const ci::Spell *ci::LocalPlayer::GetEquippedShout() const
+{
+	return nullptr;
+	// Not implemented
+}
+
 ci::AVData ci::LocalPlayer::GetAVData(const std::string &avName_) const
 {
 	auto avName = avName_;
@@ -712,9 +776,32 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
 			});
 			set = true;
+
+			auto npc = g_thePlayer->baseForm;
+			UInt32 max = ((TESNPC *)npc)->TESSpellList::unk04->numSpells;
+			for (UInt32 id = 0; id < max; ++id)
+				((TESNPC *)npc)->TESSpellList::unk04->spells[id] = nullptr;
 		}
 	});
 	
+	SAFE_CALL("RemotePlayer", [&] {
+		static TESRace *oldrace = nullptr;
+		TESRace *newrace = (TESRace *)sd::GetRace(g_thePlayer);
+		if (oldrace != newrace)
+		{
+			oldrace = newrace;
+			auto max = newrace->GetSpellCount();
+			for (SInt32 id = 0; id < max; ++id)
+				newrace->TESSpellList::unk04->spells[id] = nullptr;
+			max = newrace->TESSpellList::unk04->numShouts;
+			for (SInt32 id = 0; id < max; ++id)
+				newrace->TESSpellList::unk04->shouts[id] = nullptr;
+
+			auto &effects = *((Actor*)(g_thePlayer))->GetActiveEffects();
+			// ...
+		}
+	});
+
 	SAFE_CALL("LocalPlayer", [&] {
 		if (DISABLE_PLAYER_DAMAGE)
 		{
@@ -773,13 +860,23 @@ void ci::LocalPlayer::Update()
 	});
 
 	SAFE_CALL("LocalPlayer", [&] {
+		for (int32_t i = 0; i != 2; ++i)
+		{
+			const bool isLeftHand = (i == 1);
+			try {
+				localPlEquippedSpells[isLeftHand] = knownSpells.at(sd::GetEquippedSpell(g_thePlayer, isLeftHand ? 0 : 1));
+			}
+			catch (...) {
+				localPlEquippedSpells[isLeftHand] = nullptr;
+			}
+		}
+	});
+
+	SAFE_CALL("LocalPlayer", [&] {
 		localPlEquippedArmor = {};
-		enum {
-			hands = 2
-		};
-		for (int32_t i = 0; i != hands; ++i)
+		for (int32_t i = 0; i != 2; ++i)
 			localPlEquippedWeap[i] = nullptr;
-		for (int32_t i = 0; i != hands; ++i)
+		for (int32_t i = 0; i != 2; ++i)
 		{
 			try {
 				localPlEquippedWeap[i] = knownItems.at(sd::GetEquippedWeapon(g_thePlayer, i != FALSE));

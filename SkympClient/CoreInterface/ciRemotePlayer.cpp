@@ -191,6 +191,7 @@ namespace ci
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
+		std::set<const ci::Spell *> spellList;
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData, avDataLast;
@@ -206,6 +207,7 @@ namespace ci
 			}
 
 			std::array<const ci::ItemType *, 2> hands;
+			std::array<const ci::Spell *, 2> handsMagic;
 			std::set<const ci::ItemType *> armor;
 			const ci::ItemType *ammo = nullptr;
 
@@ -390,6 +392,7 @@ namespace ci
 							lastForceSpawn = clock();
 							auto npc = this->AllocateNPC();
 							npc->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
+							npc->combatStyle->general.magicMult = 10;
 							currentSpawningBaseID = npc->GetFormID();
 							WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 							return this->ForceSpawn(currentSpawningBaseID);
@@ -735,28 +738,37 @@ namespace ci
 					}
 
 					// Apply Equipment
-					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->eq.hands != pimpl->eqLast.hands)
-						{
-							Equipment_::Equipment eq;
-							for (int32_t i = 0; i <= 1; ++i)
-								eq.hands[i] = pimpl->eq.hands[i] ? LookupFormByID(pimpl->eq.hands[i]->GetFormID()) : nullptr;
-							Equipment_::ApplyHands(actor, eq);
-							pimpl->eqLast.hands = pimpl->eq.hands;
-						}
-						if (sd::HasLOS(g_thePlayer, actor))
-						{
-							Equipment_::Equipment eq;
-							if (pimpl->eq.ammo != nullptr)
-								eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
-							for (auto &item : pimpl->eq.armor)
-								eq.other.insert(LookupFormByID(item->GetFormID()));
-							Equipment_::ApplyOther(actor, eq);
-							pimpl->eqLast.armor = pimpl->eq.armor;
-							pimpl->eqLast.ammo = pimpl->eq.ammo;
-						}
-					});
+					if (this->IsDerived() == false)
+					{
+						SAFE_CALL("RemotePlayer", [&] {
+							if (pimpl->eq.hands != pimpl->eqLast.hands
+								|| pimpl->eq.handsMagic != pimpl->eqLast.handsMagic)
+							{
+								Equipment_::Equipment eq;
+								for (int32_t i = 0; i <= 1; ++i)
+								{
+									eq.hands[i] = pimpl->eq.hands[i] ? LookupFormByID(pimpl->eq.hands[i]->GetFormID()) : nullptr;
+									if (eq.hands[i] == nullptr)
+										eq.hands[i] = pimpl->eq.handsMagic[i] ? LookupFormByID(pimpl->eq.handsMagic[i]->GetFormID()) : nullptr;
+								}
 
+								Equipment_::ApplyHands(actor, eq);
+								pimpl->eqLast.hands = pimpl->eq.hands;
+								pimpl->eqLast.handsMagic = pimpl->eq.handsMagic;
+							}
+							if (sd::HasLOS(g_thePlayer, actor))
+							{
+								Equipment_::Equipment eq;
+								if (pimpl->eq.ammo != nullptr)
+									eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
+								for (auto &item : pimpl->eq.armor)
+									eq.other.insert(LookupFormByID(item->GetFormID()));
+								Equipment_::ApplyOther(actor, eq);
+								pimpl->eqLast.armor = pimpl->eq.armor;
+								pimpl->eqLast.ammo = pimpl->eq.ammo;
+							}
+						});
+					}
 					SAFE_CALL("RemotePlayer", [&] {
 						if (pimpl->currentNonExteriorCell != GetParentNonExteriorCell(g_thePlayer))
 							this->ForceDespawn(L"Despawned: Cell changed");
@@ -1130,6 +1142,7 @@ namespace ci
 				if (item->GetClass() == ci::ItemType::Class::Weapon)
 				{
 					pimpl->eq.hands[leftHand] = item;
+					pimpl->eq.handsMagic[leftHand] = nullptr;
 					return;
 				}
 				if (item->GetClass() == ci::ItemType::Class::Ammo)
@@ -1163,6 +1176,44 @@ namespace ci
 			if (pimpl->eq.ammo == item)
 				pimpl->eq.ammo = nullptr;
 			return;
+		}
+	}
+
+	void RemotePlayer::AddSpell(const Spell *spell, bool silent)
+	{
+		if (spell != nullptr)
+		{
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->spellList.insert(spell);
+		}
+	}
+
+	void RemotePlayer::RemoveSpell(const Spell *spell, bool silent)
+	{
+		if (spell != nullptr)
+		{
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->spellList.erase(spell);
+		}
+	}
+
+	void RemotePlayer::EquipSpell(const Spell *spell, bool leftHand)
+	{
+		if (spell != nullptr)
+		{
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->eq.handsMagic[leftHand] = spell;
+			pimpl->eq.hands[leftHand] = nullptr;
+		}
+	}
+
+	void RemotePlayer::UnequipSpell(const Spell *spell, bool leftHand)
+	{
+		if (spell != nullptr)
+		{
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			if (pimpl->eq.handsMagic[leftHand] == spell)
+				pimpl->eq.handsMagic[leftHand] = nullptr;
 		}
 	}
 
@@ -1241,6 +1292,18 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		return const_cast<ci::ItemType *>(pimpl->eq.ammo);
+	}
+
+	const ci::Spell *RemotePlayer::GetEquippedSpell(bool isLeftHand) const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return pimpl->eq.handsMagic[isLeftHand];
+	}
+
+	const ci::Spell *RemotePlayer::GetEquippedShout() const
+	{
+		return nullptr;
+		// Not implemented
 	}
 
 	ci::AVData RemotePlayer::GetAVData(const std::string &avName_) const

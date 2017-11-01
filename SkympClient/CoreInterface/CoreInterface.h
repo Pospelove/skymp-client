@@ -13,6 +13,8 @@
 #include "ciTypes.h"
 #include "ciObject.h"
 #include "ciItemType.h"
+#include "ciMagicEffect.h"
+#include "ciSpell.h"
 #include "ciIActor.h"
 #include "ciLocalPlayer.h"
 #include "ciRemotePlayer.h"

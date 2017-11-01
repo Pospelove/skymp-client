@@ -944,7 +944,6 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_BOW_SHOT:
 		{
-			ci::Chat::AddMessage(L"ID_PLAYER_BOW_SHOT");
 			uint16_t playerID;
 			uint32_t power;
 			bsIn.Read(playerID);
@@ -1195,16 +1194,38 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
+
+	ci::Spell *Flames = nullptr;
+
 	void OnWorldInit() override
 	{
-		localPlayer->onPlayerBowShot.Add([=](float power) {
+		static bool firstInit = true;
 
-			const auto powerInt = int32_t(power * 100);
-			RakNet::BitStream bsOut;
-			bsOut.Write(ID_BOW_SHOT);
-			bsOut.Write(powerInt);
-			net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
-		});
+		if (firstInit)
+		{
+			/*Flames = new ci::Spell(0x00012FCD);
+
+			auto FireDamageConcAimed = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::ValueMod, 
+				0x00013CA9, 
+				ci::MagicEffect::CastingType::Concentration, 
+				ci::MagicEffect::Delivery::Aimed
+			);
+			Flames->AddEffect(FireDamageConcAimed, 100.0, 1.0);
+
+			localPlayer->AddSpell(Flames, false);*/
+
+			localPlayer->onPlayerBowShot.Add([=](float power) {
+
+				const auto powerInt = int32_t(power * 100);
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_BOW_SHOT);
+				bsOut.Write(powerInt);
+				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+			});
+		}
+
+		firstInit = false;
 	}
 
 	std::function<void()> testUpd;
@@ -1404,22 +1425,41 @@ class ClientLogic : public ci::IClientLogic
 		{
 			if (p)
 			{
-				auto handR = localPlayer->GetEquippedWeapon(),
-					handL = localPlayer->GetEquippedWeapon(true);
-				if (handR)
 				{
-					p->AddItem(handR, 1, true);
-					p->EquipItem(handR, true, false, false);
+					auto handR = localPlayer->GetEquippedWeapon(),
+						handL = localPlayer->GetEquippedWeapon(true);
+					if (handR)
+					{
+						p->AddItem(handR, 1, true);
+						p->EquipItem(handR, true, false, false);
+					}
+					else
+						p->UnequipItem(p->GetEquippedWeapon(0), true, false, 0);
+					if (handL)
+					{
+						p->AddItem(handL, 1, true);
+						p->EquipItem(handL, true, false, true);
+					}
+					else
+						p->UnequipItem(p->GetEquippedWeapon(1), true, false, 1);
 				}
-				else
-					p->UnequipItem(p->GetEquippedWeapon(0), true, false, 0);
-				if (handL)
+
 				{
-					p->AddItem(handL, 1, true);
-					p->EquipItem(handL, true, false, true);
+					const ci::Spell *hands[2] = {
+						localPlayer->GetEquippedSpell(0),
+						localPlayer->GetEquippedSpell(1)
+					};
+					for (int i = 0; i <= 1; ++i)
+					{
+						if (hands[i] != nullptr)
+						{
+							p->AddSpell(hands[i], true);
+							p->EquipSpell(hands[i], i);
+						}
+						else
+							p->UnequipSpell(p->GetEquippedSpell(i), i);
+					}
 				}
-				else
-					p->UnequipItem(p->GetEquippedWeapon(1), true, false, 1);
 
 				auto armorWas = p->GetEquippedArmor();
 				for (auto item : armorWas)
@@ -1447,6 +1487,24 @@ class ClientLogic : public ci::IClientLogic
 				m.pos += {128, 128, 0};
 				p->ApplyMovementData(m);
 			
+			}
+		}
+		else if (cmdText == L"//magic")
+		{
+			if (arguments.empty())
+				return ci::Chat::AddMessage(L"Use: //magic [0-1]");
+
+			const auto handID = (bool)atoi(WstringToString(arguments[0]).data());
+
+			const auto eq = localPlayer->GetEquippedSpell(handID);
+			if (eq)
+			{
+				localPlayer->UnequipSpell(eq, handID);
+			}
+			else
+			{
+				localPlayer->AddSpell(Flames, true);
+				localPlayer->EquipSpell(Flames, handID);
 			}
 		}
 		else if (cmdText == L"//clone")

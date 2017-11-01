@@ -145,6 +145,12 @@
     <ClCompile Include="Overlay\3DText.cpp">
       <Filter>core\Overlay</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciMagicEffect.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciSpell.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -373,6 +379,12 @@
     </ClInclude>
     <ClInclude Include="Overlay\3DText.h">
       <Filter>core\Overlay</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciMagicEffect.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciSpell.h">
+      <Filter>core_interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

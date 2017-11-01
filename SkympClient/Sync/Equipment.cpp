@@ -107,18 +107,37 @@ namespace Equipment_
 		static std::set<TESForm *> known;
 		for (auto form : known)
 		{
-			sd::UnequipItem(actor, form, false, true);
-			sd::RemoveItem(actor, form, -1, true, nullptr);
+			switch (form->formType)
+			{
+			case FormType::Weapon:
+				sd::UnequipItem(actor, form, false, true);
+				sd::RemoveItem(actor, form, -1, true, nullptr);
+				break;
+			case FormType::Spell:
+				sd::UnequipSpell(actor, (SpellItem *)form, 0);
+				sd::UnequipSpell(actor, (SpellItem *)form, 1);
+				sd::RemoveSpell(actor, (SpellItem *)form);
+				break;
+			}
 		}
+
 		for (int32_t i = 0; i <= 1; ++i)
 		{
 			auto src = equipment.hands[i];
-			if (equipment.hands[0] == nullptr && equipment.hands[1] != nullptr)
-				src = CustomWeapHand(src, i);
-			if (src)
+			switch (src ? src->formType : FormType::Weapon)
 			{
-				sd::AddItem(actor, src, 1, true);
-				known.insert(src);
+			case FormType::Weapon:
+				if (equipment.hands[0] == nullptr && equipment.hands[1] != nullptr)
+					src = CustomWeapHand(src, i);
+				if (src)
+				{
+					sd::AddItem(actor, src, 1, true);
+					known.insert(src);
+				}
+				break;
+			case FormType::Spell:
+				sd::AddSpell(actor, (SpellItem *)src, rand() % 2);
+				break;
 			}
 		}
 

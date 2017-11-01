@@ -108,10 +108,12 @@
     <ClCompile Include="CoreInterface\ciGUI.cpp" />
     <ClCompile Include="CoreInterface\ciItemType.cpp" />
     <ClCompile Include="CoreInterface\ciLocalPlayer.cpp" />
+    <ClCompile Include="CoreInterface\ciMagicEffect.cpp" />
     <ClCompile Include="CoreInterface\ciMain.cpp" />
     <ClCompile Include="CoreInterface\ciObject.cpp" />
     <ClCompile Include="CoreInterface\ciOther.cpp" />
     <ClCompile Include="CoreInterface\ciRemotePlayer.cpp" />
+    <ClCompile Include="CoreInterface\ciSpell.cpp" />
     <ClCompile Include="CoreInterface\ciTypes.cpp" />
     <ClCompile Include="Costile\Costile2.cpp" />
     <ClCompile Include="Costile\CostileDragon.cpp" />
@@ -162,7 +164,9 @@
     <ClInclude Include="CoreInterface\ciGUI.h" />
     <ClInclude Include="CoreInterface\ciItemType.h" />
     <ClInclude Include="CoreInterface\ciLocalPlayer.h" />
+    <ClInclude Include="CoreInterface\ciMagicEffect.h" />
     <ClInclude Include="CoreInterface\ciObject.h" />
+    <ClInclude Include="CoreInterface\ciSpell.h" />
     <ClInclude Include="CoreInterface\ciTypes.h" />
     <ClInclude Include="CoreInterface\ciMain.h" />
     <ClInclude Include="CoreInterface\ciOther.h" />
