@@ -66,6 +66,27 @@ namespace SkyUILib
 	dlf_mutex mutex;
 	static clock_t lastClose = 0;
 
+	void UpdateList()
+	{
+		const bool isOpen = MenuManager::GetSingleton()->IsMenuOpen("CustomMenu");
+		if (isOpen)
+		{
+			const bool pressed = sd::GetKeyPressed(VK_RETURN);
+			static bool pressedWas = false;
+			if (pressed != pressedWas)
+			{
+				if (pressed)
+				{
+					keybd_event(VK_TAB, DIK_TAB, NULL, NULL);
+					sd::Wait(0);
+					keybd_event(VK_TAB, DIK_TAB, KEYEVENTF_KEYUP, NULL);
+				}
+				pressedWas = pressed;
+			}
+		}
+		SET_TIMER_LIGHT(5, UpdateList);
+	}
+
 	void ShowDialogList(const std::string &title, const std::vector<std::string> &listItems, int32_t defaultIndex, Callback callback)
 	{
 		std::lock_guard<dlf_mutex> l(mutex);
@@ -115,6 +136,13 @@ namespace SkyUILib
 		prepareStrings(title, listItems, defaultIndex);
 
 		cd::ShowList(DUMMY, [](int32_t) {});
+
+		static bool updates = false;
+		if (!updates)
+		{
+			UpdateList();
+			updates = true;
+		}
 
 		std::thread([=] {
 			std::lock_guard<dlf_mutex> l(mutex);

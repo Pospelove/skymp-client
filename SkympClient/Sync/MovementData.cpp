@@ -606,6 +606,13 @@ namespace MovementData_
 			}
 		}
 
+		static bool tdt = true;
+		if (tdt)
+		{
+			sd::ExecuteConsoleCommand("toggledetection", nullptr);
+			tdt = false;
+		}
+
 		syncStatus.last = md;
 		syncStatus.forceCallKeepOffset = false;
 		syncStatus.isFirstNormalApply = false;

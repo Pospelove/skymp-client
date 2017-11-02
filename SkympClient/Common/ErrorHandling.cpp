@@ -11,9 +11,14 @@ namespace ErrorHandling
 		vsnprintf(buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 		const std::string str = buffer;
-		if (!MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
+
+		static bool wasOpen = false;
+		if (MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
+			wasOpen = true;
+
+		if (wasOpen && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 		{
-			Timer::Set(0, [=] {
+			SET_TIMER_LIGHT(0, [=] {
 				sd::PrintNote((char *)str.data());
 			});
 		}

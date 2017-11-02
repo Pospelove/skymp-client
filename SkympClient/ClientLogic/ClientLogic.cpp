@@ -121,6 +121,24 @@ class ClientLogic : public ci::IClientLogic
 			_fSprintStaminaWeightMult,
 			CarryWeight,
 			UnarmedDamage,
+			OneHanded,
+			TwoHanded,
+			Marksman,
+			Block,
+			Smithing,
+			HeavyArmor,
+			LightArmor,
+			Pickpocket,
+			Lockpicking,
+			Sneak,
+			Alchemy,
+			Speechcraft,
+			Alteration,
+			Conjuration,
+			Destruction,
+			Illusion,
+			Restoration,
+			Enchanting,
 			NUM_AVS,
 		};
 		const std::string &GetAVName(uint8_t id) 
@@ -140,7 +158,25 @@ class ClientLogic : public ci::IClientLogic
 				"_fSprintStaminaWeightBase",
 				"_fSprintStaminaWeightMult",
 				"CarryWeight",
-				"UnarmedDamage"
+				"UnarmedDamage",
+				"OneHanded",
+				"TwoHanded",
+				"Marksman",
+				"Block",
+				"Smithing",
+				"HeavyArmor",
+				"LightArmor",
+				"Pickpocket",
+				"Lockpicking",
+				"Sneak",
+				"Alchemy",
+				"Speechcraft",
+				"Alteration",
+				"Conjuration",
+				"Destruction",
+				"Illusion",
+				"Restoration",
+				"Enchanting"
 			};
 			if (id < NUM_AVS)
 				return names[id];
@@ -596,7 +632,6 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_OBJECT_POS_ROT_LOCATION:
 		{
-			//ci::Chat::AddMessage(L"ID_OBJECT_POS_ROT_LOCATION");
 			uint32_t id = 0;
 			NiPoint3 pos, rot;
 			uint32_t locationID;
@@ -802,12 +837,11 @@ class ClientLogic : public ci::IClientLogic
 
 
 				try {
+					auto itemType = itemTypes.at(itemTypeID);
 					if (add)
-					{
-						players.at(playerID)->AddItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
-					}
+						players.at(playerID)->AddItem(itemType, count, silentInventoryChanges);
 					else
-						players.at(playerID)->RemoveItem(itemTypes.at(itemTypeID), count, silentInventoryChanges);
+						players.at(playerID)->RemoveItem(itemType, count, silentInventoryChanges);
 					for (auto it = objects.begin(); it != objects.end(); ++it)
 					{
 						if (it->second)
@@ -850,7 +884,13 @@ class ClientLogic : public ci::IClientLogic
 				try {
 					currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
 					ci::SetTimer(avID == av.Health ? 200 : 1, [=] {
-						players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
+						try {
+							players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
+							// Необработанное исключение по адресу 0x72187646 (msvcr120.dll) в TESV.exe: Запрашивается выход из программы в результате неустранимой ошибки.
+						}
+						catch (...) {
+							ci::Log("ERROR:ClientLogic World Crash");
+						}
 					});
 					allowUpdateAVs = true;
 				}
@@ -1038,7 +1078,15 @@ class ClientLogic : public ci::IClientLogic
 				str += ch;
 			if (str.size() > 0)
 				str.erase(str.end() - 1);
-			ci::ExecuteCommand(t, str);
+
+			enum {
+				CommandTypeSkymp = 2,
+			};
+
+			if ((int32_t)t == CommandTypeSkymp)
+				this->ExecuteCommand(str);
+			else
+				ci::ExecuteCommand(t, str);
 
 			break;
 		}
@@ -1865,6 +1913,62 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(result.listItem);
 
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void ExecuteCommand(std::string cmd)
+	{
+		enum {
+			ReadFuncName,
+			ReadArguments,
+			Finish,
+		};
+		int32_t act = ReadFuncName;
+		std::string funcName;
+		std::vector<std::string> arguments;
+		for (size_t i = 0; i != cmd.size(); ++i)
+		{
+			switch (act)
+			{
+			case ReadFuncName:
+				if (cmd[i] == '(')
+				{
+					act = ReadArguments;
+					arguments.push_back("");
+				}
+				else
+				{
+					if (!::isspace(cmd[i]))
+						funcName += cmd[i];
+				}
+				break;
+			case ReadArguments:
+				if (cmd[i] == ',')
+				{
+					arguments.push_back("");
+				}
+				else if (cmd[i] == ')')
+				{
+					act = Finish;
+				}
+				else
+				{
+					if (!::isspace(cmd[i]))
+						arguments.back() += cmd[i];
+				}
+				break;
+			case Finish:
+				break;
+			}
+		}
+
+		if (funcName == "SetDisplayGold")
+		{
+			if (arguments.size() > 0)
+			{
+				localPlayer->SetDisplayGold(atoi(arguments[0].data()));
+			}
+			return;
+		}
 	}
 };
 

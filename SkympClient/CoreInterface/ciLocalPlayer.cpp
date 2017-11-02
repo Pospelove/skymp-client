@@ -745,11 +745,26 @@ std::queue<std::shared_ptr<uint8_t>> pcAttacks;
 
 std::shared_ptr<uint8_t> ci::LocalPlayer::GetNextHitAnim()
 {
+	std::lock_guard<dlf_mutex> l(localPlMutex);
 	if (pcAttacks.empty())
 		return nullptr;
 	auto result = pcAttacks.front();
 	pcAttacks.pop();
 	return result;
+}
+
+uint32_t pcGold = 0;
+
+uint32_t ci::LocalPlayer::GetDisplayGold() const
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	return pcGold;
+}
+
+void ci::LocalPlayer::SetDisplayGold(uint32_t count)
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	pcGold = count;
 }
 
 clock_t timer = clock() + 5000;
@@ -781,6 +796,25 @@ void ci::LocalPlayer::Update()
 			UInt32 max = ((TESNPC *)npc)->TESSpellList::unk04->numSpells;
 			for (UInt32 id = 0; id < max; ++id)
 				((TESNPC *)npc)->TESSpellList::unk04->spells[id] = nullptr;
+		}
+	});
+
+	// Update Display Gold
+	SAFE_CALL("RemotePlayer", [&] {
+		static clock_t tmr = 0;
+		if (clock() - tmr > 1000)
+		{
+			tmr = clock();
+
+			if (this->GetMovementData().runMode == ci::MovementData::RunMode::Standing)
+			{
+				auto form = (TESObjectMISC *)LookupFormByID(0x0000000F);
+				const auto count = sd::GetItemCount(g_thePlayer, form);
+				if (count > pcGold)
+					sd::RemoveItem(g_thePlayer, form, count - pcGold, true, nullptr);
+				else if (count < pcGold)
+					sd::AddItem(g_thePlayer, form, pcGold - count, true);
+			}
 		}
 	});
 	
@@ -1100,7 +1134,11 @@ void ci::LocalPlayer::Update_OT()
 			{
 				SET_TIMER(1300, [this] {
 					for (auto it = localPlAVData.begin(); it != localPlAVData.end(); ++it)
+					{
+						if (it->second.percentage <= 0 && it->first == "health")
+							continue;
 						this->UpdateAVData(it->first, it->second);
+					}
 				});
 			}
 

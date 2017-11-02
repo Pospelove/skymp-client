@@ -10,7 +10,6 @@
 
 enum class InvisibleFoxEngine {
 	None =				0x0,
-	RemotePlayer =		0x1,
 	Object =			0x2,
 };
 
@@ -195,7 +194,6 @@ namespace ci
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData, avDataLast;
-		RemotePlayer *myFox = nullptr;
 		Object *myPseudoFox = nullptr;
 		Object *dispenser = nullptr;
 		std::function<void(Actor *)> foxTask = nullptr;
@@ -329,15 +327,6 @@ namespace ci
 			currentSpawning = nullptr;
 		if (currentFixingGreyFace == this)
 			currentFixingGreyFace = nullptr;
-		
-		auto myFox = pimpl->myFox;
-		if (myFox != nullptr)
-		{
-			--numInvisibleFoxes;
-			std::thread([=] {
-				delete myFox;
-			}).detach();
-		}
 
 		auto myPseudoFox = pimpl->myPseudoFox;
 		if (myPseudoFox != nullptr)
@@ -551,31 +540,7 @@ namespace ci
 					};
 
 					pimpl->syncState.myFoxID = 0;
-					if (pimpl->myFox != nullptr)
-					{
-						pimpl->syncState.myFoxID = pimpl->myFox->pimpl->formID;
-						auto md = MovementData(),
-							myMd = this->GetMovementData();
-						float r = 600;
-						while (true)
-						{
-							md.pos = myMd.pos + pointAtSphere(myMd.angleZ, myMd.aimingAngle, r);
-							if ((md.pos - cd::GetPosition(g_thePlayer)).Length() > 300)
-								break;
-							r += 50;
-						}
-						pimpl->myFox->ApplyMovementData(md);
-						pimpl->myFox->pimpl->foxTask = [md](Actor *foxRef) {
-							sd::TranslateTo(foxRef, md.pos.x, md.pos.y, md.pos.z, 0, 0, 0, 10000, 1);
-							if (sd::GetBaseActorValue(foxRef, "Invisibility") == 0)
-							{
-								sd::SetActorValue(foxRef, "Invisibility", 100);
-								sd::EnableAI(foxRef, false);
-								sd::AllowPCDialogue(foxRef, false);
-							}
-						};
-					}
-					else if (pimpl->myPseudoFox != nullptr)
+					if (pimpl->myPseudoFox != nullptr)
 					{
 						const float r = 600;
 						const auto myMd = this->GetMovementData();
@@ -626,7 +591,7 @@ namespace ci
 							if (pimpl->dispenser != nullptr)
 							{
 								auto pos = this->GetPos();
-								pos += {0, 0, this->GetMovementData().isSneaking ? 64.0f : 96.0f};
+								pos += {0, 0, this->GetMovementData().isSneaking ? 64.0f : 120.0f};
 								const float distance = 32.f;
 								const float angleRad = this->GetAngleZ() / 180 * acos(-1);
 								pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
@@ -649,51 +614,7 @@ namespace ci
 					});
 
 					// Create/Destroy My Fox
-					if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::RemotePlayer)
-					{
-						SAFE_CALL("RemotePlayer", [&] {
-							if (bowEquipped)
-							{
-								if (pimpl->myFox == nullptr 
-									&& numInvisibleFoxes < MAX_INVISIBLE_FOXES)
-								{
-									std::thread([=] {
-										std::lock_guard<dlf_mutex> l1(gMutex);
-										if (allRemotePlayers.find(this) != allRemotePlayers.end())
-										{
-											std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-											if (pimpl->myFox == nullptr)
-											{
-												pimpl->myFox = new RemotePlayer(*this);
-												pimpl->myFox->SetName(L"Invisible Fox");
-												++numInvisibleFoxes;
-											}
-										}
-									}).detach();
-								}
-							}
-							else
-							{
-								if (pimpl->myFox != nullptr)
-								{
-									std::thread([=] {
-										std::lock_guard<dlf_mutex> l1(gMutex);
-										if (allRemotePlayers.find(this) != allRemotePlayers.end())
-										{
-											std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-											if (pimpl->myFox != nullptr)
-											{
-												delete pimpl->myFox;
-												pimpl->myFox = nullptr;
-												--numInvisibleFoxes;
-											}
-										}
-									}).detach();
-								}
-							}
-						});
-					}
-					else if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::Object)
+					if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::Object)
 					{
 						if (bowEquipped)
 						{
@@ -738,37 +659,28 @@ namespace ci
 					}
 
 					// Apply Equipment
-					if (this->IsDerived() == false)
-					{
-						SAFE_CALL("RemotePlayer", [&] {
-							if (pimpl->eq.hands != pimpl->eqLast.hands
-								|| pimpl->eq.handsMagic != pimpl->eqLast.handsMagic)
-							{
-								Equipment_::Equipment eq;
-								for (int32_t i = 0; i <= 1; ++i)
-								{
-									eq.hands[i] = pimpl->eq.hands[i] ? LookupFormByID(pimpl->eq.hands[i]->GetFormID()) : nullptr;
-									if (eq.hands[i] == nullptr)
-										eq.hands[i] = pimpl->eq.handsMagic[i] ? LookupFormByID(pimpl->eq.handsMagic[i]->GetFormID()) : nullptr;
-								}
+					SAFE_CALL("RemotePlayer", [&] {
+						if (pimpl->eq.hands != pimpl->eqLast.hands)
+						{
+							Equipment_::Equipment eq;
+							for (int32_t i = 0; i <= 1; ++i)
+							eq.hands[i] = pimpl->eq.hands[i] ? LookupFormByID(pimpl->eq.hands[i]->GetFormID()) : nullptr;
+							Equipment_::ApplyHands(actor, eq);
+							pimpl->eqLast.hands = pimpl->eq.hands;
+						}
+						if (sd::HasLOS(g_thePlayer, actor))
+						{
+							Equipment_::Equipment eq;
+							if (pimpl->eq.ammo != nullptr)
+								 eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
+							for (auto &item : pimpl->eq.armor)
+								 eq.other.insert(LookupFormByID(item->GetFormID()));
+							Equipment_::ApplyOther(actor, eq);
+							pimpl->eqLast.armor = pimpl->eq.armor;
+							pimpl->eqLast.ammo = pimpl->eq.ammo;
+						}
+					});
 
-								Equipment_::ApplyHands(actor, eq);
-								pimpl->eqLast.hands = pimpl->eq.hands;
-								pimpl->eqLast.handsMagic = pimpl->eq.handsMagic;
-							}
-							if (sd::HasLOS(g_thePlayer, actor))
-							{
-								Equipment_::Equipment eq;
-								if (pimpl->eq.ammo != nullptr)
-									eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
-								for (auto &item : pimpl->eq.armor)
-									eq.other.insert(LookupFormByID(item->GetFormID()));
-								Equipment_::ApplyOther(actor, eq);
-								pimpl->eqLast.armor = pimpl->eq.armor;
-								pimpl->eqLast.ammo = pimpl->eq.ammo;
-							}
-						});
-					}
 					SAFE_CALL("RemotePlayer", [&] {
 						if (pimpl->currentNonExteriorCell != GetParentNonExteriorCell(g_thePlayer))
 							this->ForceDespawn(L"Despawned: Cell changed");
@@ -929,12 +841,6 @@ namespace ci
 				currentSpawning = nullptr;
 			if (currentFixingGreyFace == this)
 				currentFixingGreyFace = nullptr;
-
-			/*if (pimpl->myFox != nullptr)
-			{
-				delete pimpl->myFox;
-				pimpl->myFox = nullptr;
-			}*/
 		}
 	}
 
@@ -966,7 +872,7 @@ namespace ci
 		});
 
 
-		std::vector<RemotePlayer *> allRemotePlayers_(allRemotePlayers.begin(), allRemotePlayers.end());
+		/*std::vector<RemotePlayer *> allRemotePlayers_(allRemotePlayers.begin(), allRemotePlayers.end());
 		SAFE_CALL("RemotePlayer", [&] {
 			auto pos = cd::GetPosition(g_thePlayer);
 			std::sort(allRemotePlayers_.begin(), allRemotePlayers_.end(), [=](RemotePlayer *p1, RemotePlayer *p2) {
@@ -978,13 +884,13 @@ namespace ci
 					p2Distance = (pos - p2->GetPos()).Length();
 				return p1Distance < p2Distance;
 			});
-		});
+		});*/
 
 		std::vector<RemotePlayer *> notUpdatedYet = {};
-		notUpdatedYet.reserve(allRemotePlayers_.size() + 1);
+		//notUpdatedYet.reserve(allRemotePlayers_.size() + 1);
 		UInt32 rating = 0;
 		SAFE_CALL("RemotePlayer", [&] {
-			std::for_each(allRemotePlayers_.begin(), allRemotePlayers_.end(), [&](RemotePlayer *p){
+			std::for_each(allRemotePlayers.begin(), allRemotePlayers.end(), [&](RemotePlayer *p){
 				auto pos = p->GetPos();
 				if (PlayerCamera::GetSingleton()->IsInScreen(pos)
 					|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,64 })
@@ -1375,6 +1281,10 @@ namespace ci
 							bowCopy->attackDamage = 0;
 
 							sd::Weapon::Fire(bowCopy, dispenserRef, ammoCopy);
+
+							SET_TIMER(3000, [=] {
+								sd::RemoveItem(g_thePlayer, ammoCopy, -1, true, nullptr);
+							});
 						}
 					}
 				});

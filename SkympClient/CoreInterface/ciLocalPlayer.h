@@ -46,6 +46,8 @@ namespace ci
 		AVData GetAVData(const std::string &avName) const override;
 
 		std::shared_ptr<uint8_t> GetNextHitAnim();
+		uint32_t GetDisplayGold() const;
+		void SetDisplayGold(uint32_t count);
 
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;
