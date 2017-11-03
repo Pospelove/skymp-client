@@ -765,13 +765,14 @@ void ci::LocalPlayer::SetDisplayGold(uint32_t count)
 }
 
 clock_t timer = clock() + 5000;
+bool set = false;
 
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
 	SAFE_CALL("LocalPlayer", [&] {
-		static bool set = false;
+
 		if (!set)
 		{
 			SET_TIMER(0, [] {
@@ -1102,6 +1103,17 @@ void ci::LocalPlayer::Update()
 void ci::LocalPlayer::Update_OT()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	SAFE_CALL("LocalPlayer", [&] {
+		static bool openWas = false;
+		bool open = MenuManager::GetSingleton()->IsMenuOpen("Main Menu");
+		if (openWas != open)
+		{
+			openWas = open;
+			if (open)
+				set = false;
+		}
+	});
 
 	auto menuManager = MenuManager::GetSingleton();
 	static bool openWas = true;
