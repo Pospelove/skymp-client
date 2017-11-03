@@ -944,6 +944,7 @@ class ClientLogic : public ci::IClientLogic
 			for (int32_t i = 0; i <= 1; ++i)
 			{
 				const bool isLeftHand = (i == 1);
+				pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, isLeftHand);
 				if (hands[i] != ~0)
 				{
 					try {
@@ -956,10 +957,6 @@ class ClientLogic : public ci::IClientLogic
 						ci::Log("ERROR:ClientLogic Equipment: Weapon not found");
 						return;
 					}
-				}
-				else
-				{
-					pl->UnequipItem(pl->GetEquippedWeapon(i), true, false, isLeftHand);
 				}
 			}
 

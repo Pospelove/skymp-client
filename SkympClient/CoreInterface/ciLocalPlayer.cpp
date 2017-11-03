@@ -3,15 +3,12 @@
 #include "../Sync/LookData.h"
 #include "../Sync/MovementData.h"
 #include "../Sync/HitData.h"
+#include "../Sync/SyncOptions.h"
 #include "Skyrim/Events/ScriptEvent.h"
 #include "Skyrim/Camera/PlayerCamera.h"
 #include <queue>
 
 #pragma comment(lib, "winmm")
-
-#define DISABLE_PLAYER_DAMAGE			TRUE
-#define NORMAL_PROCESSING_WITH_MENUS	TRUE
-#define MUTE_SOUND_ON_TP				TRUE
 
 void PreventCrash() {
 	g_thePlayer->GetActorBase()->numHeadParts = 0;
@@ -24,7 +21,7 @@ void MoveTo(uint32_t markerRefID)
 	os << L"player.moveto " << std::hex << markerRefID;
 	ci::ExecuteCommand(ci::CommandType::Console, os.str());
 
-	if (MUTE_SOUND_ON_TP != FALSE)
+	if (SyncOptions::GetSingleton()->GetInt("MUTE_SOUND_ON_TP") != FALSE)
 	{
 		DWORD dwVolume;
 		if (waveOutGetVolume(NULL, &dwVolume) == MMSYSERR_NOERROR)
@@ -72,7 +69,7 @@ bool CenterOnCell(uint32_t cellID, NiPoint3 pos, float angleZ)
 
 auto lookSync = ILookSynchronizer::GetV17();
 
-dlf_mutex localPlMutex;
+ErrorHandling::DeadlockFreeMutex<0> localPlMutex;
 std::wstring *localPlName = nullptr;
 UInt32 localPlCellID = 0,
 localPlWorldSpaceID = 0;
@@ -639,7 +636,7 @@ std::wstring ci::LocalPlayer::GetName() const
 }
 
 auto mayReturn0 = [] {
-	if (NORMAL_PROCESSING_WITH_MENUS != FALSE)
+	if (SyncOptions::GetSingleton()->GetInt("NORMAL_PROCESSING_WITH_MENUS") != FALSE)
 		return MenuManager::GetSingleton()->IsMenuOpen("Main Menu");
 
 	enum {
@@ -837,7 +834,7 @@ void ci::LocalPlayer::Update()
 	});
 
 	SAFE_CALL("LocalPlayer", [&] {
-		if (DISABLE_PLAYER_DAMAGE)
+		if (SyncOptions::GetSingleton()->GetInt("DISABLE_PLAYER_DAMAGE"))
 		{
 			float dmgMult;
 			static float dmgMultLast = -1;

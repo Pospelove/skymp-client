@@ -12,5 +12,4 @@ public:
 	virtual void ShowRaceMenu() = 0;
 
 	static ILookSynchronizer *GetV17();
-	static ILookSynchronizer *GetV16();
 };

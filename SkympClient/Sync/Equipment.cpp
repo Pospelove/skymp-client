@@ -147,11 +147,10 @@ namespace Equipment_
 		lastEquipment[formID] = equipment;
 
 		// Check if equipped incorrect
-		SET_TIMER(400, [=] {
+		SET_TIMER(2000, [=] {
 			auto actor = (Actor *)LookupFormByID(formID);
 			if (!actor || actor->formType != FormType::Reference)
 				return;
-			
 			for (int32_t i = 0; i <= 1; ++i)
 				if (equipment.hands[i] != lastEquipment[formID].hands[i])
 					return;
@@ -178,6 +177,25 @@ namespace Equipment_
 						return ApplyHands(actor, equipment);
 					}
 				}
+			}
+		});
+
+		// Check if equipped incorrect (2)
+		SET_TIMER(1000, [=] {
+			auto actor = (Actor *)LookupFormByID(formID);
+			if (!actor || actor->formType != FormType::Reference)
+				return;
+			for (int32_t i = 0; i <= 1; ++i)
+				if (equipment.hands[i] != lastEquipment[formID].hands[i])
+					return;
+
+			auto weapR = sd::GetEquippedWeapon(actor, 0),
+				weapL = sd::GetEquippedWeapon(actor, 1);
+			if (weapR != nullptr && weapL != nullptr && equipment.hands[0] == nullptr)
+			{
+				ErrorHandling::SendError("ERROR:Equipment 3");
+				sd::RemoveAllItems(actor, 0, 0, 0);
+				return ApplyHands(actor, equipment);
 			}
 		});
 	}

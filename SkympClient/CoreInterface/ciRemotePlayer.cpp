@@ -3,6 +3,7 @@
 #include "../Sync/MovementData.h"
 #include "../Sync/Equipment.h"
 #include "../Sync/HitData.h"
+#include "../Sync/SyncOptions.h"
 #include "Skyrim\Camera\PlayerCamera.h"
 #include "CoreInterface.h"
 #include <algorithm>
@@ -12,22 +13,6 @@ enum class InvisibleFoxEngine {
 	None =				0x0,
 	Object =			0x2,
 };
-
-#define DRAW_DISTANCE						int32_t(70.0218818381 * 100) // 100 metres
-#define NICKNAME_DISTANCE					512
-
-#define GHOST_AXE_OFFSET_Z 					2048
-#define GHOST_AXE_UPDATE_RATE				750
-
-#define MAX_HARDSYNCED_PLAYERS				5
-#define MAX_PLAYERS_SYNCED_SAFE				5
-
-#define INVISIBLE_FOX_ENGINE				InvisibleFoxEngine::Object
-#define MAX_INVISIBLE_FOXES					3
-
-#define MAX_CD_LAG							1000
-#define CD_LAG_RECOVER_TIME					3333
-#define MAX_OUT_OF_POS						256.f
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 extern clock_t localPlCrosshairRefUpdateMoment;
@@ -54,7 +39,7 @@ namespace ci
 	uint32_t numInvisibleFoxes = 0;
 
 	inline float GetRespawnRadius(bool isInterior) {
-		return DRAW_DISTANCE;
+		return SyncOptions::GetSingleton()->GetFloat("DRAW_DISTANCE");
 	}
 
 	void ApplyPackage(TESNPC *npc)
@@ -448,7 +433,7 @@ namespace ci
 						if (pimpl->nicknameLabel->GetText() != this->GetName())
 							pimpl->nicknameLabel->SetText(this->GetName());
 
-						pimpl->nicknameLabel->SetDrawDistance(NICKNAME_DISTANCE);
+						pimpl->nicknameLabel->SetDrawDistance(SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE"));
 					}
 				});
 
@@ -565,7 +550,7 @@ namespace ci
 
 					// 'lastOutOfPos'
 					SAFE_CALL("RemotePlayer", [&] {
-						if ((this->GetPos() - cd::GetPosition(actor)).Length() > MAX_OUT_OF_POS)
+						if ((this->GetPos() - cd::GetPosition(actor)).Length() > SyncOptions::GetSingleton()->GetFloat("MAX_OUT_OF_POS"))
 							pimpl->lastOutOfPos = clock();
 					});
 
@@ -591,8 +576,11 @@ namespace ci
 							if (pimpl->dispenser != nullptr)
 							{
 								auto pos = this->GetPos();
-								pos += {0, 0, this->GetMovementData().isSneaking ? 64.0f : 120.0f};
-								const float distance = 32.f;
+								pos += {0, 0, this->GetMovementData().isSneaking ? 
+									SyncOptions::GetSingleton()->GetFloat("DISPENSER_OFFSET_Z_SNEAKING") : 
+									SyncOptions::GetSingleton()->GetFloat("DISPENSER_OFFSET_Z")
+								};
+								const float distance = SyncOptions::GetSingleton()->GetFloat("DISPENSER_OFFSET_DISTANCE");
 								const float angleRad = this->GetAngleZ() / 180 * acos(-1);
 								pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
 
@@ -614,12 +602,12 @@ namespace ci
 					});
 
 					// Create/Destroy My Fox
-					if (INVISIBLE_FOX_ENGINE == InvisibleFoxEngine::Object)
+					if (SyncOptions::GetSingleton()->GetInt("INVISIBLE_FOX_ENGINE") == (int32_t)InvisibleFoxEngine::Object)
 					{
 						if (bowEquipped)
 						{
 							if (pimpl->myPseudoFox == nullptr 
-								&& numInvisibleFoxes < MAX_INVISIBLE_FOXES
+								&& numInvisibleFoxes < SyncOptions::GetSingleton()->GetInt("MAX_INVISIBLE_FOXES")
 								&& sd::HasLOS(g_thePlayer, actor))
 							{
 								std::thread([=] {
@@ -916,7 +904,7 @@ namespace ci
 			if (ghostAxe == nullptr)
 				ghostAxe = CreateGhostAxe();
 			auto movData = MovementData_::GetFromPlayer();
-			movData.pos.z += GHOST_AXE_OFFSET_Z;
+			movData.pos.z += SyncOptions::GetSingleton()->GetFloat("GHOST_AXE_OFFSET_Z");
 			movData.pos.x += GetRespawnRadius(false) * 0.85;
 			ghostAxe->ApplyMovementData(movData);
 			static auto localPl = ci::LocalPlayer::GetSingleton();
@@ -1308,11 +1296,11 @@ namespace ci
 		if (!actor)
 			return;
 
-		if (clock() - localPlCrosshairRefUpdateMoment > MAX_CD_LAG || clock() - pimpl->lastOutOfPos < 1000)
-			pimpl->unsafeSyncTimer = clock() + CD_LAG_RECOVER_TIME;
-		pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > MAX_PLAYERS_SYNCED_SAFE || pimpl->unsafeSyncTimer > clock();
+		if (clock() - localPlCrosshairRefUpdateMoment > SyncOptions::GetSingleton()->GetInt("MAX_CD_LAG") || clock() - pimpl->lastOutOfPos < 1000)
+			pimpl->unsafeSyncTimer = clock() + SyncOptions::GetSingleton()->GetInt("CD_LAG_RECOVER_TIME");
+		pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > SyncOptions::GetSingleton()->GetInt("MAX_PLAYERS_SYNCED_SAFE") || pimpl->unsafeSyncTimer > clock();
 
-		if (pimpl->rating < MAX_HARDSYNCED_PLAYERS
+		if (pimpl->rating < SyncOptions::GetSingleton()->GetInt("MAX_HARDSYNCED_PLAYERS")
 			&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
 			pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
 		{
@@ -1344,7 +1332,7 @@ namespace ci
 			auto movData = pimpl->movementData;
 			if (this->timer < clock())
 			{
-				timer = clock() + GHOST_AXE_UPDATE_RATE;
+				timer = clock() + SyncOptions::GetSingleton()->GetInt("GHOST_AXE_UPDATE_RATE");
 				cd::TranslateTo(actor, movData.pos.x, movData.pos.y, movData.pos.z, 0, 0, 0, 100000.0, 4.0);
 				if (sd::GetBaseActorValue(actor, "Invisibility") == 0)
 				{

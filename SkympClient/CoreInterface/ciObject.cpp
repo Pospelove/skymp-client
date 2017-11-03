@@ -1,10 +1,9 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
+#include "../Sync/SyncOptions.h"
 #include "Skyrim/Events/ScriptEvent.h"
 #include "SKSE/SKSEEvents.h"
 #include "SKSE/PluginAPI.h"
-
-#define SAFE_ITEM_REMOVE				FALSE
 
 class CIAccess
 {
@@ -19,7 +18,7 @@ std::set<ci::Object *> allObjects;
 
 extern std::map<const ci::ItemType *, uint32_t> inventory;
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
-extern ErrorHandling::DeadlockFreeMutex<75U> localPlMutex;
+extern ErrorHandling::DeadlockFreeMutex<0> localPlMutex;
 
 namespace ci
 {
@@ -291,7 +290,7 @@ struct ci::Object::Impl
 						ObjectTask task{ [=](TESObjectREFR *ref) {
 							if (form)
 							{
-								if (SAFE_ITEM_REMOVE != FALSE)
+								if (SyncOptions::GetSingleton()->GetInt("SAFE_ITEM_REMOVE") != FALSE)
 									cd::RemoveItem(ref, form, count, true, nullptr);
 								else
 									sd::RemoveItem(ref, form, count, true, nullptr);
@@ -667,7 +666,7 @@ void ci::Object::RemoveItem(const ItemType *item, uint32_t count)
 		ObjectTask task{ [=](TESObjectREFR *ref) {
 			if (form)
 			{
-				if (SAFE_ITEM_REMOVE != FALSE)
+				if (SyncOptions::GetSingleton()->GetInt("SAFE_ITEM_REMOVE") != FALSE)
 					cd::RemoveItem(ref, form, count, true, nullptr);
 				else
 					sd::RemoveItem(ref, form, count, true, nullptr);

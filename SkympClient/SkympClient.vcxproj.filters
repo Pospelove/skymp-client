@@ -139,9 +139,6 @@
     <ClCompile Include="Sync\LookSyncV17.cpp">
       <Filter>core\Sync</Filter>
     </ClCompile>
-    <ClCompile Include="Sync\LookSyncV16.cpp">
-      <Filter>core\Sync</Filter>
-    </ClCompile>
     <ClCompile Include="Overlay\3DText.cpp">
       <Filter>core\Overlay</Filter>
     </ClCompile>
@@ -150,6 +147,9 @@
     </ClCompile>
     <ClCompile Include="CoreInterface\ciSpell.cpp">
       <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\SyncOptions.cpp">
+      <Filter>core\Sync</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -385,6 +385,9 @@
     </ClInclude>
     <ClInclude Include="CoreInterface\ciSpell.h">
       <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\SyncOptions.h">
+      <Filter>core\Sync</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
