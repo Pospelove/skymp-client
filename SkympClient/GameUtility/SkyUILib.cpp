@@ -71,17 +71,45 @@ namespace SkyUILib
 		const bool isOpen = MenuManager::GetSingleton()->IsMenuOpen("CustomMenu");
 		if (isOpen)
 		{
-			const bool pressed = sd::GetKeyPressed(VK_RETURN);
-			static bool pressedWas = false;
-			if (pressed != pressedWas)
 			{
-				if (pressed)
+				const bool pressed = sd::GetKeyPressed(VK_RETURN);
+				static bool pressedWas = false;
+				if (pressed != pressedWas)
 				{
-					keybd_event(VK_TAB, DIK_TAB, NULL, NULL);
-					sd::Wait(0);
-					keybd_event(VK_TAB, DIK_TAB, KEYEVENTF_KEYUP, NULL);
+					if (pressed)
+					{
+						keybd_event(VK_TAB, DIK_TAB, NULL, NULL);
+						sd::Wait(0);
+						keybd_event(VK_TAB, DIK_TAB, KEYEVENTF_KEYUP, NULL);
+					}
+					pressedWas = pressed;
 				}
-				pressedWas = pressed;
+			}
+			{
+				const bool pressed = sd::GetKeyPressed(VK_LBUTTON);
+				static bool pressedWas = false;
+				static bool clickedOnce = false;
+				if (pressed != pressedWas)
+				{
+					if (pressed)
+					{
+						if (clickedOnce)
+						{
+							keybd_event(VK_TAB, DIK_TAB, NULL, NULL);
+							sd::Wait(0);
+							keybd_event(VK_TAB, DIK_TAB, KEYEVENTF_KEYUP, NULL);
+							clickedOnce = false;
+						}
+						else
+						{
+							clickedOnce = true;
+							SET_TIMER_LIGHT(GetDoubleClickTime(), [] {
+								clickedOnce = false;
+							});
+						}
+					}
+					pressedWas = pressed;
+				}
 			}
 		}
 		SET_TIMER_LIGHT(5, UpdateList);
