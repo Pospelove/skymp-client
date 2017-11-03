@@ -58,11 +58,22 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		//((TESObjectWEAP *)pimpl->item)->BGSEquipType::unk04 = GetEitherHandSlot();
 		break;
 	case Class::Armor:
-		pimpl->item = FormHeap_Allocate<TESObjectARMO>();
-		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof TESObjectARMO);
+	{
+		auto existingForm = LookupFormByID(existingItemID);
+		if (existingForm->formType == FormType::Light)
+		{
+			pimpl->item = FormHeap_Allocate<TESObjectLIGH>();
+			memcpy(pimpl->item, existingForm, sizeof TESObjectLIGH);
+		}
+		else
+		{
+			pimpl->item = FormHeap_Allocate<TESObjectARMO>();
+			memcpy(pimpl->item, existingForm, sizeof TESObjectARMO);
+		}
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
 		break;
+	}
 	case Class::Ammo:
 		pimpl->item = FormHeap_Allocate<TESAmmo>();
 		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof TESAmmo);
