@@ -786,6 +786,8 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fPowerAttackDefaultBonus", 0.0f);
 				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
 				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
+				sd::ExecuteConsoleCommand("set DecapitationChance to 0", nullptr);
+				sd::ExecuteConsoleCommand("set KillMoveRandom to 0", nullptr);
 			});
 			set = true;
 
