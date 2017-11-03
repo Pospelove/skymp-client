@@ -60,4 +60,5 @@ enum : RakNet::MessageID {
 	ID_GLOBAL_VARIABLE,
 	ID_SILENT,
 	ID_COMMAND,
+	ID_CHAT_BUBBLE,
 };

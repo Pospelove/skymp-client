@@ -68,20 +68,30 @@ bool ci::Dialog::Hide()
 struct ci::Text3D::Impl
 {
 	::Text3D label;
+	uint32_t h = 40;
 };
+
+std::set<ci::Text3D *> texts;
+dlf_mutex textsM;
 
 ci::Text3D::Text3D(const std::wstring &str, NiPoint3 pos) :
 	pimpl(new Impl)
 {
-	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+	std::lock_guard<dlf_mutex> l(textsM);
+	std::lock_guard<dlf_mutex> l1(pimpl->label.m);
 	pimpl->label.is2D = false;
 	pimpl->label.pos = pos;
 	pimpl->label.text2d.str = str;
 	pimpl->label.text2d.color = -1;
+	pimpl->label.text2d.font = Text3DCreateFont("futuralightc", pimpl->h, FW_MEDIUM, "MyGUI\\futuralightc1.otf");
+
+	texts.insert(this);
 }
 
 ci::Text3D::~Text3D()
 {
+	std::lock_guard<dlf_mutex> l(textsM);
+	texts.erase(this);
 	delete pimpl;
 }
 
@@ -95,6 +105,25 @@ void ci::Text3D::SetPos(const NiPoint3 &pos)
 {
 	std::lock_guard<dlf_mutex> l(pimpl->label.m);
 	pimpl->label.pos = pos;
+}
+
+void ci::Text3D::SetPosSource(std::function<NiPoint3()> fn)
+{
+	SET_TIMER_LIGHT(5, [=] {
+		std::lock_guard<dlf_mutex> l(textsM);
+		if (texts.find(this) == texts.end())
+			return;
+		std::lock_guard<dlf_mutex> l1(pimpl->label.m);
+		this->SetPos(fn());
+		this->SetPosSource(fn);
+	});
+}
+
+void ci::Text3D::SetFontHeight(uint32_t h)
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->label.m);
+	pimpl->h = h;
+	pimpl->label.text2d.font = Text3DCreateFont("futuralightc", pimpl->h, FW_MEDIUM, "MyGUI\\futuralightc1.otf");
 }
 
 void ci::Text3D::SetVisible(bool v)

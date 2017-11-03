@@ -24,6 +24,7 @@ class ClientLogic : public ci::IClientLogic
 {
 	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
 	std::map<uint16_t, ci::IActor *> players;
+	std::map<uint16_t, std::shared_ptr<ci::Text3D>> playerBubbles;
 	std::map<uint32_t, ci::Object *> objects;
 	std::map<uint32_t, ci::ItemType *> itemTypes;
 	std::set<ci::Object *> hostedJustNow;
@@ -289,7 +290,7 @@ class ClientLogic : public ci::IClientLogic
 				T characters;
 				bsIn.Read(characters);
 
-				if (packet->length == (2 * sizeof(RakNet::MessageID)) + sizeof(T) + sizeof(wchar_t) * characters)
+				if (packet->length == 2 + sizeof(T) + sizeof(wchar_t) * characters)
 				{
 					for (size_t i = 0; i != characters; ++i)
 					{
@@ -1085,6 +1086,47 @@ class ClientLogic : public ci::IClientLogic
 			else
 				ci::ExecuteCommand(t, str);
 
+			break;
+		}
+		case ID_CHAT_BUBBLE:
+		{
+			using T = uint16_t;
+			if (packet->length > 2 + sizeof(T))
+			{
+				std::wstring message;
+				T characters;
+				bsIn.Read(characters);
+
+				if (packet->length == 7 + sizeof(T) + sizeof(wchar_t) * characters)
+				{
+					for (size_t i = 0; i != characters; ++i)
+					{
+						wchar_t ch;
+						bsIn.Read(ch);
+						message += ch;
+					}
+					uint16_t playerID;
+					uint32_t ms;
+					bsIn.Read(playerID);
+					bsIn.Read(ms);
+
+					playerBubbles[playerID].reset(new ci::Text3D(message, { 0,0,0 }));
+					playerBubbles[playerID]->SetFontHeight(25);
+					playerBubbles[playerID]->SetPosSource([=] {
+						try {
+							return players.at(playerID)->GetPos() += {0, 0, 166};
+						}
+						catch (...) {
+							return NiPoint3{ -1000000000, 1000000000, -1000000000 };
+						}
+					});
+					const auto addr = (size_t)playerBubbles[playerID].get();
+					ci::SetTimer(ms, [=] {
+						if ((size_t)playerBubbles[playerID].get() == addr)
+							playerBubbles[playerID] = nullptr;
+					});
+				}
+			}
 			break;
 		}
 		default:
