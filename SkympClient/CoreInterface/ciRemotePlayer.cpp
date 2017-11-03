@@ -670,6 +670,13 @@ namespace ci
 					});
 
 					SAFE_CALL("RemotePlayer", [&] {
+						if (pimpl->syncState.errors > 0)
+							this->ForceDespawn(L"Despawned: Movement sync errors");
+					});
+					if (pimpl->spawnStage == SpawnStage::NonSpawned)
+						return;
+
+					SAFE_CALL("RemotePlayer", [&] {
 						if (pimpl->currentNonExteriorCell != GetParentNonExteriorCell(g_thePlayer))
 							this->ForceDespawn(L"Despawned: Cell changed");
 					});
@@ -1296,21 +1303,32 @@ namespace ci
 		if (!actor)
 			return;
 
-		if (clock() - localPlCrosshairRefUpdateMoment > SyncOptions::GetSingleton()->GetInt("MAX_CD_LAG") || clock() - pimpl->lastOutOfPos < 1000)
-			pimpl->unsafeSyncTimer = clock() + SyncOptions::GetSingleton()->GetInt("CD_LAG_RECOVER_TIME");
-		pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > SyncOptions::GetSingleton()->GetInt("MAX_PLAYERS_SYNCED_SAFE") || pimpl->unsafeSyncTimer > clock();
+		SAFE_CALL("RemotePlayer", [&] {
+			if (clock() - localPlCrosshairRefUpdateMoment > SyncOptions::GetSingleton()->GetInt("MAX_CD_LAG") || clock() - pimpl->lastOutOfPos < 1000)
+				pimpl->unsafeSyncTimer = clock() + SyncOptions::GetSingleton()->GetInt("CD_LAG_RECOVER_TIME");
+			pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > SyncOptions::GetSingleton()->GetInt("MAX_PLAYERS_SYNCED_SAFE") || pimpl->unsafeSyncTimer > clock();
+		});
 
-		if (pimpl->rating < SyncOptions::GetSingleton()->GetInt("MAX_HARDSYNCED_PLAYERS")
-			&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
-			pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
-		{
-			MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxe ? ghostAxe->pimpl->formID : 0);
+		bool success = false;
+		SAFE_CALL("RemotePlayer", [&] {
+			if (pimpl->rating < SyncOptions::GetSingleton()->GetInt("MAX_HARDSYNCED_PLAYERS")
+				&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
+				pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
+			{
+				MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxe ? ghostAxe->pimpl->formID : 0);
 
-			if (pimpl->afk)
-				sd::EnableAI(actor, false);
-			else
-				sd::EnableAI(actor, true);
-		}
+				if (pimpl->afk)
+					sd::EnableAI(actor, false);
+				else
+					sd::EnableAI(actor, true);
+			}
+			success = true;
+		});
+
+		SAFE_CALL("RemotePlayer", [&] {
+			if (!success)
+				MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxe ? ghostAxe->pimpl->formID : 0);
+		});
 	}
 
 	class GhostAxe : public RemotePlayer

@@ -56,6 +56,7 @@ namespace MovementData_
 		uint32_t numShots = 0;
 		clock_t shotsRecordStart = 0;
 		clock_t lastShot = 0;
+		uint32_t errors = 0;
 	};
 
 
