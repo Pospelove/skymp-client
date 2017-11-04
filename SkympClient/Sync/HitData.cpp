@@ -16,7 +16,7 @@ enum class Direction : uint8_t
 
 namespace MovementData_
 {
-	void SendAnimationEvent(Actor *actor, const char *aeName, bool unsafe);
+	void SendAnimationEvent(cd::Value<Actor>, const char *aeName, bool unsafe);
 }
 using MovementData_::SendAnimationEvent;
 
