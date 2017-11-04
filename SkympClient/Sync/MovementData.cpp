@@ -4,6 +4,7 @@
 #include "..\ScriptDragon\obscript.h"
 #include "MovementData.h"
 #include "Skyrim\NetImmerse\NiCamera.h"
+#include "SyncOptions.h"
 
 void HitData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName);
 
@@ -16,10 +17,6 @@ namespace MovementData_
 	bool isPCBlocking = false;
 	clock_t weapDrawStart = 0;
 	clock_t lastAnySwing = 0;
-
-	enum {
-		FirstApplyDelay = 300
-	};
 
 	bool HasEquippedBow(Actor *actor) {
 		enum {
@@ -206,7 +203,7 @@ namespace MovementData_
 
 	void OnFirstApply(cd::Value<Actor> actor)
 	{
-		SET_TIMER(FirstApplyDelay, [=] {
+		SET_TIMER(SyncOptions::GetSingleton()->GetInt("FirstApplyDelay"), [=] {
 			if (!cd::IsWeaponDrawn(actor))
 				cd::SendAnimationEvent(actor, "IdleForceDefaultState");
 		});
@@ -264,56 +261,37 @@ namespace MovementData_
 
 	Config GetConfig(ci::MovementData md, Actor *ac, SyncState &syncStatus)
 	{
-		Config config;
+		std::string prefix;
 		switch (syncStatus.syncMode)
 		{
 		case SyncMode::Hard:
-			if (!md.isBlocking && !md.isWeapDrawn && !md.isInJumpState)
-				config.smartAngle = true;
-			else
-				config.smartAngle = false;
-			config.weapDrawnUpdateRate = 1000;
-			config.positionUpdateRate = 0;
-			config.sneakingUpdateRate = 1333;
-			config.blockingUpdateRate = 500;
-			config.unsafeSDFuncsUpdateRate = 0;
-			config.jumpingSync = true;
-			config.unsafeSDFuncsEnabled = true;
-			config.maxLagDistance = 64.0;
-			config.maxLagDistanceOnRotate = 48.0;
-			config.negligibleTime = 0.100;
-			config.headtrackingDisabled = true;
+			prefix = "Hard";
 			break;
 		case SyncMode::Normal:
-			config.smartAngle = true;
-			config.weapDrawnUpdateRate = 4500;
-			config.positionUpdateRate = 50;
-			config.sneakingUpdateRate = 2000;
-			config.blockingUpdateRate = 10000;
-			config.unsafeSDFuncsUpdateRate = 0;
-			config.jumpingSync = true;
-			config.unsafeSDFuncsEnabled = false;
-			config.maxLagDistance = 128.0;
-			config.maxLagDistanceOnRotate = 128.0;
-			config.negligibleTime = 0.100;
-			config.headtrackingDisabled = true;
+			prefix = "Normal";
 			break;
 		case SyncMode::Light:
-			config.smartAngle = true;
-			config.weapDrawnUpdateRate = 11000;
-			config.positionUpdateRate = 400;
-			config.sneakingUpdateRate = 11000;
-			config.blockingUpdateRate = 11000;
-			config.unsafeSDFuncsUpdateRate = 0;
-			config.jumpingSync = false;
-			config.unsafeSDFuncsEnabled = false;
-			config.maxLagDistance = 128.0;
-			config.maxLagDistanceOnRotate = 128.0;
-			config.negligibleTime = 0.200;
-			config.headtrackingDisabled = false;
+			prefix = "Light";
 			break;
+		}
+		prefix += '.';
+
+		auto o = SyncOptions::GetSingleton();
+
+		return Config{
+			o->GetInt(prefix + "smartAngle"),
+			o->GetInt(prefix + "weapDrawnUpdateRate"),
+			o->GetInt(prefix + "positionUpdateRate"),
+			o->GetInt(prefix + "sneakingUpdateRate"),
+			o->GetInt(prefix + "blockingUpdateRate"),
+			o->GetInt(prefix + "unsafeSDFuncsUpdateRate"),
+			o->GetInt(prefix + "jumpingSync"),
+			o->GetInt(prefix + "unsafeSDFuncsEnabled"),
+			o->GetInt(prefix + "maxLagDistance"),
+			o->GetInt(prefix + "maxLagDistanceOnRotate"),
+			o->GetInt(prefix + "negligibleTime") / 1000.f,
+			o->GetInt(prefix + "headtrackingDisabled"),
 		};
-		return config;
 	}
 
 	enum AttackState {
@@ -695,7 +673,7 @@ namespace MovementData_
 			syncStatus.appliedOnce = true;
 		}
 
-		const bool firstApplyFinished = clock() - syncStatus.firstApplyStartMoment > FirstApplyDelay * 1.25;
+		const bool firstApplyFinished = clock() - syncStatus.firstApplyStartMoment > SyncOptions::GetSingleton()->GetInt("FirstApplyDelay") * 1.25;
 		if (!firstApplyFinished)
 			return;
 

@@ -4,9 +4,9 @@ class SyncOptions
 {
 public:
 	static SyncOptions *GetSingleton();
-	int32_t GetInt(const char *optionName) const;
-	float GetFloat(const char *optionName) const;
-	std::string GetString(const char *optionName) const;
+	int32_t GetInt(std::string optionName) const;
+	float GetFloat(std::string optionName) const;
+	std::string GetString(std::string optionName) const;
 
 private:
 	struct Impl;
