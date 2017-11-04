@@ -105,98 +105,35 @@ namespace Equipment_
 	void ApplyHands(Actor *actor, const Equipment &equipment)
 	{
 		static std::set<TESForm *> known;
+
 		for (auto form : known)
 		{
-			switch (form->formType)
-			{
-			case FormType::Weapon:
-				sd::UnequipItem(actor, form, false, true);
-				sd::RemoveItem(actor, form, -1, true, nullptr);
-				break;
-			case FormType::Spell:
-				sd::UnequipSpell(actor, (SpellItem *)form, 0);
-				sd::UnequipSpell(actor, (SpellItem *)form, 1);
-				sd::RemoveSpell(actor, (SpellItem *)form);
-				break;
-			}
+			sd::RemoveItem(actor, form, -1, true, nullptr);
 		}
 
 		for (int32_t i = 0; i <= 1; ++i)
 		{
-			auto src = equipment.hands[i];
-			switch (src ? src->formType : FormType::Weapon)
+			const auto src = equipment.hands[i];
+			TESForm *form = nullptr;
+			if (!src || src->formType == FormType::Weapon)
 			{
-			case FormType::Weapon:
-				if (equipment.hands[0] == nullptr && equipment.hands[1] != nullptr)
-					src = CustomWeapHand(src, i);
-				if (src)
+				if (!src || ((TESObjectWEAP *)src)->GetEquipSlot() == GetEitherHandSlot())
 				{
-					sd::AddItem(actor, src, 1, true);
-					known.insert(src);
-				}
-				break;
-			case FormType::Spell:
-				sd::AddSpell(actor, (SpellItem *)src, rand() % 2);
-				break;
-			}
-		}
-
-		static std::map<uint32_t, Equipment> lastEquipment;
-
-		const auto formID = actor->formID;
-		lastEquipment[formID] = equipment;
-
-		// Check if equipped incorrect
-		SET_TIMER(2000, [=] {
-			auto actor = (Actor *)LookupFormByID(formID);
-			if (!actor || actor->formType != FormType::Reference)
-				return;
-			for (int32_t i = 0; i <= 1; ++i)
-				if (equipment.hands[i] != lastEquipment[formID].hands[i])
-					return;
-
-			for (int32_t i = 0; i <= 1; ++i)
-			{
-				const bool isLeftHand = (i == 1); 
-				const auto form = sd::GetEquippedWeapon(actor, isLeftHand);
-				if (equipment.hands[i] == nullptr)
-				{
-					if (form != nullptr && form != CustomWeapHand(nullptr, isLeftHand))
-					{
-						ErrorHandling::SendError("ERROR:Equipment 1");
-						sd::RemoveAllItems(actor, 0, 0, 0);
-						return ApplyHands(actor, equipment);
-					}
+					if (i != 1 || src != nullptr)
+						form = CustomWeapHand(src, i);
 				}
 				else
 				{
-					if (form == nullptr || form == CustomWeapHand(nullptr, isLeftHand))
-					{
-						ErrorHandling::SendError("ERROR:Equipment 2");
-						sd::RemoveAllItems(actor, 0, 0, 0);
-						return ApplyHands(actor, equipment);
-					}
+					form = src;
 				}
+
 			}
-		});
 
-		// Check if equipped incorrect (2)
-		SET_TIMER(1000, [=] {
-			auto actor = (Actor *)LookupFormByID(formID);
-			if (!actor || actor->formType != FormType::Reference)
-				return;
-			for (int32_t i = 0; i <= 1; ++i)
-				if (equipment.hands[i] != lastEquipment[formID].hands[i])
-					return;
-
-			auto weapR = sd::GetEquippedWeapon(actor, 0),
-				weapL = sd::GetEquippedWeapon(actor, 1);
-			if (weapR != nullptr && weapL != nullptr && equipment.hands[0] == nullptr)
+			if (form != nullptr)
 			{
-				ErrorHandling::SendError("ERROR:Equipment 3");
-				sd::RemoveAllItems(actor, 0, 0, 0);
-				return ApplyHands(actor, equipment);
+				sd::AddItem(actor, form, 1, true);
+				known.insert(form);
 			}
-		});
+		}
 	}
 }

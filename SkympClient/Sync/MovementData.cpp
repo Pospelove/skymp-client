@@ -312,14 +312,22 @@ namespace MovementData_
 	void ApplyBowAttack(ci::MovementData md, Actor *ac, SyncState &syncStatus)
 	{
 		try {
-			const bool isAiming = getIsAiming(md);
+			const bool isAiming = getIsAiming(md),
+				wasAiming = getIsAiming(syncStatus.last);
 			auto myFox = (TESObjectREFR *)LookupFormByID(syncStatus.myFoxID);
+
+			auto weap = sd::GetEquippedWeapon(ac, 0);
+			if(!weap)
+				weap = sd::GetEquippedWeapon(ac, 1);
+			if (!weap)
+				return;
 
 			if (HasEquippedBow(ac) && ac->IsWeaponDrawn())
 			{
 				const cd::Value<Actor> cdActor(ac);
 				if (isAiming)
 				{
+
 					if (!syncStatus.aiDrivenBowSync || !myFox || myFox->baseForm->formType != FormType::NPC)
 						SendAnimationEvent(cdActor, "bowAttackStart", 1);
 				}
@@ -335,6 +343,7 @@ namespace MovementData_
 					SendAnimationEvent(cdActor, "attackRelease", 1);
 				}
 			}
+
 		}
 		catch (...) {
 			ErrorHandling::SendError("ERROR:Movement ApplyBowAttack()");

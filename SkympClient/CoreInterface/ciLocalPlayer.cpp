@@ -780,6 +780,59 @@ void ci::LocalPlayer::SetDisplayGold(uint32_t count)
 clock_t timer = clock() + 5000;
 bool set = false;
 
+template <int32_t hand>
+void PreventKillmoves()
+{
+	static TESForm *eqWas = nullptr;
+	auto eq = sd::GetEquippedWeapon(g_thePlayer, hand);
+
+	if (eq && g_thePlayer->IsWeaponDrawn() == false)
+		eq = nullptr;
+
+	static auto menus = { "BarterMenu",
+		"Book Menu",
+		"ContainerMenu",
+		"Crafting Menu",
+		"FavoritesMenu",
+		"GiftMenu",
+		"InventoryMenu",
+		"MagicMenu"
+	};
+
+	if(eq)
+		for (auto menu : menus)
+		{
+			if (MenuManager::GetSingleton()->IsMenuOpen(menu))
+			{
+				eq = nullptr;
+				break;
+			}
+		}
+
+
+
+	static std::map<TESForm *, float> dmg;
+	if (eqWas != eq)
+	{
+		if (eq)
+		{
+			if (eq->GetAttackDamage() != 0)
+				dmg[eq] = eq->GetAttackDamage();
+			eq->attackDamage = 2;
+		}
+
+		if (eqWas)
+		{
+			try {
+				((ci::ItemType *)knownItems.at(eqWas))->SetDamage(dmg[eqWas]);
+			}
+			catch (...) {
+			}
+		}
+		eqWas = eq;
+	}
+}
+
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
@@ -800,8 +853,6 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fPowerAttackDefaultBonus", 0.0f);
 				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
 				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
-				sd::ExecuteConsoleCommand("set DecapitationChance to 0", nullptr);
-				sd::ExecuteConsoleCommand("set KillMoveRandom to 0", nullptr);
 			});
 			set = true;
 
@@ -811,6 +862,9 @@ void ci::LocalPlayer::Update()
 				((TESNPC *)npc)->TESSpellList::unk04->spells[id] = nullptr;
 		}
 	});
+
+	PreventKillmoves<0>();
+	PreventKillmoves<1>();
 
 	// Update Display Gold
 	SAFE_CALL("RemotePlayer", [&] {
