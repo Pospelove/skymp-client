@@ -1594,6 +1594,15 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->EquipSpell(Flames, handID);
 			}
 		}
+		else if (cmdText == L"//hit")
+		{
+			RakNet::BitStream bsOut;
+			bsOut.Write(ID_HIT_PLAYER);
+			bsOut.Write(net.myID);
+			bsOut.Write(GetItemTypeID(localPlayer->GetEquippedWeapon()));
+			bsOut.Write(false);
+			net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+		}
 		else if (cmdText == L"//clone")
 		{
 			p = new ci::RemotePlayer(

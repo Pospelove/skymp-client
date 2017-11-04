@@ -670,13 +670,6 @@ namespace ci
 					});
 
 					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->syncState.errors > 0)
-							this->ForceDespawn(L"Despawned: Movement sync errors");
-					});
-					if (pimpl->spawnStage == SpawnStage::NonSpawned)
-						return;
-
-					SAFE_CALL("RemotePlayer", [&] {
 						if (pimpl->currentNonExteriorCell != GetParentNonExteriorCell(g_thePlayer))
 							this->ForceDespawn(L"Despawned: Cell changed");
 					});
@@ -866,23 +859,6 @@ namespace ci
 			}
 		});
 
-
-		/*std::vector<RemotePlayer *> allRemotePlayers_(allRemotePlayers.begin(), allRemotePlayers.end());
-		SAFE_CALL("RemotePlayer", [&] {
-			auto pos = cd::GetPosition(g_thePlayer);
-			std::sort(allRemotePlayers_.begin(), allRemotePlayers_.end(), [=](RemotePlayer *p1, RemotePlayer *p2) {
-				float p1Distance = 1000 * 1000 * 1000,
-					p2Distance = 1000 * 1000 * 1000;
-				if (p1)
-					p1Distance = (pos - p1->GetPos()).Length();
-				if (p2)
-					p2Distance = (pos - p2->GetPos()).Length();
-				return p1Distance < p2Distance;
-			});
-		});*/
-
-		std::vector<RemotePlayer *> notUpdatedYet = {};
-		//notUpdatedYet.reserve(allRemotePlayers_.size() + 1);
 		UInt32 rating = 0;
 		SAFE_CALL("RemotePlayer", [&] {
 			std::for_each(allRemotePlayers.begin(), allRemotePlayers.end(), [&](RemotePlayer *p){
@@ -892,19 +868,9 @@ namespace ci
 					|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,128 }))
 				{
 					p->pimpl->rating = rating++;
-					p->Update();
 				}
-				else
-					notUpdatedYet.push_back(p);
+				p->Update();
 			});
-		});
-
-		SAFE_CALL("RemotePlayer", [&] {
-			for (auto it = notUpdatedYet.begin(); it != notUpdatedYet.end(); ++it)
-			{
-				if (*it)
-					(*it)->Update();
-			}
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {

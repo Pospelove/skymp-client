@@ -160,7 +160,9 @@ public:
 				WorldCleaner::GetSingleton()->SetFormProtected(0, false);
 				auto count = evn->count;
 				auto form = LookupFormByID(evn->item);
-				SET_TIMER(0, [=] {
+				SET_TIMER_LIGHT(0, [=] {
+					if (sd::IsDead(g_thePlayer))
+						return;
 
 					std::lock_guard<std::mutex> l(this->removesToIgnoreMutex);
 					if (this->removesToIgnore > 0)
@@ -451,6 +453,17 @@ void ci::LocalPlayer::EquipItem(const ItemType *item, bool silent, bool preventR
 		auto form = LookupFormByID(item->GetFormID());
 		if (form)
 		{
+			int32_t count;
+			try {
+				count = inventory.at(knownItems.at(form));
+			}
+			catch (...) {
+				count = 0;
+			}
+
+			if (!count)
+				return;
+
 			if (sd::GetItemCount(g_thePlayer, form) == 0)
 			{
 				SET_TIMER(200, [=] {
@@ -1154,11 +1167,15 @@ void ci::LocalPlayer::Update_OT()
 			}
 
 			SET_TIMER(0, [] {
+				int32_t added = 0;
 				for (auto it = inventory.begin(); it != inventory.end(); ++it)
 				{
 					auto form = LookupFormByID(it->first ? it->first->GetFormID() : NULL);
 					if (form)
+					{
 						sd::AddItem(g_thePlayer, form, it->second, true);
+						added++;
+					}
 				}
 			});
 		}
