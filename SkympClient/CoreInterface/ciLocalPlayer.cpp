@@ -1016,6 +1016,27 @@ void ci::LocalPlayer::Update()
 				}
 			}
 		}
+
+		enum {
+			Left = 0
+		};
+		const auto type = sd::GetEquippedItemType(g_thePlayer, Left);
+		enum {
+			Torch = 11
+		};
+		if (type == Torch && sd::GetEquippedWeapon(g_thePlayer, true) == nullptr)
+		{
+			for (auto it = inventory.begin(); it != inventory.end(); ++it)
+			{
+				const auto formID = it->first ? it->first->GetFormID() : NULL;
+				const auto form = LookupFormByID(formID);
+				if (form && form->formType == FormType::Light)
+				{
+					localPlEquippedArmor.push_back(it->first);
+					break;
+				}
+			}
+		}
 	});
 
 	// Иногда вызывает вылет при выходе в главное меню

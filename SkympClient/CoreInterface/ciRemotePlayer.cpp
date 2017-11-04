@@ -690,6 +690,13 @@ namespace ci
 					});
 					if (pimpl->spawnStage == SpawnStage::NonSpawned)
 						return;
+
+					SAFE_CALL("RemotePlayer", [&] {
+						if (sd::IsDead(actor) && this->GetAVData("Health").percentage > 0.0)
+							this->ForceDespawn(L"Despawned: Fake death");
+					});
+					if (pimpl->spawnStage == SpawnStage::NonSpawned)
+						return;
 				}
 
 				if (pimpl->timer1000ms + 1000 < clock())
