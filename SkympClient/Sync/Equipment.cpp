@@ -180,169 +180,183 @@ namespace Equipment_
 
 	void SetSpellTimer(cd::Value<Actor> cdAc, int32_t session, std::function<bool()> f)
 	{
-		if (sessionsMagic[cdAc.GetFormID()] == session)
-		{
-			if (!f())
+		try {
+			if (sessionsMagic[cdAc.GetFormID()] == session)
 			{
-				SET_TIMER_LIGHT(1333, [=] {
-					SetSpellTimer(cdAc, session, f);
-				});
+				if (!f())
+				{
+					SET_TIMER_LIGHT(1333, [=] {
+						SetSpellTimer(cdAc, session, f);
+					});
+				}
 			}
+		}
+		catch (...) {
+			ErrorHandling::SendError("ERROR:Equipment SetSpellTimer()");
 		}
 	}
 
 	void EquipBow(cd::Value<Actor> cdAc, int32_t session, TESForm *bowSrc, const bool lastIsAiming, uint32_t timerMS = 333)
 	{
-		if (!bowSrc)
-			return ErrorHandling::SendError("ERROR:Equipment Bow is nullptr");
+		try {
+			if (!bowSrc)
+				return ErrorHandling::SendError("ERROR:Equipment Bow is nullptr");
 
-		if (session != sessionsBow[cdAc.GetFormID()])
-			return; // Normal exit
+			if (session != sessionsBow[cdAc.GetFormID()])
+				return; // Normal exit
 
-		auto actor = (Actor *)cdAc;
-		if (!actor)
-			return;
+			auto actor = (Actor *)cdAc;
+			if (!actor)
+				return;
 
-		const bool isAiming = IsAiming(actor);
+			const bool isAiming = IsAiming(actor);
 
-		const auto bowCustom = CustomWeapHand(bowSrc, 0);
+			const auto bowCustom = CustomWeapHand(bowSrc, 0);
 
-		if (lastIsAiming != isAiming)
-		{
-			if (isAiming)
+			if (lastIsAiming != isAiming)
 			{
-				sd::RemoveItem(actor, bowSrc, -1, true, nullptr);
-				sd::AddItem(actor, bowCustom, 1, true);
-				timerMS = 4000;
+				if (isAiming)
+				{
+					sd::RemoveItem(actor, bowSrc, -1, true, nullptr);
+					sd::AddItem(actor, bowCustom, 1, true);
+					timerMS = 4000;
+				}
+				else
+				{
+					sd::RemoveItem(actor, bowCustom, -1, true, nullptr);
+					sd::AddItem(actor, bowSrc, 1, true);
+					timerMS = 100;
+				}
 			}
-			else
-			{
-				sd::RemoveItem(actor, bowCustom, -1, true, nullptr);
-				sd::AddItem(actor, bowSrc, 1, true);
-				timerMS = 100;
-			}
+
+			known.insert(bowCustom);
+			known.insert(bowSrc);
+
+			SET_TIMER_LIGHT(timerMS, [=] {
+				EquipBow(cdAc, session, bowSrc, isAiming, timerMS);
+			});
 		}
-
-		known.insert(bowCustom);
-		known.insert(bowSrc);
-
-		SET_TIMER_LIGHT(timerMS, [=] {
-			EquipBow(cdAc, session, bowSrc, isAiming, timerMS);
-		});
+		catch (...) {
+			ErrorHandling::SendError("ERROR:Equipment EquipBow()");
+		}
 	}
 
 	void ApplyHands(Actor *actor, const Equipment &equipment, std::function<bool()> isAiming)
 	{
 		Equipment_::isAiming[actor->formID] = isAiming;
 
-		for (auto form : known)
-		{
-			switch (form->formType)
+		SAFE_CALL("Equipment", [&] {
+			for (auto form : known)
 			{
-			case FormType::Weapon:
-				if (form != CustomWeapHand(equipment.hands[0], 0))
-					if (form != CustomWeapHand(equipment.hands[1], 1))
-						sd::RemoveItem(actor, form, -1, true, nullptr);
-				break;
-			case FormType::Spell:
-				for (int32_t s = 0; s != 3; ++s)
+				switch (form->formType)
 				{
-					sd::UnequipSpell(actor, (SpellItem *)form, s);
-				}
-				sd::RemoveSpell(actor, (SpellItem *)form);
-				break;
-			}
-		}
-
-		for (int32_t i = 0; i <= 1; ++i)
-		{
-			const auto src = equipment.hands[i];
-			TESForm *form = nullptr;
-			if (!src || src->formType == FormType::Weapon)
-			{
-				switch (src ? ((TESObjectWEAP *)src)->gameData.type : NULL)
-				{
-				case TESObjectWEAP::GameData::kType_TwoHandAxe:
-				case TESObjectWEAP::GameData::kType_TwoHandSword:
-				case TESObjectWEAP::GameData::kType_2HS:
-				case TESObjectWEAP::GameData::kType_2HA:
-				case TESObjectWEAP::GameData::kType_CBow:
-				case TESObjectWEAP::GameData::kType_Bow2:
-					form = src;
+				case FormType::Weapon:
+					if (form != CustomWeapHand(equipment.hands[0], 0))
+						if (form != CustomWeapHand(equipment.hands[1], 1))
+							sd::RemoveItem(actor, form, -1, true, nullptr);
 					break;
-				case TESObjectWEAP::GameData::kType_Bow:
-				{
-					const cd::Value<Actor> cdAc = actor;
-					const int32_t session = rand();
-					sessionsBow[cdAc.GetFormID()] = session;
-					const bool notAiming = !IsAiming(actor);
-					EquipBow(cdAc, session, src, notAiming);
-					break;
-				}
-				default:
-					if (i != 1 || src != nullptr)
-						form = CustomWeapHand(src, i);
-					break;
-
-				}
-
-				if (form != nullptr)
-				{
-					if (sd::GetItemCount(actor, form) == 0)
-						sd::AddItem(actor, form, 1, true);
-				}
-
-				if (form != nullptr)
-					known.insert(form);
-			}
-			else if (src->formType == FormType::Spell)
-			{
-				form = CustomSpellHand(src, i);
-
-				if (src == equipment.hands[!i]) // Dual wield magic
-				{
-					enum {
-						BothHands = 2,
-					};
-					form = CustomSpellHand(src, BothHands);
-				}
-
-				if (form != nullptr)
-				{
-					if (clock() - lastMagicApply[actor->formID] > 750)
+				case FormType::Spell:
+					for (int32_t s = 0; s != 3; ++s)
 					{
-						sd::AddSpell(actor, (SpellItem *)form, rand() % 2 != 0);
+						sd::UnequipSpell(actor, (SpellItem *)form, s);
+					}
+					sd::RemoveSpell(actor, (SpellItem *)form);
+					break;
+				}
+			}
+		});
 
-						const cd::Value<Actor> cdActor = actor;
-
-						auto f = [=] {
-							for (int32_t j = 0; j != 25; ++j)
-								cd::EquipSpell(cdActor, (SpellItem *)form, !i);
-							return cdActor.operator Actor *() == nullptr
-								|| sd::GetEquippedSpell(cdActor, 0) == form
-								|| sd::GetEquippedSpell(cdActor, 1) == form;
-						};
-
+		SAFE_CALL("Equipment", [&] {
+			for (int32_t i = 0; i <= 1; ++i)
+			{
+				const auto src = equipment.hands[i];
+				TESForm *form = nullptr;
+				if (!src || src->formType == FormType::Weapon)
+				{
+					switch (src ? ((TESObjectWEAP *)src)->gameData.type : NULL)
+					{
+					case TESObjectWEAP::GameData::kType_TwoHandAxe:
+					case TESObjectWEAP::GameData::kType_TwoHandSword:
+					case TESObjectWEAP::GameData::kType_2HS:
+					case TESObjectWEAP::GameData::kType_2HA:
+					case TESObjectWEAP::GameData::kType_CBow:
+					case TESObjectWEAP::GameData::kType_Bow2:
+						form = src;
+						break;
+					case TESObjectWEAP::GameData::kType_Bow:
+					{
+						const cd::Value<Actor> cdAc = actor;
 						const int32_t session = rand();
-						sessionsMagic[actor->formID] = session;
+						sessionsBow[cdAc.GetFormID()] = session;
+						const bool notAiming = !IsAiming(actor);
+						EquipBow(cdAc, session, src, notAiming);
+						break;
+					}
+					default:
+						if (i != 1 || src != nullptr)
+							form = CustomWeapHand(src, i);
+						break;
 
-						SetSpellTimer(cdActor, session, f);
+					}
 
+					if (form != nullptr)
+					{
+						if (sd::GetItemCount(actor, form) == 0)
+							sd::AddItem(actor, form, 1, true);
+					}
+
+					if (form != nullptr)
 						known.insert(form);
-						lastMagicApply[actor->formID] = clock();
+				}
+				else if (src->formType == FormType::Spell)
+				{
+					form = CustomSpellHand(src, i);
 
-						// Collect garbage
-						const auto copy = lastMagicApply;
-						for (auto &pair : copy)
+					if (src == equipment.hands[!i]) // Dual wield magic
+					{
+						enum {
+							BothHands = 2,
+						};
+						form = CustomSpellHand(src, BothHands);
+					}
+
+					if (form != nullptr)
+					{
+						if (clock() - lastMagicApply[actor->formID] > 750)
 						{
-							auto formID = pair.first;
-							if (LookupFormByID(formID) == nullptr)
-								lastMagicApply.erase(formID);
+							sd::AddSpell(actor, (SpellItem *)form, rand() % 2 != 0);
+
+							const cd::Value<Actor> cdActor = actor;
+
+							auto f = [=] {
+								for (int32_t j = 0; j != 25; ++j)
+									cd::EquipSpell(cdActor, (SpellItem *)form, !i);
+								return cdActor.operator Actor *() == nullptr
+									|| sd::GetEquippedSpell(cdActor, 0) == form
+									|| sd::GetEquippedSpell(cdActor, 1) == form;
+							};
+
+							const int32_t session = rand();
+							sessionsMagic[actor->formID] = session;
+
+							SetSpellTimer(cdActor, session, f);
+
+							known.insert(form);
+							lastMagicApply[actor->formID] = clock();
+
+							// Collect garbage
+							const auto copy = lastMagicApply;
+							for (auto &pair : copy)
+							{
+								auto formID = pair.first;
+								if (LookupFormByID(formID) == nullptr)
+									lastMagicApply.erase(formID);
+							}
 						}
 					}
 				}
 			}
-		}
+		});
 	}
 
 	TESForm *GetEquippedObject(Actor *actor, int32_t handID)
