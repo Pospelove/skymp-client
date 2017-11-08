@@ -1282,7 +1282,9 @@ class ClientLogic : public ci::IClientLogic
 	}
 
 
-	ci::Spell *Flames = nullptr;
+	ci::Spell *Flames = nullptr,
+		*Healing = nullptr,
+		*Telekinesis = nullptr;
 
 	void OnWorldInit() override
 	{
@@ -1290,8 +1292,7 @@ class ClientLogic : public ci::IClientLogic
 
 		if (firstInit)
 		{
-			/*Flames = new ci::Spell(0x00012FCD);
-
+			Flames = new ci::Spell(0x00012FCD);
 			auto FireDamageConcAimed = new ci::MagicEffect(
 				ci::MagicEffect::Archetype::ValueMod, 
 				0x00013CA9, 
@@ -1300,7 +1301,27 @@ class ClientLogic : public ci::IClientLogic
 			);
 			Flames->AddEffect(FireDamageConcAimed, 100.0, 1.0);
 
-			localPlayer->AddSpell(Flames, false);*/
+			Healing = new ci::Spell(0x00012FCC);
+			auto RestoreHealthConcSelf = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::ValueMod,
+				0x0001CEA4,
+				ci::MagicEffect::CastingType::Concentration,
+				ci::MagicEffect::Delivery::Self
+			);
+			Healing->AddEffect(RestoreHealthConcSelf, 25.0, 1.0);
+
+			Telekinesis = new ci::Spell(0x0001A4CC);
+			auto TelekinesisEffect = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::Telekinesis,
+				0x0001A4CB,
+				ci::MagicEffect::CastingType::Concentration,
+				ci::MagicEffect::Delivery::Aimed
+			);
+			Telekinesis->AddEffect(TelekinesisEffect, 1.0, 0.0);
+
+			localPlayer->AddSpell(Flames, true);
+			localPlayer->AddSpell(Healing, true);
+			localPlayer->AddSpell(Telekinesis, true);
 
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 

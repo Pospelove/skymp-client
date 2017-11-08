@@ -18,6 +18,8 @@ namespace Equipment_
 			*bothHands = (BGSEquipSlot *)LookupFormByID(0x00013F45);
 	};
 
+	std::map<TESForm *, TESForm *> sources;
+
 	TESObjectWEAP *CustomWeapHand(TESForm *source, bool isLeftHand)
 	{
 		static auto eqSlots = EquipSlots();
@@ -41,10 +43,70 @@ namespace Equipment_
 				leftHandWeap->SetEquipSlot(eqSlots.leftHand);
 				rightHandWeap->SetEquipSlot(eqSlots.rightHand);
 				data[source] = { rightHandWeap, leftHandWeap };
+
+				sources[leftHandWeap] = sources[rightHandWeap] = (SpellItem *)source;
 			}
+
 			return data[source][isLeftHand];
 		}
 		return nullptr;
+	}
+
+	SpellItem *CustomSpellHand(TESForm *source, int32_t handID)
+	{
+		static auto eqSlots = EquipSlots();
+		if (!source)
+			return nullptr;
+
+		if (source && (int32_t)source->formType == SpellItem::kTypeID)
+		{
+			/*static*/ std::map<TESForm *, std::array<SpellItem *, 3>> data;
+			auto it = data.find(source);
+			if (it == data.end())
+			{
+				auto leftHandWeap = (SpellItem *)malloc(sizeof SpellItem),
+					rightHandWeap = (SpellItem *)malloc(sizeof SpellItem),
+					bothHandsWeap = (SpellItem *)malloc(sizeof SpellItem);
+
+				memcpy(leftHandWeap, source, sizeof SpellItem);
+				memcpy(rightHandWeap, source, sizeof SpellItem);
+				memcpy(bothHandsWeap, source, sizeof SpellItem);
+
+				leftHandWeap->formID = 0;
+				rightHandWeap->formID = 0;
+				bothHandsWeap->formID = 0;
+
+				leftHandWeap->SetFormID(Utility::NewFormID(), 1);
+				rightHandWeap->SetFormID(Utility::NewFormID(), 1);
+				bothHandsWeap->SetFormID(Utility::NewFormID(), 1);
+
+				leftHandWeap->SetEquipSlot(eqSlots.leftHand);
+				rightHandWeap->SetEquipSlot(eqSlots.rightHand);
+				bothHandsWeap->SetEquipSlot(eqSlots.bothHands);
+
+				data[source] = { rightHandWeap, leftHandWeap, bothHandsWeap };
+
+				for (auto &sp : data[source])
+				{
+					sp->hostile = true;
+					sp->unk44 = nullptr;
+				}
+
+				sources[leftHandWeap] = sources[rightHandWeap] = sources[bothHandsWeap] = (SpellItem *)source;
+			}
+			return data[source][handID];
+		}
+		return nullptr;
+	}
+
+	TESForm *GetSourceByCustom(TESForm *custom)
+	{
+		auto result = sources[custom];
+		if (result == nullptr)
+			return custom;
+		if (result->formID == UnarmedBothHandsID)
+			return nullptr;
+		return result;
 	}
 
 	void ApplyOther(Actor *actor, Equipment equipment)
@@ -101,14 +163,42 @@ namespace Equipment_
 		});
 	}
 
+	std::set<TESForm *> known;
+	std::map<uint32_t, clock_t> lastMagicApply;
+	std::map<uint32_t, int32_t> sessions;
+
+	void SetSpellTimer(cd::Value<Actor> cdAc, int32_t session, std::function<bool()> f)
+	{
+		if (sessions[cdAc.GetFormID()] == session)
+		{
+			if (!f())
+			{
+				SET_TIMER_LIGHT(1333, [=] {
+					SetSpellTimer(cdAc, session, f);
+				});
+			}
+		}
+	}
 
 	void ApplyHands(Actor *actor, const Equipment &equipment)
 	{
-		static std::set<TESForm *> known;
-
 		for (auto form : known)
 		{
-			sd::RemoveItem(actor, form, -1, true, nullptr);
+			switch (form->formType)
+			{
+			case FormType::Weapon:
+				if (form != CustomWeapHand(equipment.hands[0], 0))
+					if (form != CustomWeapHand(equipment.hands[1], 1))
+						sd::RemoveItem(actor, form, -1, true, nullptr);
+				break;
+			case FormType::Spell:
+				for (int32_t s = 0; s != 3; ++s)
+				{
+					sd::UnequipSpell(actor, (SpellItem *)form, s);
+				}
+				sd::RemoveSpell(actor, (SpellItem *)form);
+				break;
+			}
 		}
 
 		for (int32_t i = 0; i <= 1; ++i)
@@ -117,23 +207,103 @@ namespace Equipment_
 			TESForm *form = nullptr;
 			if (!src || src->formType == FormType::Weapon)
 			{
-				if (!src || ((TESObjectWEAP *)src)->GetEquipSlot() == GetEitherHandSlot())
+				bool bothHands = false;
+				if (src != nullptr)
+				{
+					switch (((TESObjectWEAP *)src)->gameData.type)
+					{
+					case TESObjectWEAP::GameData::kType_Bow:
+					case TESObjectWEAP::GameData::kType_TwoHandAxe:
+					case TESObjectWEAP::GameData::kType_TwoHandSword:
+					case TESObjectWEAP::GameData::kType_2HS:
+					case TESObjectWEAP::GameData::kType_2HA:
+					case TESObjectWEAP::GameData::kType_CBow:
+					case TESObjectWEAP::GameData::kType_Bow2:
+
+						bothHands = true;
+						break;
+					}
+				}
+
+				if (bothHands)
+				{
+					form = src;
+				}
+				else
 				{
 					if (i != 1 || src != nullptr)
 						form = CustomWeapHand(src, i);
 				}
-				else
+				if (form != nullptr)
 				{
-					form = src;
+					if (sd::GetItemCount(actor, form) == 0)
+						sd::AddItem(actor, form, 1, true);
 				}
 
+				if (form != nullptr)
+					known.insert(form);
 			}
-
-			if (form != nullptr)
+			else if (src->formType == FormType::Spell)
 			{
-				sd::AddItem(actor, form, 1, true);
-				known.insert(form);
+				form = CustomSpellHand(src, i);
+
+				if (src == equipment.hands[!i]) // Dual wield magic
+				{
+					enum {
+						BothHands = 2,
+					};
+					form = CustomSpellHand(src, BothHands);
+				}
+
+				if (form != nullptr)
+				{
+					if (clock() - lastMagicApply[actor->formID] > 750)
+					{
+						sd::AddSpell(actor, (SpellItem *)form, rand() % 2 != 0);
+
+						const cd::Value<Actor> cdActor = actor;
+
+						auto f = [=] {
+							for (int32_t j = 0; j != 25; ++j)
+								cd::EquipSpell(cdActor, (SpellItem *)form, !i);
+							return cdActor.operator Actor *() == nullptr
+								|| sd::GetEquippedSpell(cdActor, 0) == form
+								|| sd::GetEquippedSpell(cdActor, 1) == form;
+						};
+						//f();
+
+						const int32_t session = rand();
+						sessions[actor->formID] = session;
+
+						SetSpellTimer(cdActor, session, f);
+
+						known.insert(form);
+						lastMagicApply[actor->formID] = clock();
+
+						// Collect garbage
+						const auto copy = lastMagicApply;
+						for (auto &pair : copy)
+						{
+							auto formID = pair.first;
+							if (LookupFormByID(formID) == nullptr)
+								lastMagicApply.erase(formID);
+						}
+					}
+				}
 			}
 		}
+	}
+
+	TESForm *GetEquippedObject(Actor *actor, int32_t handID)
+	{
+		auto weap = sd::GetEquippedWeapon(actor, handID);
+		if (weap)
+			return GetSourceByCustom(weap);
+
+		auto spell = sd::GetEquippedSpell(actor, !handID);
+		if (spell)
+			return GetSourceByCustom(spell);
+
+		return nullptr;
 	}
 }
