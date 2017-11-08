@@ -165,11 +165,22 @@ namespace Equipment_
 
 	std::set<TESForm *> known;
 	std::map<uint32_t, clock_t> lastMagicApply;
-	std::map<uint32_t, int32_t> sessions;
+	std::map<uint32_t, int32_t> sessionsMagic;
+	std::map<uint32_t, int32_t> sessionsBow;
+	std::map<uint32_t, std::function<bool()>> isAiming;
+
+	bool IsAiming(Actor *actor)
+	{
+		if (!actor)
+			return false;
+		if (!isAiming[actor->formID])
+			return false;
+		return isAiming[actor->formID]();
+	}
 
 	void SetSpellTimer(cd::Value<Actor> cdAc, int32_t session, std::function<bool()> f)
 	{
-		if (sessions[cdAc.GetFormID()] == session)
+		if (sessionsMagic[cdAc.GetFormID()] == session)
 		{
 			if (!f())
 			{
@@ -180,8 +191,50 @@ namespace Equipment_
 		}
 	}
 
-	void ApplyHands(Actor *actor, const Equipment &equipment)
+	void EquipBow(cd::Value<Actor> cdAc, int32_t session, TESForm *bowSrc, const bool lastIsAiming, uint32_t timerMS = 333)
 	{
+		if (!bowSrc)
+			return ErrorHandling::SendError("ERROR:Equipment Bow is nullptr");
+
+		if (session != sessionsBow[cdAc.GetFormID()])
+			return; // Normal exit
+
+		auto actor = (Actor *)cdAc;
+		if (!actor)
+			return;
+
+		const bool isAiming = IsAiming(actor);
+
+		const auto bowCustom = CustomWeapHand(bowSrc, 0);
+
+		if (lastIsAiming != isAiming)
+		{
+			if (isAiming)
+			{
+				sd::RemoveItem(actor, bowSrc, -1, true, nullptr);
+				sd::AddItem(actor, bowCustom, 1, true);
+				timerMS = 4000;
+			}
+			else
+			{
+				sd::RemoveItem(actor, bowCustom, -1, true, nullptr);
+				sd::AddItem(actor, bowSrc, 1, true);
+				timerMS = 100;
+			}
+		}
+
+		known.insert(bowCustom);
+		known.insert(bowSrc);
+
+		SET_TIMER_LIGHT(timerMS, [=] {
+			EquipBow(cdAc, session, bowSrc, isAiming, timerMS);
+		});
+	}
+
+	void ApplyHands(Actor *actor, const Equipment &equipment, std::function<bool()> isAiming)
+	{
+		Equipment_::isAiming[actor->formID] = isAiming;
+
 		for (auto form : known)
 		{
 			switch (form->formType)
@@ -207,33 +260,32 @@ namespace Equipment_
 			TESForm *form = nullptr;
 			if (!src || src->formType == FormType::Weapon)
 			{
-				bool bothHands = false;
-				if (src != nullptr)
+				switch (src ? ((TESObjectWEAP *)src)->gameData.type : NULL)
 				{
-					switch (((TESObjectWEAP *)src)->gameData.type)
-					{
-					case TESObjectWEAP::GameData::kType_Bow:
-					case TESObjectWEAP::GameData::kType_TwoHandAxe:
-					case TESObjectWEAP::GameData::kType_TwoHandSword:
-					case TESObjectWEAP::GameData::kType_2HS:
-					case TESObjectWEAP::GameData::kType_2HA:
-					case TESObjectWEAP::GameData::kType_CBow:
-					case TESObjectWEAP::GameData::kType_Bow2:
-
-						bothHands = true;
-						break;
-					}
-				}
-
-				if (bothHands)
-				{
+				case TESObjectWEAP::GameData::kType_TwoHandAxe:
+				case TESObjectWEAP::GameData::kType_TwoHandSword:
+				case TESObjectWEAP::GameData::kType_2HS:
+				case TESObjectWEAP::GameData::kType_2HA:
+				case TESObjectWEAP::GameData::kType_CBow:
+				case TESObjectWEAP::GameData::kType_Bow2:
 					form = src;
-				}
-				else
+					break;
+				case TESObjectWEAP::GameData::kType_Bow:
 				{
+					const cd::Value<Actor> cdAc = actor;
+					const int32_t session = rand();
+					sessionsBow[cdAc.GetFormID()] = session;
+					const bool notAiming = !IsAiming(actor);
+					EquipBow(cdAc, session, src, notAiming);
+					break;
+				}
+				default:
 					if (i != 1 || src != nullptr)
 						form = CustomWeapHand(src, i);
+					break;
+
 				}
+
 				if (form != nullptr)
 				{
 					if (sd::GetItemCount(actor, form) == 0)
@@ -270,10 +322,9 @@ namespace Equipment_
 								|| sd::GetEquippedSpell(cdActor, 0) == form
 								|| sd::GetEquippedSpell(cdActor, 1) == form;
 						};
-						//f();
 
 						const int32_t session = rand();
-						sessions[actor->formID] = session;
+						sessionsMagic[actor->formID] = session;
 
 						SetSpellTimer(cdActor, session, f);
 

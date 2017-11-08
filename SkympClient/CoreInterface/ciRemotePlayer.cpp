@@ -719,6 +719,31 @@ namespace ci
 
 					// Apply Equipment
 					SAFE_CALL("RemotePlayer", [&] {
+
+						auto isAiming = [=] {
+							std::lock_guard<dlf_mutex> l(gMutex);
+							if (allRemotePlayers.find(this) == allRemotePlayers.end())
+								return false;
+
+							auto md = this->GetMovementData();
+
+							auto getIsAiming = [](const ci::MovementData &md) {
+								enum AttackState {
+									BowClick = 8,
+									BowDrawing = 9,
+									BowHoldingAShot = 10,
+									BowRelease = 11,
+									BowReleased = 12,
+								};
+								return md.attackState == BowClick
+									|| md.attackState == BowDrawing
+									|| md.attackState == BowHoldingAShot
+									|| md.attackState == BowRelease;
+							};
+
+							return getIsAiming(md);
+						};
+
 						if ((pimpl->eq.hands != pimpl->eqLast.hands && clock() - pimpl->lastWeaponsUpdate > 300)
 							|| (pimpl->eq.handsMagic != pimpl->eqLast.handsMagic))
 						{
@@ -737,7 +762,7 @@ namespace ci
 								eq.hands[i] = form;
 							}
 
-							Equipment_::ApplyHands(actor, eq);
+							Equipment_::ApplyHands(actor, eq, isAiming);
 							pimpl->eqLast.hands = pimpl->eq.hands;
 							pimpl->eqLast.handsMagic = pimpl->eq.handsMagic;
 							pimpl->lastWeaponsUpdate = clock();

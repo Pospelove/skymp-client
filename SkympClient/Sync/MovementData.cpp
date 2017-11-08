@@ -339,8 +339,8 @@ namespace MovementData_
 							syncStatus.shotsRecordStart = clock();
 						syncStatus.numShots++;
 						syncStatus.lastShot = clock();
+						SendAnimationEvent(cdActor, "attackRelease", 1);
 					}
-					SendAnimationEvent(cdActor, "attackRelease", 1);
 				}
 			}
 

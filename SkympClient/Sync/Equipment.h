@@ -16,7 +16,8 @@ namespace Equipment_
 
 	// Note: Different spells in different hands are not supported
 	// Note: Fast equipping/unequipping spells will cause crash
-	void ApplyHands(Actor *actor, const Equipment &equipment);
+	// Note: Bow equipping will not work properly with incorrect isAiming function
+	void ApplyHands(Actor *actor, const Equipment &equipment, std::function<bool()> isAiming);
 
 	// For armor, ammo and torches
 	void ApplyOther(Actor *actor, Equipment equipment);
