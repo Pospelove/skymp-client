@@ -37,25 +37,72 @@ namespace ci
 	RemotePlayer *currentFixingGreyFace = nullptr;
 	dlf_mutex gMutex;
 	uint32_t numInvisibleFoxes = 0;
+	RemotePlayer *useMagicPackageHolder = nullptr;
+
+	struct WorldSpellData
+	{
+		const ci::Spell *spell = nullptr;
+		uint32_t casters = 0;
+		SpellItem *casterRealEquippedSpell = nullptr;
+
+	};
+
+	WorldSpellData worldSpell;
 
 	inline float GetRespawnRadius(bool isInterior) {
 		return SyncOptions::GetSingleton()->GetFloat("DRAW_DISTANCE");
 	}
 
+	std::vector<std::pair<uint32_t, uint32_t>> packages = {
+		{ ID_TESPackage::WCollegePracticeCastWard, ID_SpellItem::CollegePracticeWard },
+	};
+
+	void SetPackageSpell(size_t packageN, uint32_t spellID)
+	{
+		const auto collegePracticeWard = (SpellItem *)LookupFormByID(packages[packageN].second);
+		const auto formID = collegePracticeWard->formID;
+		const auto s = (SpellItem *)LookupFormByID(spellID);
+		memcpy(collegePracticeWard, s, sizeof SpellItem);
+		collegePracticeWard->data.calculations.cost = 0;
+		collegePracticeWard->formID = formID;
+	}
+
+	void SetPackageCondition_ZeroVariable01(TESPackage *package)
+	{
+		static auto ambushSitPackage = (TESPackage *)LookupFormByID(ID_TESPackage::ambushSitPackage); // Condition: Variable01 == 0
+		package->unk3C = ambushSitPackage->unk3C;
+	}
+
 	void ApplyPackage(TESNPC *npc)
 	{
 		// forceav variable10 1.0/0.0 to start/stop combat
+		// forceav variable01 0.0/1.0 to start/stop casting
 
 		auto nonDrawn = (TESPackage *)LookupFormByID(0x000654E2);
 		auto drawn = (TESPackage *)LookupFormByID(0x0004E4BB);
 
+		static auto useMagic = (TESPackage *) nullptr;
+		if (!useMagic)
+		{
+			const size_t packageN = 0;
+			const auto defaultSpell = ID_SpellItem::Flames;
+
+			useMagic = (TESPackage *)LookupFormByID(packages[packageN].first);
+			SetPackageCondition_ZeroVariable01(useMagic);
+			useMagic->packageFlags = drawn->packageFlags;
+
+			SetPackageSpell(packageN, defaultSpell);
+		}
+
 		if (!npc)
 			return;
 		auto &data = npc->TESAIForm::unk10;
-		data.unk0 = (UInt32)drawn;
+		data.unk0 = (UInt32)useMagic;
 		data.next = FormHeap_Allocate<TESAIForm::Data>();
-		data.next->unk0 = (UInt32)nonDrawn;
-		data.next->next = nullptr;
+		data.next->unk0 = (UInt32)drawn;
+		data.next->next = FormHeap_Allocate<TESAIForm::Data>();
+		data.next->next->unk0 = (UInt32)nonDrawn;
+		data.next->next->next = nullptr;
 	}
 
 	TESObjectCELL *GetParentNonExteriorCell(TESObjectREFR *ref)
@@ -282,6 +329,80 @@ namespace ci
 		};
 	};
 
+	void RemotePlayer::ApplyWorldSpell()
+	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+
+		auto spell = worldSpell.spell ? LookupFormByID(worldSpell.spell->GetFormID()) : nullptr;
+		if (worldSpell.casters == 1)
+			spell = worldSpell.casterRealEquippedSpell;
+
+		static TESForm *appliedSpell = nullptr;
+		if (appliedSpell != spell)
+		{
+			if (spell != nullptr)
+			{
+				auto dest = (SpellItem *)LookupFormByID(packages[0].second);
+				const auto formID = dest->formID;
+				memcpy(dest, spell, sizeof SpellItem);
+				dest->formID = formID;
+
+				if (dest->effectItemList.size() > 0)
+				{
+					const bool isTelekinesis = dest->effectItemList.front()->mgef->properties.archetype == EffectSetting::Properties::Archetype::kArchetype_Telekinesis;
+					if (!isTelekinesis) // Clear effectItemList of Telekinesis would remove unique cast anim
+						dest->effectItemList.clear();
+				}
+			}
+			appliedSpell = spell;
+		}
+	}
+
+	void RemotePlayer::UpdateWorldSpell()
+	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+
+		std::map<const ci::Spell *, int32_t> worldSpellElection;
+		int32_t max = -1;
+		const ci::Spell *bestSpell = nullptr;
+
+		std::for_each(allRemotePlayers.begin(), allRemotePlayers.end(), [&](RemotePlayer *p) {
+
+			if (p->GetSyncMode() != (int32_t)MovementData_::SyncMode::Hard)
+				return;
+
+			const auto md = p->GetMovementData();
+			for (int32_t i = 0; i <= 1; ++i)
+			{
+				if (md.castStage[i] != ci::MovementData::CastStage::None)
+				{
+					auto activeSpell = p->GetEquippedSpell(i);
+					if (activeSpell != nullptr)
+					{
+						++worldSpellElection[activeSpell];
+						if (worldSpellElection[activeSpell] > max)
+						{
+							max = worldSpellElection[activeSpell];
+							bestSpell = activeSpell;
+
+							auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
+							if (actor != nullptr)
+								worldSpell.casterRealEquippedSpell = sd::GetEquippedSpell(actor, !i);
+						}
+						break;
+					}
+				}
+			}
+
+		});
+
+		if (bestSpell != nullptr)
+		{
+			worldSpell.spell = bestSpell;
+			worldSpell.casters = max;
+		}
+	}
+
 	RemotePlayer::RemotePlayer(const std::wstring &name, const LookData &lookData, NiPoint3 spawnPoint, uint32_t cellID, uint32_t worldSpaceID, OnHit onHit) :
 		pimpl(new Impl)
 	{
@@ -474,6 +595,8 @@ namespace ci
 
 					// Apply Movement
 					SAFE_CALL("RemotePlayer", [&] {
+						for (int32_t i = 0; i <= 1; ++i)
+							pimpl->syncState.isWorldSpell[i] = (pimpl->eq.handsMagic[i] == worldSpell.spell);
 						this->ApplyMovementDataImpl();
 					});
 
@@ -489,24 +612,29 @@ namespace ci
 						}
 					});
 
-					// Apply Health
+					// Apply Actor Values
 					SAFE_CALL("RemotePlayer", [&] {
-						if (pimpl->avDataLast != pimpl->avData)
-						{
-							pimpl->avDataLast = pimpl->avData;
-							enum {
-								InternalMult = 10000,
-							};
-							const auto full = (pimpl->avData["health"].base + pimpl->avData["health"].modifier) * InternalMult;
-							const auto dest = full * pimpl->avData["health"].percentage;
-							sd::SetActorValue(actor, "health", full);
-							auto current = sd::GetActorValue(actor, "health");
-							auto change = dest - current;
-							if (change > 0)
-								sd::RestoreActorValue(actor, "health", change);
-							else
-								sd::DamageActorValue(actor, "health", -change);
-						}
+						auto applyAV = [&](char *avNameLowerCase) {
+							if (pimpl->avDataLast != pimpl->avData)
+							{
+								pimpl->avDataLast = pimpl->avData;
+								enum {
+									InternalMult = 10000,
+								};
+								const auto full = (pimpl->avData[avNameLowerCase].base + pimpl->avData[avNameLowerCase].modifier) * InternalMult;
+								const auto dest = full * pimpl->avData[avNameLowerCase].percentage;
+								sd::SetActorValue(actor, avNameLowerCase, full);
+								auto current = sd::GetActorValue(actor, avNameLowerCase);
+								auto change = dest - current;
+								if (change > 0)
+									sd::RestoreActorValue(actor, avNameLowerCase, change);
+								else
+									sd::DamageActorValue(actor, avNameLowerCase, -change);
+							}
+						};
+						applyAV("health");
+						applyAV("stamina");
+						applyAV("magicka");
 					});
 				}
 
@@ -657,6 +785,7 @@ namespace ci
 					// Hands Equipment Checks (Experimental)
 					// seems not working properly
 					SAFE_CALL("RemotePlayer", [&] {
+						return;
 						if (clock() - pimpl->lastWeaponsUpdate > 1000)
 						{
 							auto toForm = [](const ci::ItemType *cir)
@@ -680,6 +809,7 @@ namespace ci
 										if (form != toForm(pimpl->eq.hands[i]))
 										{
 											pimpl->eqLast = {};
+											ErrorHandling::SendError("ERROR:RemotePlayer Wrong weapon");
 											break;
 										}
 									}
@@ -689,6 +819,7 @@ namespace ci
 									if (form != toForm1(pimpl->eq.handsMagic[i]))
 									{
 										pimpl->eqLast = {};
+										ErrorHandling::SendError("ERROR:RemotePlayer Wrong spell");
 										break;
 									}
 								}
@@ -906,6 +1037,7 @@ namespace ci
 					sd::SetActorValue(actor, "Confidence", 4.0);
 					sd::SetActorValue(actor, "Agression", 0.0);
 					sd::SetActorValue(actor, "attackdamagemult", 0.0);
+					sd::SetActorValue(actor, "Variable01", rand());
 
 					BSFixedString name = WstringToString(pimpl->name).c_str();
 					actor->SetDisplayName(name, true);
@@ -952,6 +1084,12 @@ namespace ci
 		}
 	}
 
+	int32_t RemotePlayer::GetSyncMode() const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return (int32_t)pimpl->syncState.syncMode;
+	}
+
 	void RemotePlayer::UpdateAll()
 	{
 		SAFE_CALL("RemotePlayer", [&] {
@@ -991,6 +1129,14 @@ namespace ci
 				}
 				p->Update();
 			});
+		});
+
+		SAFE_CALL("RemotePlayer", [&] {
+			UpdateWorldSpell();
+		});
+		
+		SAFE_CALL("RemotePlayer", [&] {
+			ApplyWorldSpell();
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {

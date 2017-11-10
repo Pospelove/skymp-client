@@ -14,9 +14,15 @@ namespace MovementData_
 	class SyncState
 	{
 	public:
+
+		SyncState() {
+			isWorldSpell[0] = isWorldSpell[1] = false;
+		}
+
 		// in
 		bool fullyUnsafeSync = false;
 		uint32_t myFoxID = 0;
+		bool isWorldSpell[2];
 
 		// in-out
 		SyncMode syncMode = SyncMode::Light;
@@ -56,6 +62,7 @@ namespace MovementData_
 		uint32_t numShots = 0;
 		clock_t shotsRecordStart = 0;
 		clock_t lastShot = 0;
+		clock_t lastCastRelease = 0;
 	};
 
 

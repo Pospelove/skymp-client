@@ -52,6 +52,10 @@ namespace ci
 
 	struct MovementData
 	{
+		MovementData() {
+			this->castStage = { CastStage::None, CastStage::None };
+		}
+
 		enum class RunMode : uint8_t
 		{
 			Standing = 0,
@@ -66,6 +70,14 @@ namespace ci
 			Falling = 2
 		};
 
+		enum class CastStage : uint8_t
+		{
+			None = 0,
+			Casting = 1,
+			Fire = 2,
+			Release = 3,
+		};
+
 		NiPoint3 pos = { 0,0,0 };
 		uint16_t angleZ = 0;
 		uint16_t direction = 0;
@@ -74,6 +86,7 @@ namespace ci
 		uint16_t attackState = 0;
 		RunMode runMode = RunMode::Standing;
 		JumpStage jumpStage = JumpStage::Landed;
+		std::array<CastStage, 2> castStage;
 		bool isInJumpState = false;
 		bool isJumping = false;
 		bool isSprinting = false;

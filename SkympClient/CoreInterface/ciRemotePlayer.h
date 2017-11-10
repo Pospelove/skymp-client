@@ -65,10 +65,13 @@ namespace ci
 	private:
 		static void UpdateAll();
 		static void UpdateAll_OT();
+		static void UpdateWorldSpell();
+		static void ApplyWorldSpell();
 		void Update();
 		void Update_OT();
 		void ForceSpawn(uint32_t npcID);
 		void ForceDespawn(const wchar_t *reason = L"");
+		int32_t GetSyncMode() const;
 
 	protected:
 

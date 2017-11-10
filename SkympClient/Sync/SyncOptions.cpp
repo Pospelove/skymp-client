@@ -107,7 +107,8 @@ void WriteDefaultOptions()
 		"Light.maxLagDistance = 128\n"
 		"Light.maxLagDistanceOnRotate = 128\n"
 		"Light.negligibleTime = 200\n"
-		"Light.headtrackingDisabled = 0\n";
+		"Light.headtrackingDisabled = 0\n"
+		"CastReleaseDelay = 1000\n";
 
 	std::ofstream ofs(cfgFile);
 	ofs << s;

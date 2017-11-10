@@ -12,8 +12,11 @@ namespace MovementData_
 {
 	using RunMode = ci::MovementData::RunMode;
 	using JumpStage = ci::MovementData::JumpStage;
+	using CastStage = ci::MovementData::CastStage;
 
 	JumpStage currentPCJumpStage;
+	CastStage currentPCCastStage[2] = { CastStage::None, CastStage::None };
+	int32_t castSession[2] = { 0, 0 };
 	bool isPCBlocking = false;
 	clock_t weapDrawStart = 0;
 	clock_t lastAnySwing = 0;
@@ -45,6 +48,18 @@ namespace MovementData_
 			cd::SendAnimationEvent(actor, aeName);
 	}
 
+	void EvaluatePackage(cd::Value<Actor> actor, bool unsafe) {
+		if (unsafe)
+		{
+			if(actor.operator Actor *() != nullptr)
+			sd::EvaluatePackage(actor);
+		}
+		else
+		{
+			cd::EvaluatePackage(actor);
+		}
+	}
+
 	NiPoint3 RotationMatrixToEulerAngles(const NiMatrix3 &R)
 	{
 		const float sy = sqrt(R.GetEntry(0, 0) * R.GetEntry(0, 0) + R.GetEntry(1, 0) * R.GetEntry(1, 0));
@@ -65,8 +80,78 @@ namespace MovementData_
 		return { x, y, z };
 	}
 
+	void OnActorAction(int32_t actionID, int32_t slotID)
+	{
+	}
+
+	void Update()
+	{
+		enum {
+			Staff = 8,
+			MagicSpell = 9,
+		};
+
+		const int32_t btnIDs[2] = { VK_LBUTTON, VK_RBUTTON };
+
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+			const auto pressed = sd::GetKeyPressed(btnIDs[i]);
+			if (!pressed)
+			{
+				if (currentPCCastStage[i] == CastStage::Fire)
+				{
+					currentPCCastStage[i] = CastStage::Release;
+				}
+				else
+					currentPCCastStage[i] = CastStage::None;
+			}
+			else if (pressed && sd::Obscript::IsCasting(g_thePlayer) && currentPCCastStage[i] == CastStage::None)
+			{
+				const auto typeID = sd::GetEquippedItemType(g_thePlayer, !i);
+				if (typeID == Staff || typeID == MagicSpell)
+				{
+					currentPCCastStage[i] = CastStage::Casting;
+
+					const int32_t session = rand();
+					castSession[i] = session;
+
+					const auto spell = sd::GetEquippedSpell(g_thePlayer, !i);
+					const float duration = spell ? spell->data.duration * 1000 : 0;
+
+					SET_TIMER_LIGHT(duration + 100, [=] {
+						if (castSession[i] == session)
+						{
+							currentPCCastStage[i] = CastStage::Fire;
+						}
+					});
+				}
+			}
+		}
+
+		int32_t timerMS = 600;
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+			const auto typeID = sd::GetEquippedItemType(g_thePlayer, !i);
+			if (typeID == Staff || typeID == MagicSpell)
+			{
+				timerMS = 100;
+				break;
+			}
+		}
+		SET_TIMER_LIGHT(timerMS, Update);
+	}
+
 	void OnAnimationEvent(TESObjectREFR *src, std::string animEventName)
 	{
+		{
+			static bool startedUpdates = false;
+			if (!startedUpdates)
+			{
+				SET_TIMER_LIGHT(0, Update);
+				startedUpdates = true;
+			}
+		}
+
 		static std::string lastAE;
 		std::transform(animEventName.begin(), animEventName.end(), animEventName.begin(), ::tolower);
 
@@ -96,6 +181,27 @@ namespace MovementData_
 			lastAnySwing = clock();
 
 		HitData_OnAnimationEvent(src, animEventName);
+
+		if (lastAE != animEventName)
+		{
+			if (std::string{ animEventName.begin(), animEventName.begin() + 12 } == "skymp_action")
+			{
+				auto actionBegin = animEventName.begin() + 12,
+					actionEnd = animEventName.begin() + 12;
+
+				auto slotStr = "slot";
+
+				while (*actionEnd != slotStr[0] && actionEnd - actionBegin <= 2)
+					++actionEnd;
+				const int32_t actionID = atoi(std::string{ actionBegin, actionEnd }.data());
+				
+				auto slotBegin = actionEnd + strlen(slotStr);
+				auto slotEnd = animEventName.end();
+				const int32_t slotID = atoi(std::string{ slotBegin, slotEnd }.data());
+
+				OnActorAction(actionID, slotID);
+			}
+		}
 
 		lastAE = animEventName;
 	}
@@ -145,6 +251,11 @@ namespace MovementData_
 			currentPCJumpStage = JumpStage::Landed;
 
 		result.jumpStage = actor == g_thePlayer ? currentPCJumpStage : JumpStage::Landed;
+
+		if (actor == g_thePlayer)
+			result.castStage = { currentPCCastStage[0], currentPCCastStage[1] };
+		else
+			result.castStage = { sd::Obscript::IsCasting(actor) ? CastStage::Fire : CastStage::None, CastStage::None };
 
 		if (actor == g_thePlayer)
 			result.isFirstPerson = PlayerCamera::GetSingleton()->IsFirstPerson();
@@ -602,12 +713,12 @@ namespace MovementData_
 							if (sd::GetEquippedSpell(ac, 1) == nullptr && sd::GetEquippedSpell(ac, 0) == nullptr)
 								sd::StartCombat(ac, ghostAxe);
 					}
-					ac->DrawSheatheWeapon(true);
+					//ac->DrawSheatheWeapon(true);
 				}
 				else
 				{
 					sd::StopCombat(ac);
-					ac->DrawSheatheWeapon(false);
+					//ac->DrawSheatheWeapon(false);
 				}
 			}
 		}
@@ -664,6 +775,66 @@ namespace MovementData_
 		}
 	}
 
+	void ApplyCasting(ci::MovementData md, Actor *ac, SyncState &syncStatus)
+	{
+		enum {
+			CastStart = 0,
+			CastStop = 1,
+		};
+		char *const castStageAV = "Variable01";
+
+		const auto invalidCastStage = (CastStage)-1;
+
+		if (clock() - syncStatus.lastCastRelease > SyncOptions::GetSingleton()->GetInt("CastReleaseDelay"))
+		{
+			if (syncStatus.lastCastRelease != 0)
+			{
+				syncStatus.lastCastRelease = 0;
+				for (int32_t i = 0; i <= 0; ++i)
+					syncStatus.last.castStage[i] = invalidCastStage;
+			}
+		}
+
+		if(md.castStage != syncStatus.last.castStage)
+		{
+			auto syncForHand = [&](int32_t i) {
+				auto castStage = md.castStage[i];
+
+				if (!syncStatus.isWorldSpell[i])
+					castStage = CastStage::None;
+
+				//ci::Chat::AddMessage(std::to_wstring((int32_t)castStage));
+
+				switch (castStage)
+				{
+				case CastStage::None:
+					sd::ForceActorValue(ac, castStageAV, CastStop);
+					break;
+				case CastStage::Casting:
+				case CastStage::Fire:
+					sd::ForceActorValue(ac, castStageAV, CastStart);
+					break;
+				case CastStage::Release:
+					if (syncStatus.last.castStage[i] != invalidCastStage)
+					{
+						sd::ForceActorValue(ac, castStageAV, CastStart);
+						SendAnimationEvent(ac, "MRh_SpellRelease_Event", syncStatus.fullyUnsafeSync);
+						syncStatus.lastCastRelease = clock();
+					}
+					else
+						sd::ForceActorValue(ac, castStageAV, CastStop);
+					break;
+				}
+				EvaluatePackage(ac, syncStatus.fullyUnsafeSync);
+			};
+
+			if (md.castStage[1] != CastStage::None)
+				syncForHand(1);
+			else
+				syncForHand(0);
+		}
+	}
+
 	void FixAfterHitAnim(SyncState &syncStatus)
 	{
 		syncStatus.updateUnsafeSDFuncsTimer = 0;
@@ -717,6 +888,7 @@ namespace MovementData_
 			ApplyCombat(md, ac, syncStatus, config, ghostAxeID);
 			ApplyBlocking(md, ac, syncStatus, config);
 			ApplyJumping(md, ac, syncStatus, config);
+			ApplyCasting(md, ac, syncStatus);
 
 			if (syncStatus.forceFixAfterHitAnim
 				&& syncStatus.syncMode == SyncMode::Hard)

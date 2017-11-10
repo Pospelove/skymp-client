@@ -183,11 +183,14 @@ namespace Equipment_
 		try {
 			if (sessionsMagic[cdAc.GetFormID()] == session)
 			{
-				if (!f())
+				if (sd::Obscript::IsCasting(cdAc) == false)
 				{
-					SET_TIMER_LIGHT(1333, [=] {
-						SetSpellTimer(cdAc, session, f);
-					});
+					if (!f())
+					{
+						SET_TIMER_LIGHT(1333, [=] {
+							SetSpellTimer(cdAc, session, f);
+						});
+					}
 				}
 			}
 		}

@@ -115,6 +115,29 @@ namespace SkyUILib
 		SET_TIMER_LIGHT(5, UpdateList);
 	}
 
+	std::map<int32_t, std::function<void()>> lastShown;
+
+	void Update()
+	{
+		const bool isOpen = MenuManager::GetSingleton()->IsMenuOpen("CustomMenu");
+		const bool shouldBe = gCallback || gCallbackInput;
+		if (!isOpen && shouldBe)
+		{
+			int32_t style = -1;
+			if (gCallback)
+				style = DIALOG_STYLE_LIST;
+			else if (gCallbackInput)
+				style = DIALOG_STYLE_INPUT;
+
+			if (lastShown[style] != nullptr)
+				lastShown[style]();
+			ErrorHandling::SendError("ERROR:SkyUILib Window is closed by game");
+		}
+		SET_TIMER_LIGHT(2000, [] {
+			SET_TIMER(500, Update);
+		});
+	}
+
 	void ShowDialogList(const std::string &title, const std::vector<std::string> &listItems, int32_t defaultIndex, Callback callback)
 	{
 		std::lock_guard<dlf_mutex> l(mutex);
@@ -165,11 +188,13 @@ namespace SkyUILib
 
 		cd::ShowList(DUMMY, [](int32_t) {});
 
-		static bool updates = false;
-		if (!updates)
 		{
-			UpdateList();
-			updates = true;
+			static bool updates = false;
+			if (!updates)
+			{
+				UpdateList();
+				updates = true;
+			}
 		}
 
 		std::thread([=] {
@@ -181,6 +206,7 @@ namespace SkyUILib
 					cd::ShowListResult(DUMMY, [](int32_t index) {
 						std::lock_guard<dlf_mutex> l(mutex);
 						auto callback = gCallback;
+						gCallback = nullptr;
 						if (callback)
 						{
 							std::thread([=] {
@@ -250,6 +276,7 @@ namespace SkyUILib
 					cd::ShowInputResult(DUMMY, [](std::string str) {
 						std::lock_guard<dlf_mutex> l(mutex);
 						auto callback = gCallbackInput;
+						gCallbackInput = nullptr;
 						if (callback)
 						{
 							std::thread([=] {
@@ -324,6 +351,15 @@ namespace SkyUILib
 		if (MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 			return;
 
+		{
+			static bool updates = false;
+			if (!updates)
+			{
+				SET_TIMER_LIGHT(0, Update);
+				updates = true;
+			}
+		}
+
 		auto title = WstringToString(wTitle);
 		auto text = WstringToString(wText);
 		switch (dialogStyle)
@@ -360,6 +396,7 @@ namespace SkyUILib
 				SET_TIMER(100, [=] {
 					ShowPlayerDialog(wTitle, dialogStyle, wText, defaultIndex, callback);
 				});
+				return;
 			}
 			break;
 		}
@@ -382,6 +419,9 @@ namespace SkyUILib
 			showList(title, listItems, defaultIndex, callback);
 			break;
 		}
-	}
 
+		lastShown[dialogStyle] = [=] {
+			ShowPlayerDialog(wTitle, dialogStyle, wText, defaultIndex, callback);
+		};
+	}
 }

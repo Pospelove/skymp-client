@@ -1284,7 +1284,8 @@ class ClientLogic : public ci::IClientLogic
 
 	ci::Spell *Flames = nullptr,
 		*Healing = nullptr,
-		*Telekinesis = nullptr;
+		*Telekinesis = nullptr,
+		*Fireball = nullptr;
 
 	void OnWorldInit() override
 	{
@@ -1319,9 +1320,19 @@ class ClientLogic : public ci::IClientLogic
 			);
 			Telekinesis->AddEffect(TelekinesisEffect, 1.0, 0.0);
 
+			Fireball = new ci::Spell(0x0001C789);
+			auto FireDamageFFAimedArea = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::ValueMod,
+				0x0001CEA1,
+				ci::MagicEffect::CastingType::FireAndForget,
+				ci::MagicEffect::Delivery::Aimed
+			);
+			Fireball->AddEffect(FireDamageFFAimedArea, 40.0, 2.0);
+
 			localPlayer->AddSpell(Flames, true);
 			localPlayer->AddSpell(Healing, true);
 			localPlayer->AddSpell(Telekinesis, true);
+			localPlayer->AddSpell(Fireball, true);
 
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 
