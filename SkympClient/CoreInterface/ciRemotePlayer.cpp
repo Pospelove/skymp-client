@@ -44,7 +44,7 @@ namespace ci
 		const ci::Spell *spell = nullptr;
 		uint32_t casters = 0;
 		SpellItem *casterRealEquippedSpell = nullptr;
-
+		uint32_t differentSpells = 0;
 	};
 
 	WorldSpellData worldSpell;
@@ -334,7 +334,7 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(gMutex);
 
 		auto spell = worldSpell.spell ? LookupFormByID(worldSpell.spell->GetFormID()) : nullptr;
-		if (worldSpell.casters == 1)
+		if (worldSpell.differentSpells == 1 || worldSpell.casters == 1)
 			spell = worldSpell.casterRealEquippedSpell;
 
 		static TESForm *appliedSpell = nullptr;
@@ -366,10 +366,16 @@ namespace ci
 		int32_t max = -1;
 		const ci::Spell *bestSpell = nullptr;
 
+		std::set<const ci::Spell *> spells;
+
 		std::for_each(allRemotePlayers.begin(), allRemotePlayers.end(), [&](RemotePlayer *p) {
 
 			if (p->GetSyncMode() != (int32_t)MovementData_::SyncMode::Hard)
 				return;
+
+			for (int32_t i = 0; i <= 1; ++i)
+				spells.insert(p->GetEquippedSpell(i));
+			spells.erase(nullptr);
 
 			const auto md = p->GetMovementData();
 			for (int32_t i = 0; i <= 1; ++i)
@@ -400,6 +406,7 @@ namespace ci
 		{
 			worldSpell.spell = bestSpell;
 			worldSpell.casters = max;
+			worldSpell.differentSpells = spells.size();
 		}
 	}
 
@@ -494,7 +501,7 @@ namespace ci
 							auto npc = this->AllocateNPC();
 							npc->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
 							npc->combatStyle->general.magicMult = 5;
-							npc->combatStyle->general.meleeMult = 5;
+							npc->combatStyle->general.meleeMult = 15;
 							currentSpawningBaseID = npc->GetFormID();
 							WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 							return this->ForceSpawn(currentSpawningBaseID);

@@ -1470,7 +1470,8 @@ class ClientLogic : public ci::IClientLogic
 	{
 		static ci::LookData testLookData;
 		static ci::Object *obj = nullptr;
-		static ci::RemotePlayer *p = nullptr;
+		static std::vector<ci::RemotePlayer *> ps;
+		static std::map<ci::RemotePlayer *, NiPoint3> offsets;
 
 		if (cmdText == L"/q")
 		{
@@ -1542,7 +1543,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//eq")
 		{
-			if (p)
+			for(auto p : ps)
 			{
 				{
 					auto handR = localPlayer->GetEquippedWeapon(),
@@ -1563,7 +1564,7 @@ class ClientLogic : public ci::IClientLogic
 						p->UnequipItem(p->GetEquippedWeapon(1), true, false, 1);
 				}
 
-				{
+				/*{
 					const ci::Spell *hands[2] = {
 						localPlayer->GetEquippedSpell(0),
 						localPlayer->GetEquippedSpell(1)
@@ -1578,7 +1579,7 @@ class ClientLogic : public ci::IClientLogic
 						else
 							p->UnequipSpell(p->GetEquippedSpell(i), i);
 					}
-				}
+				}*/
 
 				auto armorWas = p->GetEquippedArmor();
 				for (auto item : armorWas)
@@ -1603,7 +1604,7 @@ class ClientLogic : public ci::IClientLogic
 					p->UnequipItem(p->GetEquippedAmmo(), true, false, false);
 
 				auto m = localPlayer->GetMovementData();
-				m.pos += {128, 128, 0};
+				m.pos += offsets[p];
 				p->ApplyMovementData(m);
 			
 			}
@@ -1637,7 +1638,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//clone")
 		{
-			p = new ci::RemotePlayer(
+			auto p = new ci::RemotePlayer(
 				localPlayer->GetName(), 
 				localPlayer->GetLookData(), 
 				localPlayer->GetPos(), 
@@ -1669,6 +1670,21 @@ class ClientLogic : public ci::IClientLogic
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 				p->Fire(power);
 			});
+
+			ps.push_back(p);
+			offsets[p] = NiPoint3{ 128.f * ps.size(), 128.f * ps.size(), 0 };
+
+			switch (ps.size())
+			{
+			case 1:
+				p->AddSpell(Flames, true);
+				p->EquipSpell(Flames, false);
+				break;
+			case 2:
+				p->AddSpell(Healing, true);
+				p->EquipSpell(Healing, false);
+				break;
+			}
 
 			testUpd = [=] {
 				this->OnChatCommand(L"//eq", {});
