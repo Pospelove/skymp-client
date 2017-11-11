@@ -85,6 +85,7 @@ bool registered = false;
 clock_t localPlCrosshairRefUpdateMoment = 0;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
+std::set<SpellItem *> spellList;
 std::map<TESForm *, const ci::ItemType *> knownItems;
 std::map<TESForm *, const ci::Spell *> knownSpells;
 
@@ -491,25 +492,32 @@ void ci::LocalPlayer::AddSpell(const Spell *spell, bool silent)
 {
 	if (!spell || spell->GetNumEffects() == 0)
 		return;
-	SET_TIMER(300, [=] {
-		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
-		if (form)
-		{
+
+	auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
+	if (form)
+	{
+		SET_TIMER(300, [=] {
 			knownSpells[form] = spell;
 			sd::AddSpell(g_thePlayer, form, !silent);
-		}
-	});
+		});
+	}
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	spellList.insert(form);
 }
 
 void ci::LocalPlayer::RemoveSpell(const Spell *spell, bool silent)
 {
 	if (!spell || spell->GetNumEffects() == 0)
 		return;
-	SET_TIMER(300, [=] {
-		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
-		if (form)
+	auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
+	if (form)
+	{
+		SET_TIMER(300, [=] {
 			sd::RemoveSpell(g_thePlayer, form);
-	});
+		});
+	}
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	spellList.erase(form);
 }
 
 void ci::LocalPlayer::EquipSpell(const Spell *spell, bool leftHand)
@@ -809,8 +817,6 @@ void PreventKillmoves()
 			}
 		}
 
-
-
 	static std::map<TESForm *, float> dmg;
 	if (eqWas != eq)
 	{
@@ -831,6 +837,51 @@ void PreventKillmoves()
 		}
 		eqWas = eq;
 	}
+}
+
+void ci::LocalPlayer::RecoverAVs()
+{
+	static uint8_t numIgnores = 1; // PVS
+	if (numIgnores != 0)
+		--numIgnores;
+	else
+	{
+		SET_TIMER(1300, [this] {
+			std::lock_guard<dlf_mutex> l(localPlMutex);
+			for (auto it = localPlAVData.begin(); it != localPlAVData.end(); ++it)
+			{
+				if (it->second.percentage <= 0 && it->first == "health")
+					continue;
+				this->UpdateAVData(it->first, it->second);
+			}
+		});
+	}
+}
+
+void ci::LocalPlayer::RecoverInventory()
+{
+	SET_TIMER(0, [] {
+		std::lock_guard<dlf_mutex> l(localPlMutex);
+		int32_t added = 0;
+		for (auto it = inventory.begin(); it != inventory.end(); ++it)
+		{
+			auto form = LookupFormByID(it->first ? it->first->GetFormID() : NULL);
+			if (form)
+			{
+				sd::AddItem(g_thePlayer, form, it->second, true);
+				added++;
+			}
+		}
+	});
+}
+
+void ci::LocalPlayer::RecoverSpells()
+{
+	SET_TIMER_LIGHT(0, [] {
+		std::lock_guard<dlf_mutex> l(localPlMutex);
+		for (auto spell : spellList)
+			sd::AddSpell(g_thePlayer, spell, false);
+	});
 }
 
 void ci::LocalPlayer::Update()
@@ -1220,39 +1271,13 @@ void ci::LocalPlayer::Update_OT()
 		openWas = open;
 
 		if (open)
-		{
 			localPlCrosshairRef = NULL;
-		}
 
 		if (!open)
 		{
-			static uint8_t numIgnores = 1; // PVS
-			if (numIgnores != 0)
-				--numIgnores;
-			else
-			{
-				SET_TIMER(1300, [this] {
-					for (auto it = localPlAVData.begin(); it != localPlAVData.end(); ++it)
-					{
-						if (it->second.percentage <= 0 && it->first == "health")
-							continue;
-						this->UpdateAVData(it->first, it->second);
-					}
-				});
-			}
-
-			SET_TIMER(0, [] {
-				int32_t added = 0;
-				for (auto it = inventory.begin(); it != inventory.end(); ++it)
-				{
-					auto form = LookupFormByID(it->first ? it->first->GetFormID() : NULL);
-					if (form)
-					{
-						sd::AddItem(g_thePlayer, form, it->second, true);
-						added++;
-					}
-				}
-			});
+			this->RecoverAVs();
+			this->RecoverInventory();
+			this->RecoverSpells();
 		}
 	}
 

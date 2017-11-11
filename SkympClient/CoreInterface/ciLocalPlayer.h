@@ -59,6 +59,9 @@ namespace ci
 		void DoTeleport_OT(bool ot = true);
 		void Update();
 		void Update_OT();
+		void RecoverAVs();
+		void RecoverInventory();
+		void RecoverSpells();
 		LocalPlayer();
 	};
 }
