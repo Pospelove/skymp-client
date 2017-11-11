@@ -9,9 +9,7 @@ struct SyncOptions::Impl
 	dlf_mutex m;
 };
 
-const auto cfgFile = "skymp_sync_options.ini";
-
-Options ReadOptions()
+Options ReadOptions(const char *cfgFile)
 {
 	Options options;
 
@@ -44,7 +42,7 @@ Options ReadOptions()
 	return options;
 }
 
-void WriteDefaultOptions()
+void WriteDefaultOptions(const char *cfgFile)
 {
 	auto s = "; ci::RemotePlayer\n"
 		"DRAW_DISTANCE = 7002\n"
@@ -61,6 +59,7 @@ void WriteDefaultOptions()
 		"DISPENSER_OFFSET_Z = 120\n"
 		"DISPENSER_OFFSET_Z_SNEAKING = 64\n"
 		"DISPENSER_OFFSET_DISTANCE = 32\n"
+		"HANDS_EQUIPMENT_CHECKS = 0\n"
 
 		"ci::LocalPlayer\n"
 		"DISABLE_PLAYER_DAMAGE = 1\n"
@@ -123,12 +122,12 @@ SyncOptions * SyncOptions::GetSingleton()
 
 SyncOptions::SyncOptions() : pimpl(new Impl)
 {
-	auto ops = ReadOptions();
+	auto ops = ReadOptions("skymp_sync_options.ini");
 
 	if (ops.size() == 0)
 	{
-		WriteDefaultOptions();
-		ops = ReadOptions();
+		WriteDefaultOptions("skymp_sync_options_DEFAULT.ini");
+		ops = ReadOptions("skymp_sync_options_DEFAULT.ini");
 	}
 
 	for (auto &pair : ops)

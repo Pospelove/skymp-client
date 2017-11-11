@@ -373,6 +373,17 @@ namespace ci
 			if (p->GetSyncMode() != (int32_t)MovementData_::SyncMode::Hard)
 				return;
 
+			{
+				std::lock_guard<dlf_mutex> l(p->pimpl->mutex);
+				if (p->pimpl->spawnStage != SpawnStage::Spawned)
+					return;
+				auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
+				if (actor == nullptr)
+					return;
+				if (!sd::HasLOS(g_thePlayer, actor))
+					return;
+			}
+
 			for (int32_t i = 0; i <= 1; ++i)
 				spells.insert(p->GetEquippedSpell(i));
 			spells.erase(nullptr);
@@ -792,31 +803,29 @@ namespace ci
 					// Hands Equipment Checks (Experimental)
 					// seems not working properly
 					SAFE_CALL("RemotePlayer", [&] {
-						return;
+						if (SyncOptions::GetSingleton()->GetInt("HANDS_EQUIPMENT_CHECKS") == 0)
+							return;
+						ErrorHandling::SendError("ERROR:RemotePlayer Govnocode executed");
 						if (clock() - pimpl->lastWeaponsUpdate > 1000)
 						{
-							auto toForm = [](const ci::ItemType *cir)
-							{
+							auto toForm = [](const ci::ItemType *cir) {
 								return cir ? LookupFormByID(cir->GetFormID()) : nullptr;
 							};
-
-							auto toForm1 = [](const ci::Spell *cir)
-							{
+							auto toForm1 = [](const ci::Spell *cir) {
 								return cir ? LookupFormByID(cir->GetFormID()) : nullptr;
 							};
 
 							for (int32_t i = 0; i <= 1; ++i)
 							{
 								auto form = Equipment_::GetEquippedObject(actor, i);
-
 								if (form == nullptr || form->formType == FormType::Weapon)
 								{
 									if (pimpl->eq.hands[i] != nullptr)
 									{
 										if (form != toForm(pimpl->eq.hands[i]))
 										{
-											pimpl->eqLast = {};
-											ErrorHandling::SendError("ERROR:RemotePlayer Wrong weapon");
+											pimpl->eqLast.hands = {};
+											pimpl->eqLast.handsMagic = {};
 											break;
 										}
 									}
@@ -825,8 +834,8 @@ namespace ci
 								{
 									if (form != toForm1(pimpl->eq.handsMagic[i]))
 									{
-										pimpl->eqLast = {};
-										ErrorHandling::SendError("ERROR:RemotePlayer Wrong spell");
+										pimpl->eqLast.hands = {};
+										pimpl->eqLast.handsMagic = {};
 										break;
 									}
 								}
@@ -1321,40 +1330,41 @@ namespace ci
 
 	void RemotePlayer::AddSpell(const Spell *spell, bool silent)
 	{
-		if (spell != nullptr)
-		{
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->spellList.insert(spell);
-		}
+		if (!spell || spell->GetNumEffects() == 0)
+			return;
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		pimpl->spellList.insert(spell);
 	}
 
 	void RemotePlayer::RemoveSpell(const Spell *spell, bool silent)
 	{
-		if (spell != nullptr)
-		{
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->spellList.erase(spell);
-		}
+		if (!spell || spell->GetNumEffects() == 0)
+			return;
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		pimpl->spellList.erase(spell);
+		
+		for (int32_t i = 0; i <= 1; ++i)
+			this->UnequipSpell(spell, i);
 	}
 
 	void RemotePlayer::EquipSpell(const Spell *spell, bool leftHand)
 	{
-		if (spell != nullptr)
-		{
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->handsMagicProxy[leftHand] = spell;
-			pimpl->eq.hands[leftHand] = nullptr;
-		}
+		if (!spell || spell->GetNumEffects() == 0)
+			return;
+		if (pimpl->spellList.find(spell) == pimpl->spellList.end())
+			return;
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		pimpl->handsMagicProxy[leftHand] = spell;
+		pimpl->eq.hands[leftHand] = nullptr;
 	}
 
 	void RemotePlayer::UnequipSpell(const Spell *spell, bool leftHand)
 	{
-		if (spell != nullptr)
-		{
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			if (pimpl->handsMagicProxy[leftHand] == spell)
-				pimpl->handsMagicProxy[leftHand] = nullptr;
-		}
+		if (!spell || spell->GetNumEffects() == 0)
+			return;
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		if (pimpl->handsMagicProxy[leftHand] == spell)
+			pimpl->handsMagicProxy[leftHand] = nullptr;
 	}
 
 	void RemotePlayer::PlayHitAnimation(uint8_t hitAnimID)

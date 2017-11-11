@@ -129,9 +129,13 @@ namespace SkyUILib
 			else if (gCallbackInput)
 				style = DIALOG_STYLE_INPUT;
 
-			if (lastShown[style] != nullptr)
+			static bool notFirstCall = false;
+			if (notFirstCall && lastShown[style] != nullptr)
+			{
 				lastShown[style]();
-			ErrorHandling::SendError("ERROR:SkyUILib Window is closed by game");
+				ErrorHandling::SendError("ERROR:SkyUILib Window is closed by game");
+			}
+			notFirstCall = true;
 		}
 		SET_TIMER_LIGHT(2000, [] {
 			SET_TIMER(500, Update);

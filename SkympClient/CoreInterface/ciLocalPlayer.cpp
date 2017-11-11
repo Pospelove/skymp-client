@@ -489,7 +489,7 @@ void ci::LocalPlayer::UnequipItem(const ItemType *item, bool silent, bool preven
 
 void ci::LocalPlayer::AddSpell(const Spell *spell, bool silent)
 {
-	if (!spell)
+	if (!spell || spell->GetNumEffects() == 0)
 		return;
 	SET_TIMER(300, [=] {
 		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
@@ -503,7 +503,7 @@ void ci::LocalPlayer::AddSpell(const Spell *spell, bool silent)
 
 void ci::LocalPlayer::RemoveSpell(const Spell *spell, bool silent)
 {
-	if (!spell)
+	if (!spell || spell->GetNumEffects() == 0)
 		return;
 	SET_TIMER(300, [=] {
 		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
@@ -514,7 +514,7 @@ void ci::LocalPlayer::RemoveSpell(const Spell *spell, bool silent)
 
 void ci::LocalPlayer::EquipSpell(const Spell *spell, bool leftHand)
 {
-	if (!spell)
+	if (!spell || spell->GetNumEffects() == 0)
 		return;
 	SET_TIMER(300, [=] {
 		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
@@ -528,7 +528,7 @@ void ci::LocalPlayer::EquipSpell(const Spell *spell, bool leftHand)
 
 void ci::LocalPlayer::UnequipSpell(const Spell *spell, bool leftHand)
 {
-	if (!spell)
+	if (!spell || spell->GetNumEffects() == 0)
 		return;
 	SET_TIMER(300, [=] {
 		auto form = (SpellItem *)LookupFormByID(spell->GetFormID());
