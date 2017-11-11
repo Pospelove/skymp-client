@@ -60,7 +60,11 @@ namespace ci
 		AVData GetAVData(const std::string &avName) const override;
 
 		void SetInAFK(bool val);
+		void SetNicknameVisible(bool visible);
 		void Fire(float power);
+		void MagicAttackBegin(int32_t handID);
+		void MagicAttackEnd(int32_t handID);
+		void SetHeight(float height);
 
 	private:
 		static void UpdateAll();
@@ -72,6 +76,8 @@ namespace ci
 		void ForceSpawn(uint32_t npcID);
 		void ForceDespawn(const wchar_t *reason = L"");
 		int32_t GetSyncMode() const;
+		int32_t GetSpawnStage() const;
+		uint32_t GetRefID() const;
 
 	protected:
 

@@ -1575,7 +1575,7 @@ class ClientLogic : public ci::IClientLogic
 						p->UnequipItem(p->GetEquippedWeapon(1), true, false, 1);
 				}
 
-				/*{
+				{
 					const ci::Spell *hands[2] = {
 						localPlayer->GetEquippedSpell(0),
 						localPlayer->GetEquippedSpell(1)
@@ -1590,7 +1590,7 @@ class ClientLogic : public ci::IClientLogic
 						else
 							p->UnequipSpell(p->GetEquippedSpell(i), i);
 					}
-				}*/
+				}
 
 				auto armorWas = p->GetEquippedArmor();
 				for (auto item : armorWas)
@@ -1617,6 +1617,16 @@ class ClientLogic : public ci::IClientLogic
 				auto m = localPlayer->GetMovementData();
 				m.pos += offsets[p];
 				p->ApplyMovementData(m);
+
+				for(int32_t i = 0; i <= 1; ++i)
+					if ((int32_t)m.castStage[i] != 0)
+					{
+						p->MagicAttackBegin(i);
+					}
+					else
+					{
+						p->MagicAttackEnd(i);
+					}
 			
 			}
 		}
@@ -1685,17 +1695,6 @@ class ClientLogic : public ci::IClientLogic
 			ps.push_back(p);
 			offsets[p] = NiPoint3{ 128.f * ps.size(), 128.f * ps.size(), 0 };
 
-			switch (ps.size())
-			{
-			case 1:
-				p->AddSpell(Flames, true);
-				p->EquipSpell(Flames, false);
-				break;
-			case 2:
-				p->AddSpell(Sparks, true);
-				p->EquipSpell(Sparks, false);
-				break;
-			}
 
 			testUpd = [=] {
 				this->OnChatCommand(L"//eq", {});

@@ -63,6 +63,7 @@ namespace MovementData_
 		clock_t shotsRecordStart = 0;
 		clock_t lastShot = 0;
 		clock_t lastCastRelease = 0;
+		size_t fatalErrors = 0;
 	};
 
 

@@ -4263,7 +4263,9 @@ float cd::GetPositionZ(Value<TESObjectREFR> self, std::function<void(float)> cal
 
 NiPoint3 cd::GetPosition(Value<TESObjectREFR> self, std::function<void(NiPoint3)> callback)
 {
-	const NiPoint3 result = { GetPositionX(self), GetPositionY(self), GetPositionZ(self) };
+	//const NiPoint3 result = { GetPositionX(self), GetPositionY(self), GetPositionZ(self) };
+
+	auto result = self.operator TESObjectREFR *() ? self.operator TESObjectREFR *()->pos : NiPoint3{ 0,0,0 };
 
 	if (callback)
 	{
