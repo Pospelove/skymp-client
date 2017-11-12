@@ -2,6 +2,7 @@
 
 class SkympClientDll;
 class TESNPC;
+class Actor;
 
 namespace ci
 {
@@ -71,13 +72,45 @@ namespace ci
 		static void UpdateAll_OT();
 		static void UpdateWorldSpell();
 		static void ApplyWorldSpell();
+
+		void AsyncGnomeDestroy(int32_t handID);
+		void AsyncGnomeCreate(int32_t handID);
+		void AsyncFoxDestroy();
+		void AsyncFoxCreate();
+
+		void UpdateNonSpawned();
+		void UpdateSpawning();
+
+		void UpdateNickname(Actor *actor);
+		void DeleteProjectile(Actor *actor);
+		void UpdateMovement(Actor *actor);
+		void ApplyHitAnimations(Actor *actor);
+		void ApplyActorValues(Actor *actor);
+		void ManageMyFox(Actor *actor);
+		void ManageMyGnomes(Actor *actor);
+		void UpdateDispenser(Actor *actor);
+		void CreateDestroyMyFox(Actor *actor);
+		void CreateDestroyMyGnomes(Actor *actor);
+		void ManageMagicEquipment(Actor *actor);
+		void ApplyEquipmentHands(Actor *actor);
+		void ApplyEquipmentOther(Actor *actor);
+		void DespawnIfNeed(Actor *actor);
+		void FixGreyFaceBug(Actor *actor);
+
+		void UpdateSpawned();
+
 		void Update();
 		void Update_OT();
+
 		void ForceSpawn(uint32_t npcID);
 		void ForceDespawn(const wchar_t *reason = L"");
+
 		int32_t GetSyncMode() const;
 		int32_t GetSpawnStage() const;
 		uint32_t GetRefID() const;
+		bool IsBowEquipped() const;
+		bool IsSpellEquipped() const;
+		uint32_t GetLocationID() const;
 
 	protected:
 

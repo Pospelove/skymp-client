@@ -7,4 +7,6 @@ namespace Utility
 	std::vector<FormID> GetLoadedRefs(FormID worldSpaceID);
 	bool IsForegroundProcess();
 	HWND FindMainWindow();
+	NiPoint3 GetNodeWorldPosition(TESObjectREFR *obj, BSFixedString nodeName, bool firstPerson);
+	void MuteItemsSound();
 }

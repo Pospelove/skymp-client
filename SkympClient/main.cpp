@@ -66,17 +66,6 @@ public:
 		Costile2::Register();
 	}
 
-	void MuteItemSounds()
-	{
-		DWORD	oldProtect = 0;
-		if (VirtualProtect((void *)0x00B9DE83, 16, PAGE_EXECUTE_READWRITE, &oldProtect))
-		{
-			for (int i = 0; i != 5; ++i)
-				((char *)0x00B9DE83)[i] = 0x90;
-			VirtualProtect((void *)0x00B9DE83, 16, oldProtect, &oldProtect);
-		}
-	}
-
 	void OnScriptDragonLoaded()
 	{
 		try {

@@ -1,6 +1,9 @@
 #include "../stdafx.h"
 #include "MiscUtility.h"
 
+#include <SKSE/NiNodes.h>
+#include <SKSE/NiObjects.h>
+
 namespace Utility
 {
 	uint32_t NewFormID()
@@ -96,5 +99,41 @@ namespace Utility
 		data.best_handle = NULL;
 		EnumWindows(EnumWindowsCallback, (LPARAM)&data);
 		return data.best_handle;
+	}
+
+	NiAVObject * ResolveNode(TESObjectREFR * obj, BSFixedString nodeName, bool firstPerson)
+	{
+		if (!obj) return NULL;
+
+		NiAVObject	* result = (NiAVObject	*)obj->GetNiNode();
+
+		// special-case for the player, switch between first/third-person
+		PlayerCharacter * player = obj == g_thePlayer ? g_thePlayer : nullptr;
+		if (player && player->loadedState)
+			result = firstPerson ? player->firstPersonSkeleton : player->loadedState->node;
+
+		// name lookup
+		if (obj && nodeName.c_str()[0] && result)
+			result = result->GetObjectByName(nodeName);
+
+		return result;
+	}
+
+	NiPoint3 GetNodeWorldPosition(TESObjectREFR *obj, BSFixedString nodeName, bool firstPerson)
+	{
+		NiAVObject	*object = ResolveNode(obj, nodeName, firstPerson);
+		return object ? object->m_worldTransform.pos : NiPoint3(0, 0, 0);
+	}
+
+	void MuteItemsSound()
+	{
+		DWORD oldProtect = 0;
+		if (VirtualProtect((void *)0x00B9DE83, 16, PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			static auto ptr = ((uint8_t *)0x00B9DE83);
+			for (int i = 0; i != 5; ++i)
+				ptr[i] = 0x90;
+			VirtualProtect((void *)0x00B9DE83, 16, oldProtect, &oldProtect);
+		}
 	}
 }
