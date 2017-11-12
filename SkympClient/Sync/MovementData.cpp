@@ -853,12 +853,13 @@ namespace MovementData_
 			if (std::string(e.what()).find("SendAnimationEvent") != std::string::npos)
 			{
 				ErrorHandling::SendError("ERROR:MovementData Fatal error");
-				syncStatus.fatalErrors++;
 			}
 			else
 				ErrorHandling::SendError("ERROR:MovementData Unk std exception");
+			syncStatus.fatalErrors++;
 		}
 		catch (...) {
+			syncStatus.fatalErrors++;
 			ErrorHandling::SendError("ERROR:MovementData Unk");
 		}
 
