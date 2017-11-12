@@ -909,7 +909,7 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			for (int32_t i = 0; i <= 1; ++i)
 			{
-				if (pimpl->handsMagicProxy[i] != nullptr)
+				if (pimpl->eq.handsMagic[i] != nullptr)
 				{
 					if (!pimpl->handGnome[i] && sd::HasLOS(g_thePlayer, actor))
 						this->AsyncGnomeCreate(i);
