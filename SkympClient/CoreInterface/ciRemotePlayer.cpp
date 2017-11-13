@@ -758,7 +758,7 @@ namespace ci
 					gnome->SetNicknameVisible(false);
 
 					AVData avData;
-					avData.base = 100;
+					avData.base = 00;
 					avData.modifier = 0;
 					avData.percentage = 1;
 					gnome->UpdateAVData("invisibility", avData);
@@ -1327,7 +1327,9 @@ namespace ci
 
 	bool RemotePlayer::NeedsGnome(int32_t i) const
 	{
-		return pimpl->eq.handsMagic[i] != nullptr;
+		return pimpl->eq.handsMagic[i] != nullptr
+			&& pimpl->eq.handsMagic[i]->GetCastingType() == Spell::CastingType::Concentration
+			&& pimpl->eq.handsMagic[i]->GetDelivery() != Spell::Delivery::Self;
 	}
 
 	void RemotePlayer::UpdateAll()
@@ -1556,7 +1558,7 @@ namespace ci
 
 	void RemotePlayer::AddSpell(const Spell *spell, bool silent)
 	{
-		if (!spell || spell->GetNumEffects() == 0)
+		if (!spell || spell->IsEmpty())
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->spellList.insert(spell);
@@ -1564,7 +1566,7 @@ namespace ci
 
 	void RemotePlayer::RemoveSpell(const Spell *spell, bool silent)
 	{
-		if (!spell || spell->GetNumEffects() == 0)
+		if (!spell || spell->IsEmpty())
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->spellList.erase(spell);
@@ -1575,7 +1577,7 @@ namespace ci
 
 	void RemotePlayer::EquipSpell(const Spell *spell, bool leftHand)
 	{
-		if (!spell || spell->GetNumEffects() == 0)
+		if (!spell || spell->IsEmpty())
 			return;
 		if (pimpl->spellList.find(spell) == pimpl->spellList.end())
 			return;
@@ -1586,7 +1588,7 @@ namespace ci
 
 	void RemotePlayer::UnequipSpell(const Spell *spell, bool leftHand)
 	{
-		if (!spell || spell->GetNumEffects() == 0)
+		if (!spell || spell->IsEmpty())
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->handsMagicProxy[leftHand] == spell)
@@ -1771,30 +1773,44 @@ namespace ci
 	void RemotePlayer::MagicAttackBegin(int32_t handID)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		if (handID >= 0 && handID <= 1 && pimpl->spawnStage == SpawnStage::Spawned && pimpl->isMagicAttackStarted[handID] == false)
-			if (pimpl->dispenser != nullptr && pimpl->handsMagicProxy[handID] != nullptr)
+		if (handID >= 0
+			&& handID <= 1
+			&& pimpl->spawnStage == SpawnStage::Spawned
+			&& pimpl->isMagicAttackStarted[handID] == false
+			&& pimpl->dispenser != nullptr
+			&& pimpl->handsMagicProxy[handID] != nullptr
+			&& this->NeedsGnome(handID))
+		{
+			const auto dispenserRef = (TESObjectREFR *)LookupFormByID(pimpl->dispenser->GetRefID());
+			const auto spell = (SpellItem *)LookupFormByID(pimpl->handsMagicProxy[handID]->GetFormID());
+			const auto myPos = this->GetPos();
+			if (spell != nullptr)
 			{
-				const auto dispenserRef = (TESObjectREFR *)LookupFormByID(pimpl->dispenser->GetRefID());
-				const auto spell = (SpellItem *)LookupFormByID(pimpl->handsMagicProxy[handID]->GetFormID());
-				if (spell != nullptr)
+				auto gnome = pimpl->handGnome[handID];
+				if (gnome != nullptr)
 				{
-					auto gnome = pimpl->handGnome[handID];
-					if (gnome != nullptr)
-					{
-						const auto formID = gnome->GetRefID();
-						SET_TIMER_LIGHT(0, [=] {
-							auto gnomeRef = (Actor *)LookupFormByID(formID);
-							if (gnomeRef != nullptr)
+					const auto formID = gnome->GetRefID();
+					SET_TIMER_LIGHT(10, [=] {
+						auto gnomeRef = (Actor *)LookupFormByID(formID);
+						if (gnomeRef != nullptr)
+						{
+							if (gnomeRef->formType == FormType::Character)
 							{
-								sd::DoCombatSpellApply(gnomeRef, spell, nullptr);
+								if ((cd::GetPosition(gnomeRef) - myPos).Length() <= 512)
+									sd::DoCombatSpellApply(gnomeRef, spell, nullptr);
+								else
+									ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() gnome is too far");
 							}
-						});
-						pimpl->isMagicAttackStarted[handID] = true;
-					}
+							else
+								ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() gnome must be NPC (%d)", (int32_t)gnomeRef->formType);
+						}
+					});
+					pimpl->isMagicAttackStarted[handID] = true;
 				}
-				else
-					ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() nullptr spell");
 			}
+			else
+				ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() nullptr spell");
+		}
 	}
 
 	void RemotePlayer::MagicAttackEnd(int32_t handID)
@@ -1806,9 +1822,10 @@ namespace ci
 			pimpl->isMagicAttackStarted[handID] = false;
 
 			const auto formID = gnome->GetRefID();
-			SET_TIMER_LIGHT(0, [=] {
+			SET_TIMER_LIGHT(10, [=] {
 				auto gnomeRef = (Actor *)LookupFormByID(formID);
-				if (gnomeRef != nullptr)
+				if (gnomeRef != nullptr 
+					&& gnomeRef->formType == FormType::Character)
 				{
 					static SpellItem *emptySpell = nullptr;
 					if (emptySpell == nullptr)
