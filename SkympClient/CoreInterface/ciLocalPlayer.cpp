@@ -904,6 +904,7 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fPowerAttackDefaultBonus", 0.0f);
 				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
 				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
+				sd::SetActorValue(g_thePlayer, "MagicResist", 100);
 			});
 			set = true;
 
