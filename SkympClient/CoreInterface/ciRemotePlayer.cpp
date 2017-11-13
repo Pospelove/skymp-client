@@ -231,7 +231,7 @@ namespace ci
 		std::set<const ci::Spell *> spellList;
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
-		std::map<std::string, ci::AVData> avData, avDataLast;
+		std::map<std::string, ci::AVData> avData;
 		Object *myPseudoFox = nullptr;
 		Object *dispenser = nullptr;
 		float height = 1;
@@ -591,7 +591,6 @@ namespace ci
 
 	void RemotePlayer::UpdateSpawning()
 	{
-		pimpl->avDataLast.clear();
 		pimpl->eqLast = {};
 		for (int32_t i = 0; i <= 1; ++i)
 			pimpl->isMagicAttackStarted[i] = false;
@@ -691,22 +690,18 @@ namespace ci
 	{
 		SAFE_CALL("RemotePlayer", [&] {
 			auto applyAV = [&](char *avNameLowerCase) {
-				if (pimpl->avDataLast != pimpl->avData)
-				{
-					pimpl->avDataLast = pimpl->avData;
-					enum {
-						InternalMult = 10000,
-					};
-					const auto full = (pimpl->avData[avNameLowerCase].base + pimpl->avData[avNameLowerCase].modifier) * InternalMult;
-					const auto dest = full * pimpl->avData[avNameLowerCase].percentage;
-					sd::SetActorValue(actor, avNameLowerCase, full);
-					auto current = sd::GetActorValue(actor, avNameLowerCase);
-					auto change = dest - current;
-					if (change > 0)
-						sd::RestoreActorValue(actor, avNameLowerCase, change);
-					else
-						sd::DamageActorValue(actor, avNameLowerCase, -change);
-				}
+				enum {
+					InternalMult = 10000,
+				};
+				const auto full = (pimpl->avData[avNameLowerCase].base + pimpl->avData[avNameLowerCase].modifier) * InternalMult;
+				const auto dest = full * pimpl->avData[avNameLowerCase].percentage;
+				sd::SetActorValue(actor, avNameLowerCase, full);
+				auto current = sd::GetActorValue(actor, avNameLowerCase);
+				auto change = dest - current;
+				if (change > 0)
+					sd::RestoreActorValue(actor, avNameLowerCase, change);
+				else
+					sd::DamageActorValue(actor, avNameLowerCase, -change);
 			};
 			applyAV("health");
 			applyAV("stamina");
@@ -799,7 +794,7 @@ namespace ci
 						else
 						{
 							float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD_FROM_HAND");
-							if (i == 1)
+							if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr)
 								distance += 48;
 							md.pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
 							md.pos += {0, 0, SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND")};
@@ -1013,14 +1008,14 @@ namespace ci
 	void RemotePlayer::DespawnIfNeed(Actor *actor)
 	{
 		/*SAFE_CALL("RemotePlayer", [&] {
-			for (int32_t i = 0; i <= 1; ++i)
-			{
-				if (pimpl->eq.handsMagic[i] == nullptr && sd::GetEquippedSpell(actor, !i) != nullptr)
-				{
-					this->ForceDespawn(L"Despawned: Equipment error");
-					break;
-				}
-			}
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+		if (pimpl->eq.handsMagic[i] == nullptr && sd::GetEquippedSpell(actor, !i) != nullptr)
+		{
+		this->ForceDespawn(L"Despawned: Equipment error");
+		break;
+		}
+		}
 		});*/
 
 		SAFE_CALL("RemotePlayer", [&] {
@@ -1162,15 +1157,15 @@ namespace ci
 			{
 			case SpawnStage::NonSpawned:
 				this->UpdateNonSpawned();
-			break;
+				break;
 
 			case SpawnStage::Spawning:
 				this->UpdateSpawning();
-			break;
+				break;
 
 			case SpawnStage::Spawned:
 				this->UpdateSpawned();
-			break;
+				break;
 			}
 		}
 		catch (...) {
