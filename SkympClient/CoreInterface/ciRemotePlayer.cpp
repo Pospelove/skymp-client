@@ -239,6 +239,7 @@ namespace ci
 		bool isMagicAttackStarted[2];
 		clock_t lastGnomeHide[2];
 		bool createGnomeCalled[2];
+		const void *visualMagicEffect = nullptr;
 
 		struct Equipment
 		{
@@ -553,7 +554,7 @@ namespace ci
 	void RemotePlayer::UpdateNonSpawned()
 	{
 		pimpl->nicknameLabel = nullptr;
-
+		pimpl->visualMagicEffect = nullptr;
 
 		if (Utility::IsForegroundProcess())
 		{
@@ -758,7 +759,7 @@ namespace ci
 					gnome->SetNicknameVisible(false);
 
 					AVData avData;
-					avData.base = 00;
+					avData.base = 100;
 					avData.modifier = 0;
 					avData.percentage = 1;
 					gnome->UpdateAVData("invisibility", avData);
@@ -1815,6 +1816,8 @@ namespace ci
 
 	void RemotePlayer::MagicAttackEnd(int32_t handID)
 	{
+		if (handID < 0 || handID > 1)
+			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		auto gnome = pimpl->handGnome[handID];
 		if (gnome != nullptr && pimpl->isMagicAttackStarted[handID] == true)
@@ -1842,6 +1845,37 @@ namespace ci
 				}
 			});
 		}
+	}
+
+	void RemotePlayer::SetVisualMagicEffect(const ci::Spell *spell)
+	{
+		//SAFE_CALL("RemotePlayer", [&] {
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+
+			if (!spell || spell->GetDelivery() == Spell::Delivery::Self)
+			{
+				if (spell != pimpl->visualMagicEffect)
+				{
+					pimpl->visualMagicEffect = spell;
+					const auto formID = this->GetRefID();
+					SET_TIMER_LIGHT(10, [=] {
+						const auto actor = (Actor *)LookupFormByID(formID);
+						if (actor != nullptr && actor->formType == FormType::Character)
+						{
+							const auto spellForm = spell ? (SpellItem *)LookupFormByID(spell->GetFormID()) : nullptr;
+							enum {
+								Telekinesis = 0x0001A4CC,
+							};
+							static auto telekinesis = (SpellItem *)LookupFormByID(Telekinesis);
+
+							const auto toCast = spell ? spellForm : telekinesis;
+							if (toCast != nullptr)
+								sd::DoCombatSpellApply(actor, toCast, actor);
+						}
+					});
+				}
+			}
+		//});
 	}
 
 	void RemotePlayer::SetHeight(float h)

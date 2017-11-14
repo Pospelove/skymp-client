@@ -63,11 +63,13 @@ namespace ci
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);
 		void Fire(float power);
+		void SetHeight(float height);
 		void MagicAttackBegin(int32_t handID);
 		void MagicAttackEnd(int32_t handID);
-		void SetHeight(float height);
+		void SetVisualMagicEffect(const ci::Spell *source);
 
 	private:
+
 		static void UpdateAll();
 		static void UpdateAll_OT();
 		static void UpdateWorldSpell();
@@ -77,11 +79,7 @@ namespace ci
 		void AsyncFoxDestroy();
 		void AsyncFoxCreate();
 
-
-
 		void UpdateNonSpawned();
-
-
 
 		void UpdateSpawning();
 
@@ -117,7 +115,6 @@ namespace ci
 		bool NeedsGnome(int32_t handID) const;
 
 	protected:
-
 		virtual TESNPC *AllocateNPC() const;
 		virtual void ApplyMovementDataImpl();
 

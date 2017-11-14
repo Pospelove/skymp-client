@@ -1618,15 +1618,20 @@ class ClientLogic : public ci::IClientLogic
 				m.pos += offsets[p];
 				p->ApplyMovementData(m);
 
-				for(int32_t i = 0; i <= 1; ++i)
+				int32_t clearVisualEffect = 0;
+				for(int32_t i = 1; i >= 0; --i)
 					if ((int32_t)m.castStage[i] != 0)
 					{
 						p->MagicAttackBegin(i);
+						p->SetVisualMagicEffect(p->GetEquippedSpell(i));
 					}
 					else
 					{
 						p->MagicAttackEnd(i);
+						++clearVisualEffect;
 					}
+				if(clearVisualEffect == 2)
+					p->SetVisualMagicEffect(nullptr);
 			
 			}
 		}
