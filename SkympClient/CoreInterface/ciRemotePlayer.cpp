@@ -36,7 +36,6 @@ namespace ci
 	RemotePlayer *currentFixingGreyFace = nullptr;
 	dlf_mutex gMutex;
 	uint32_t numInvisibleFoxes = 0;
-	RemotePlayer *useMagicPackageHolder = nullptr;
 
 	struct WorldSpellData
 	{
@@ -201,10 +200,7 @@ namespace ci
 	struct RemotePlayer::Impl
 	{
 		Impl() {
-			handGnome[0] = handGnome[1] = nullptr;
 			isMagicAttackStarted[0] = isMagicAttackStarted[1] = false;
-			lastGnomeHide[0] = lastGnomeHide[1] = NULL;
-			createGnomeCalled[0] = createGnomeCalled[1] = false;
 		}
 
 		dlf_mutex mutex;
@@ -235,10 +231,7 @@ namespace ci
 		Object *myPseudoFox = nullptr;
 		Object *dispenser = nullptr;
 		float height = 1;
-		RemotePlayer *handGnome[2];
 		bool isMagicAttackStarted[2];
-		clock_t lastGnomeHide[2];
-		bool createGnomeCalled[2];
 		const void *visualMagicEffect = nullptr;
 
 		struct Equipment
@@ -491,30 +484,6 @@ namespace ci
 				delete dispenser;
 			}).detach();
 		}
-
-		for (int32_t i = 0; i <= 1; ++i)
-		{
-			auto gnome = pimpl->handGnome[i];
-			if (gnome != nullptr)
-			{
-				std::thread([=] {
-					delete gnome;
-				}).detach();
-			}
-		}
-	}
-
-	void RemotePlayer::AsyncGnomeCreate(int32_t i)
-	{
-		std::thread([=] {
-			std::lock_guard<dlf_mutex> l1(gMutex);
-			if (allRemotePlayers.find(this) != allRemotePlayers.end())
-			{
-				std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-				if (pimpl->handGnome[i] == nullptr)
-					pimpl->handGnome[i] = new ci::RemotePlayer(this->GetName(), this->GetLookData(), { 0,0,0 }, -1, -1);
-			}
-		}).detach();
 	}
 
 	void RemotePlayer::AsyncFoxDestroy()
@@ -744,82 +713,6 @@ namespace ci
 					auto ref = sd::Game::FindClosestReferenceOfType(baseForm, pos.x, pos.y, pos.z, 128.0);
 					if (ref != nullptr)
 						pimpl->syncState.myFoxID = ref->formID;
-				}
-			}
-		});
-	}
-
-	void RemotePlayer::ManageMyGnomes(Actor *actor)
-	{
-		SAFE_CALL("RemotePlayer", [&] {
-			for (int32_t i = 0; i <= 1; ++i)
-			{
-				auto gnome = pimpl->handGnome[i];
-				if (gnome)
-				{
-					gnome->SetHeight(0.1);
-
-					gnome->SetInAFK(true);
-					gnome->SetNicknameVisible(false);
-
-					AVData avData;
-					avData.base = 100;
-					avData.modifier = 0;
-					avData.percentage = 1;
-					gnome->UpdateAVData("invisibility", avData);
-
-
-
-					if (this->ConflictsWithGnome(i) || ( !this->NeedsGnome(i) && (clock() - pimpl->lastGnomeHide[i] > 5000 || gnome->GetSpawnStage() != (int32_t)SpawnStage::Spawned)))
-					{
-						gnome->SetCell(-1);
-						gnome->SetWorldSpace(-1);
-						gnome->SetPos({ 0,0,0 });
-						pimpl->lastGnomeHide[i] = clock();
-					}
-					else
-					{
-						gnome->SetWorldSpace(this->GetWorldSpace());
-						gnome->SetCell(this->GetCell());
-
-						const float angleRad = this->GetAngleZ() / 180 * acos(-1);
-						auto md = this->GetMovementData();
-
-						auto node = i ? "NPC L Hand [LHnd]" : "NPC R MagicNode [RMag]";
-						md.pos = Utility::GetNodeWorldPosition(actor, node, false);
-						const bool nodeFound = md.pos != NiPoint3{ 0,0,0 };
-
-						if (!nodeFound)
-						{
-							md.pos = cd::GetPosition(actor);
-							const float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD");
-							md.pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
-							md.pos += {0, 0, SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z")};
-						}
-						else
-						{
-							float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD_FROM_HAND");
-							if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr)
-								distance += 48;
-							md.pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
-							md.pos += {0, 0, SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND")};
-						}
-						if (pimpl->eq.handsMagic[i] == nullptr || actor->IsWeaponDrawn() == false)
-							md.pos += {0, 0, 150};
-						gnome->ApplyMovementData(md);
-
-						auto gnomeRef = (Actor *)LookupFormByID(gnome->GetRefID());
-						if (gnomeRef != nullptr)
-							sd::TranslateTo(gnomeRef, md.pos.x, md.pos.y, md.pos.z, 0, 0, md.angleZ, 10000, 10000);
-					}
-				}
-				else
-				{
-					if (this->NeedsGnome(i) && pimpl->createGnomeCalled[i] == false)
-					{
-						this->AsyncGnomeCreate(i);
-						pimpl->createGnomeCalled[i] = true;
-					}
 				}
 			}
 		});
@@ -1125,7 +1018,6 @@ namespace ci
 		}
 
 		this->ManageMyFox(actor);
-		this->ManageMyGnomes(actor);
 
 		if (pimpl->timer250ms + 250 < clock())
 		{
@@ -1271,19 +1163,6 @@ namespace ci
 				currentSpawning = nullptr;
 			if (currentFixingGreyFace == this)
 				currentFixingGreyFace = nullptr;
-
-			for (int32_t i = 0; i <= 1; ++i)
-			{
-				auto gnome = pimpl->handGnome[i];
-				if (gnome != nullptr)
-				{
-					std::thread([=] {
-						delete gnome;
-					}).detach();
-				}
-				pimpl->handGnome[i] = nullptr;
-				pimpl->createGnomeCalled[i] = false;
-			}
 		}
 	}
 
@@ -1328,32 +1207,6 @@ namespace ci
 		const uint32_t locationID =
 			pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : pimpl->worldSpaceID;
 		return locationID;
-	}
-
-	bool RemotePlayer::NeedsGnome(int32_t i) const
-	{
-		try {
-			return pimpl->eq.handsMagic[i] != nullptr
-				&& pimpl->eq.handsMagic[i]->GetCastingType() == Spell::CastingType::Concentration
-				&& pimpl->eq.handsMagic[i]->GetDelivery() != Spell::Delivery::Self;
-		}
-		catch (...) {
-			ErrorHandling::SendError("ERROR:RemotePlayer NeedsGnome()");
-			return false;
-		}
-	}
-
-	bool RemotePlayer::ConflictsWithGnome(int32_t i) const
-	{
-		try {
-			return pimpl->handsMagicProxy[i]
-				&& pimpl->handsMagicProxy[i]->GetCastingType() == Spell::CastingType::FireAndForget
-				&& pimpl->handsMagicProxy[i]->GetDelivery() == Spell::Delivery::Aimed;
-		}
-		catch (...) {
-			ErrorHandling::SendError("ERROR:RemotePlayer ConflictsWithGnome()");
-			return false;
-		}
 	}
 
 	void RemotePlayer::UpdateAll()
@@ -1830,45 +1683,10 @@ namespace ci
 
 	void RemotePlayer::MagicAttackBegin(int32_t handID)
 	{
+		if (handID < 0 || handID > 1)
+			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		if (handID >= 0
-			&& handID <= 1
-			&& pimpl->spawnStage == SpawnStage::Spawned
-			&& pimpl->isMagicAttackStarted[handID] == false
-			&& pimpl->dispenser != nullptr
-			&& pimpl->handsMagicProxy[handID] != nullptr
-			&& this->NeedsGnome(handID))
-		{
-			const auto dispenserRef = (TESObjectREFR *)LookupFormByID(pimpl->dispenser->GetRefID());
-			const auto spell = (SpellItem *)LookupFormByID(pimpl->handsMagicProxy[handID]->GetFormID());
-			const auto myPos = this->GetPos();
-			if (spell != nullptr)
-			{
-				auto gnome = pimpl->handGnome[handID];
-				if (gnome != nullptr)
-				{
-					const auto formID = gnome->GetRefID();
-					SET_TIMER_LIGHT(10, [=] {
-						auto gnomeRef = (Actor *)LookupFormByID(formID);
-						if (gnomeRef != nullptr)
-						{
-							if (gnomeRef->formType == FormType::Character)
-							{
-								if ((cd::GetPosition(gnomeRef) - myPos).Length() <= 512)
-									sd::DoCombatSpellApply(gnomeRef, spell, nullptr);
-								else
-									ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() gnome is too far");
-							}
-							else
-								ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() gnome must be NPC (%d)", (int32_t)gnomeRef->formType);
-						}
-					});
-					pimpl->isMagicAttackStarted[handID] = true;
-				}
-			}
-			else
-				ErrorHandling::SendError("ERROR:RemotePlayer MagicAttackBegin() nullptr spell");
-		}
+		// Not implemented
 	}
 
 	void RemotePlayer::MagicAttackEnd(int32_t handID)
@@ -1876,37 +1694,12 @@ namespace ci
 		if (handID < 0 || handID > 1)
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		auto gnome = pimpl->handGnome[handID];
-		if (gnome != nullptr && pimpl->isMagicAttackStarted[handID] == true)
-		{
-			pimpl->isMagicAttackStarted[handID] = false;
-
-			const auto formID = gnome->GetRefID();
-			SET_TIMER_LIGHT(10, [=] {
-				auto gnomeRef = (Actor *)LookupFormByID(formID);
-				if (gnomeRef != nullptr 
-					&& gnomeRef->formType == FormType::Character)
-				{
-					static SpellItem *emptySpell = nullptr;
-					if (emptySpell == nullptr)
-					{
-						emptySpell = FormHeap_Allocate<SpellItem>();
-						enum {
-							Telekinesis = 0x0001A4CC,
-						};
-						memcpy(emptySpell, LookupFormByID(Telekinesis), sizeof SpellItem);
-						emptySpell->formID = 0;
-						emptySpell->SetFormID(Utility::NewFormID(), 1);
-					}
-					sd::DoCombatSpellApply(gnomeRef, emptySpell, nullptr);
-				}
-			});
-		}
+		// Not implemented
 	}
 
 	void RemotePlayer::SetVisualMagicEffect(const ci::Spell *spell)
 	{
-		//SAFE_CALL("RemotePlayer", [&] {
+		SAFE_CALL("RemotePlayer", [&] {
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 			if (!spell || spell->GetDelivery() == Spell::Delivery::Self)
@@ -1932,7 +1725,7 @@ namespace ci
 					});
 				}
 			}
-		//});
+		});
 	}
 
 	void RemotePlayer::SetHeight(float h)

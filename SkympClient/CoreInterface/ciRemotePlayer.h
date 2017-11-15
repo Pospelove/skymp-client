@@ -76,7 +76,6 @@ namespace ci
 		static void UpdateWorldSpell();
 		static void ApplyWorldSpell();
 
-		void AsyncGnomeCreate(int32_t handID);
 		void AsyncFoxDestroy();
 		void AsyncFoxCreate();
 
@@ -90,7 +89,6 @@ namespace ci
 		void ApplyHitAnimations(Actor *actor);
 		void ApplyActorValues(Actor *actor);
 		void ManageMyFox(Actor *actor);
-		void ManageMyGnomes(Actor *actor);
 		void UpdateDispenser(Actor *actor);
 		void CreateDestroyMyFox(Actor *actor);
 		void ManageMagicEquipment(Actor *actor);
@@ -113,8 +111,6 @@ namespace ci
 		bool IsBowEquipped() const;
 		bool IsSpellEquipped() const;
 		uint32_t GetLocationID() const;
-		bool NeedsGnome(int32_t handID) const;
-		bool ConflictsWithGnome(int32_t handID) const;
 
 	protected:
 		virtual TESNPC *AllocateNPC() const;
