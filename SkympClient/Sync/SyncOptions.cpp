@@ -53,6 +53,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"MAX_PLAYERS_SYNCED_SAFE = 5\n"
 		"INVISIBLE_FOX_ENGINE = 2\n"
 		"MAX_INVISIBLE_FOXES = 3\n"
+		"INVISIBLE_FOX_OFFSET_Z_MAGIC = 112\n"
 		"MAX_CD_LAG = 1000\n"
 		"CD_LAG_RECOVER_TIME = 3333\n"
 		"MAX_OUT_OF_POS = 256\n"
@@ -73,6 +74,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"DISABLE_PLAYER_DAMAGE = 1\n"
 		"NORMAL_PROCESSING_WITH_MENUS = 1\n"
 		"MUTE_SOUND_ON_TP = 1\n"
+		"FF_CAST_DELAY = 0\n"
 
 		"; ci::Object\n"
 		"SAFE_ITEM_REMOVE = 0\n"

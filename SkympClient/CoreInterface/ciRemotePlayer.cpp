@@ -733,6 +733,10 @@ namespace ci
 				const float r = 600;
 				const auto myMd = this->GetMovementData();
 				auto pos = myMd.pos + pointAtSphere(myMd.angleZ, myMd.aimingAngle, r);
+
+				if (this->IsSpellEquipped())
+					pos.z += SyncOptions::GetSingleton()->GetFloat("INVISIBLE_FOX_OFFSET_Z_MAGIC");
+
 				pimpl->myPseudoFox->SetPosition(pos);
 				auto baseForm = LookupFormByID(pimpl->myPseudoFox->GetBase());
 				if (baseForm != nullptr)
@@ -766,7 +770,7 @@ namespace ci
 
 
 
-					if (!this->NeedsGnome(i) && (clock() - pimpl->lastGnomeHide[i] > 5000 || gnome->GetSpawnStage() != (int32_t)SpawnStage::Spawned))
+					if (this->ConflictsWithGnome(i) || ( !this->NeedsGnome(i) && (clock() - pimpl->lastGnomeHide[i] > 5000 || gnome->GetSpawnStage() != (int32_t)SpawnStage::Spawned)))
 					{
 						gnome->SetCell(-1);
 						gnome->SetWorldSpace(-1);
@@ -800,7 +804,7 @@ namespace ci
 							md.pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
 							md.pos += {0, 0, SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND")};
 						}
-						if (pimpl->eq.handsMagic[i] == nullptr)
+						if (pimpl->eq.handsMagic[i] == nullptr || actor->IsWeaponDrawn() == false)
 							md.pos += {0, 0, 150};
 						gnome->ApplyMovementData(md);
 
@@ -895,7 +899,7 @@ namespace ci
 	{
 		if (SyncOptions::GetSingleton()->GetInt("INVISIBLE_FOX_ENGINE") == (int32_t)InvisibleFoxEngine::Object)
 		{
-			if (this->IsBowEquipped())
+			if (this->IsSpellEquipped() || this->IsBowEquipped())
 			{
 				if (pimpl->myPseudoFox == nullptr
 					&& numInvisibleFoxes < SyncOptions::GetSingleton()->GetInt("MAX_INVISIBLE_FOXES")
@@ -1328,9 +1332,28 @@ namespace ci
 
 	bool RemotePlayer::NeedsGnome(int32_t i) const
 	{
-		return pimpl->eq.handsMagic[i] != nullptr
-			&& pimpl->eq.handsMagic[i]->GetCastingType() == Spell::CastingType::Concentration
-			&& pimpl->eq.handsMagic[i]->GetDelivery() != Spell::Delivery::Self;
+		try {
+			return pimpl->eq.handsMagic[i] != nullptr
+				&& pimpl->eq.handsMagic[i]->GetCastingType() == Spell::CastingType::Concentration
+				&& pimpl->eq.handsMagic[i]->GetDelivery() != Spell::Delivery::Self;
+		}
+		catch (...) {
+			ErrorHandling::SendError("ERROR:RemotePlayer NeedsGnome()");
+			return false;
+		}
+	}
+
+	bool RemotePlayer::ConflictsWithGnome(int32_t i) const
+	{
+		try {
+			return pimpl->handsMagicProxy[i]
+				&& pimpl->handsMagicProxy[i]->GetCastingType() == Spell::CastingType::FireAndForget
+				&& pimpl->handsMagicProxy[i]->GetDelivery() == Spell::Delivery::Aimed;
+		}
+		catch (...) {
+			ErrorHandling::SendError("ERROR:RemotePlayer ConflictsWithGnome()");
+			return false;
+		}
 	}
 
 	void RemotePlayer::UpdateAll()
@@ -1362,7 +1385,13 @@ namespace ci
 
 		UInt32 rating = 0;
 		SAFE_CALL("RemotePlayer", [&] {
-			std::for_each(allRemotePlayers.begin(), allRemotePlayers.end(), [&](RemotePlayer *p) {
+			const auto allRemotePlayers_ = allRemotePlayers;
+			std::for_each(allRemotePlayers_.begin(), allRemotePlayers_.end(), [&](RemotePlayer *p) {
+				if (p == nullptr)
+				{
+					ErrorHandling::SendError("ERROR:RemotePlayer nullptr player");
+					return;
+				}
 				auto pos = p->GetPos();
 				if (PlayerCamera::GetSingleton()->IsInScreen(pos)
 					|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,64 })
@@ -1764,6 +1793,34 @@ namespace ci
 							SET_TIMER(3000, [=] {
 								sd::RemoveItem(g_thePlayer, ammoCopy, -1, true, nullptr);
 							});
+						}
+					}
+				});
+			}
+		}
+	}
+
+	void RemotePlayer::FireMagic(const ci::Spell *spell)
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		if (pimpl->spawnStage == SpawnStage::Spawned)
+		{
+			const auto refID = pimpl->formID;
+			const auto foxID = pimpl->myPseudoFox ? pimpl->myPseudoFox->GetRefID() : 0;
+			if (spell != nullptr)
+			{
+				SET_TIMER_LIGHT(1, [=] {
+					auto actor = (Actor *)LookupFormByID(refID);
+					if (actor != nullptr)
+					{
+						auto foxRef = (TESObjectREFR *)LookupFormByID(foxID);
+						if (foxRef != nullptr)
+						{
+							auto spellForm = (SpellItem *)LookupFormByID(spell->GetFormID());
+							if (spellForm != nullptr)
+							{
+								sd::DoCombatSpellApply(actor, spellForm, foxRef);
+							}
 						}
 					}
 				});

@@ -63,6 +63,7 @@ namespace ci
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);
 		void Fire(float power);
+		void FireMagic(const ci::Spell *spell);
 		void SetHeight(float height);
 		void MagicAttackBegin(int32_t handID);
 		void MagicAttackEnd(int32_t handID);
@@ -113,6 +114,7 @@ namespace ci
 		bool IsSpellEquipped() const;
 		uint32_t GetLocationID() const;
 		bool NeedsGnome(int32_t handID) const;
+		bool ConflictsWithGnome(int32_t handID) const;
 
 	protected:
 		virtual TESNPC *AllocateNPC() const;

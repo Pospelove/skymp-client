@@ -52,6 +52,8 @@ namespace ci
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;
 
+		using _HandID = int32_t;
+		ci::Signal<void(_HandID)> onPlayerMagicRelease;
 
 		virtual ~LocalPlayer() {}
 

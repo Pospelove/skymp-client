@@ -1286,7 +1286,8 @@ class ClientLogic : public ci::IClientLogic
 		*Healing = nullptr,
 		*Telekinesis = nullptr,
 		*Fireball = nullptr,
-		*Sparks = nullptr;
+		*Sparks = nullptr,
+		*Firebolt = nullptr;
 
 	void OnWorldInit() override
 	{
@@ -1339,11 +1340,21 @@ class ClientLogic : public ci::IClientLogic
 			);
 			Sparks->AddEffect(ShockDamageConcAimed, 8.0, 1.0);
 
+			Firebolt = new ci::Spell(0x00012FD0);
+			auto FireDamageFFAimed = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::ValueMod,
+				0x00012F03,
+				ci::MagicEffect::CastingType::FireAndForget,
+				ci::MagicEffect::Delivery::Aimed
+			);
+			Firebolt->AddEffect(FireDamageFFAimed, 22.5, 1.0);
+
 			localPlayer->AddSpell(Flames, true);
 			localPlayer->AddSpell(Healing, true);
 			localPlayer->AddSpell(Telekinesis, true);
 			localPlayer->AddSpell(Fireball, true);
 			localPlayer->AddSpell(Sparks, true);
+			localPlayer->AddSpell(Firebolt, true);
 
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 
@@ -1352,6 +1363,10 @@ class ClientLogic : public ci::IClientLogic
 				bsOut.Write(ID_BOW_SHOT);
 				bsOut.Write(powerInt);
 				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+			});
+
+			localPlayer->onPlayerMagicRelease.Add([=](int32_t handID) {
+
 			});
 		}
 
@@ -1695,6 +1710,10 @@ class ClientLogic : public ci::IClientLogic
 
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 				p->Fire(power);
+			});
+
+			localPlayer->onPlayerMagicRelease.Add([=](int32_t handID) {
+				p->FireMagic(p->GetEquippedSpell(handID));
 			});
 
 			ps.push_back(p);

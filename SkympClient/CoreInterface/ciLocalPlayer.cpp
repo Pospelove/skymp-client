@@ -229,6 +229,7 @@ public:
 			if (ammo == nullptr)
 				return;
 			std::thread([=] {
+				std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 				ci::LocalPlayer::GetSingleton()->onPlayerBowShot(evnCopy.power);
 			}).detach();
 		};
@@ -839,6 +840,51 @@ void PreventKillmoves()
 	}
 }
 
+template <int32_t hand>
+void SendMagicReleaseEvent(const ci::Spell *spell, SpellItem *spellForm)
+{
+	using CastStage = ci::MovementData::CastStage;
+	auto this_ = ci::LocalPlayer::GetSingleton();
+
+	static CastStage was = CastStage(-1);
+	const auto movData = this_->GetMovementData();
+	CastStage now = movData.castStage[hand];
+
+	if (was != now)
+	{
+		if (was == CastStage::Fire && now == CastStage::Release) 
+		{
+			if (spell && spell->GetCastingType() == ci::Spell::CastingType::FireAndForget)
+			{
+				if (g_thePlayer->IsWeaponDrawn())
+				{
+					auto sendEvent = [=] {
+						std::thread([=] {
+							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+							this_->onPlayerMagicRelease(hand);
+						}).detach();
+					};
+
+
+					const auto delayMs = SyncOptions::GetSingleton()->GetInt("FF_CAST_DELAY");
+					if(delayMs == 0)
+						sendEvent();
+					else
+					{
+						SET_TIMER_LIGHT(delayMs, [=] {
+							auto proj = spellForm->effectItemList.front()->mgef->properties.projectile;
+							const bool found = !!sd::FindClosestReferenceOfType(proj, movData.pos.x, movData.pos.y, movData.pos.z, 1024.0f);
+							if (found)
+								sendEvent();
+						});
+					}
+				}
+			}
+		}
+		was = now;
+	}
+}
+
 void ci::LocalPlayer::RecoverAVs()
 {
 	static uint8_t numIgnores = 1; // PVS
@@ -888,6 +934,7 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+
 	SAFE_CALL("LocalPlayer", [&] {
 
 		if (!set)
@@ -917,6 +964,10 @@ void ci::LocalPlayer::Update()
 
 	PreventKillmoves<0>();
 	PreventKillmoves<1>();
+
+	auto spell0 = this->GetEquippedSpell(0), spell1 = this->GetEquippedSpell(1);
+	SendMagicReleaseEvent<0>(spell0, spell0 ? (SpellItem *)LookupFormByID(spell0->GetFormID()) : nullptr);
+	SendMagicReleaseEvent<1>(spell1, spell1 ? (SpellItem *)LookupFormByID(spell1->GetFormID()) : nullptr);
 
 	// Update Display Gold
 	SAFE_CALL("RemotePlayer", [&] {
