@@ -1713,7 +1713,7 @@ class ClientLogic : public ci::IClientLogic
 			});
 
 			localPlayer->onPlayerMagicRelease.Add([=](int32_t handID) {
-				p->FireMagic(p->GetEquippedSpell(handID));
+				p->FireMagic(p->GetEquippedSpell(handID), handID);
 			});
 
 			ps.push_back(p);

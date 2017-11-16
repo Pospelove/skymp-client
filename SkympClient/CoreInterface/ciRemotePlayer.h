@@ -63,7 +63,7 @@ namespace ci
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);
 		void Fire(float power);
-		void FireMagic(const ci::Spell *spell);
+		void FireMagic(const ci::Spell *spell, int32_t handID);
 		void SetHeight(float height);
 		void MagicAttackBegin(int32_t handID);
 		void MagicAttackEnd(int32_t handID);
@@ -83,6 +83,7 @@ namespace ci
 
 		void UpdateSpawning();
 
+		void UpdateGnomes(Actor *actor);
 		void UpdateNickname(Actor *actor);
 		void DeleteProjectile(Actor *actor);
 		void UpdateMovement(Actor *actor);
@@ -109,7 +110,8 @@ namespace ci
 		int32_t GetSpawnStage() const;
 		uint32_t GetRefID() const;
 		bool IsBowEquipped() const;
-		bool IsSpellEquipped() const;
+		bool IsSpellEquipped() const; 
+		bool NeedsGnome(int32_t handID) const;
 		uint32_t GetLocationID() const;
 
 	protected:

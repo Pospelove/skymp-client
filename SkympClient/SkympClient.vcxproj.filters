@@ -151,6 +151,9 @@
     <ClCompile Include="Sync\SyncOptions.cpp">
       <Filter>core\Sync</Filter>
     </ClCompile>
+    <ClCompile Include="GameUtility\SimpleRef.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -388,6 +391,9 @@
     </ClInclude>
     <ClInclude Include="Sync\SyncOptions.h">
       <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\SimpleRef.h">
+      <Filter>core\GameUtility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

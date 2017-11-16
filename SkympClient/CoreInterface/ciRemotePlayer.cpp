@@ -233,6 +233,7 @@ namespace ci
 		float height = 1;
 		bool isMagicAttackStarted[2];
 		const void *visualMagicEffect = nullptr;
+		std::map<int32_t, std::unique_ptr<SimpleRef>> gnomes;
 
 		struct Equipment
 		{
@@ -442,6 +443,33 @@ namespace ci
 		pimpl->worldSpaceID = worldSpaceID;
 		pimpl->onHit = onHit;
 
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+			static TESNPC *gnomeNpc = nullptr;
+			if (gnomeNpc == nullptr)
+			{
+				static auto exampleNpc = AllocateNPC();
+				gnomeNpc = (TESNPC *)LookupFormByID(ID_TESNPC::WEAdventurerBattlemageBretonMFire);
+				gnomeNpc->TESSpellList::unk04->numSpells = 0;
+				gnomeNpc->TESSpellList::unk04->spells = nullptr;
+				gnomeNpc->height = 0.1f;
+				gnomeNpc->combatStyle = exampleNpc->GetCombatStyle();
+				gnomeNpc->voiceType = exampleNpc->GetVoiceType();
+				gnomeNpc->TESAIForm::unk10 = exampleNpc->TESAIForm::unk10;
+			}
+
+			pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
+			pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
+				sd::EnableAI((Actor *)ref, false);
+				sd::SetActorValue((Actor *)ref, "Invisibility", 100.0f);
+				sd::AllowPCDialogue((Actor *)ref, false);
+				cd::SetDisplayName(ref, WstringToString(name), true);
+				sd::SetActorValue((Actor *)ref, "DamageResist", 100.0f);
+				sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
+				sd::SetActorValue((Actor *)ref, "Health", 32000.f);
+			});
+		}
+
 		AVData avData;
 		avData.base = 0;
 		avData.modifier = 0;
@@ -547,10 +575,6 @@ namespace ci
 					currentSpawning = this;
 					lastForceSpawn = clock();
 					auto npc = this->AllocateNPC();
-					npc->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
-					npc->combatStyle->general.magicMult = 5;
-					npc->combatStyle->general.meleeMult = 15;
-					npc->height = pimpl->height;
 					currentSpawningBaseID = npc->GetFormID();
 					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 					return this->ForceSpawn(currentSpawningBaseID);
@@ -578,6 +602,37 @@ namespace ci
 
 			allRemotePlayers.erase(this);
 			new (this) RemotePlayer(this->GetName(), this->GetLookData(), this->GetPos(), this->GetCell(), this->GetWorldSpace());
+		}
+	}
+
+	void RemotePlayer::UpdateGnomes(Actor *actor)
+	{
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+			auto &gnome = pimpl->gnomes[i];
+			if (gnome != nullptr)
+			{
+				NiPoint3 newPos;
+
+				if (this->NeedsGnome(i))
+				{
+					newPos = Utility::GetNodeWorldPosition(actor, i ? "NPC L Hand [LHnd]" : "NPC R MagicNode [RMag]", false);
+
+					const float angleRad = this->GetAngleZ() / 180 * acos(-1);
+					float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD_FROM_HAND");
+					if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr)
+						distance += 48;
+					newPos += {distance * sin(angleRad), distance * cos(angleRad), 0};
+					newPos.z += SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND");
+				}
+				else
+				{
+					newPos = { 0, 0, -1000 * 1000 };
+				}
+
+				gnome->SetPos(newPos);
+				gnome->SetRot({ 0,0,this->GetAngleZ() });
+			}
 		}
 	}
 
@@ -1011,6 +1066,7 @@ namespace ci
 
 		if (pimpl->greyFaceFixed)
 		{
+			this->UpdateGnomes(actor);
 			this->DeleteProjectile(actor);
 			this->UpdateMovement(actor);
 			this->ApplyHitAnimations(actor);
@@ -1200,6 +1256,14 @@ namespace ci
 	{
 		return this->GetEquippedSpell(0) != nullptr
 			|| this->GetEquippedSpell(1) != nullptr;
+	}
+
+	bool RemotePlayer::NeedsGnome(int32_t i) const
+	{
+		return pimpl->handsMagicProxy[i] != nullptr
+			&& pimpl->handsMagicProxy[i]->GetDelivery() == Spell::Delivery::Aimed
+			//&& pimpl->handsMagicProxy[i]->GetCastingType() == Spell::CastingType::Concentration
+			;
 	}
 
 	uint32_t RemotePlayer::GetLocationID() const
@@ -1653,30 +1717,36 @@ namespace ci
 		}
 	}
 
-	void RemotePlayer::FireMagic(const ci::Spell *spell)
+	void RemotePlayer::FireMagic(const ci::Spell *spell, int32_t handID)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->spawnStage == SpawnStage::Spawned)
 		{
-			const auto refID = pimpl->formID;
+			//const auto refID = pimpl->formID;
 			const auto foxID = pimpl->myPseudoFox ? pimpl->myPseudoFox->GetRefID() : 0;
 			if (spell != nullptr)
 			{
-				SET_TIMER_LIGHT(1, [=] {
-					auto actor = (Actor *)LookupFormByID(refID);
-					if (actor != nullptr)
-					{
-						auto foxRef = (TESObjectREFR *)LookupFormByID(foxID);
-						if (foxRef != nullptr)
+				//SET_TIMER_LIGHT(1, [=] {
+				if (pimpl->gnomes[handID])
+				{
+					pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *ref) {
+						const auto refID = ref->formID;
+						auto actor = (Actor *)LookupFormByID(refID);
+						if (actor != nullptr)
 						{
-							auto spellForm = (SpellItem *)LookupFormByID(spell->GetFormID());
-							if (spellForm != nullptr)
+							auto foxRef = (TESObjectREFR *)LookupFormByID(foxID);
+							if (foxRef != nullptr)
 							{
-								sd::DoCombatSpellApply(actor, spellForm, foxRef);
+								auto spellForm = (SpellItem *)LookupFormByID(spell->GetFormID());
+								if (spellForm != nullptr)
+								{
+									sd::DoCombatSpellApply(actor, spellForm, foxRef);
+								}
 							}
 						}
-					}
-				});
+					});
+				}
+				//});
 			}
 		}
 	}
@@ -1686,7 +1756,23 @@ namespace ci
 		if (handID < 0 || handID > 1)
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		// Not implemented
+
+		if (!pimpl->isMagicAttackStarted[handID] 
+			&& pimpl->gnomes[handID] != nullptr 
+			&& pimpl->handsMagicProxy[handID] != nullptr
+			&& pimpl->handsMagicProxy[handID]->GetCastingType() == Spell::CastingType::Concentration
+			&& pimpl->handsMagicProxy[handID]->GetDelivery() == Spell::Delivery::Aimed)
+		{
+			pimpl->isMagicAttackStarted[handID] = true;
+
+			const auto spell = (SpellItem *)LookupFormByID(pimpl->handsMagicProxy[handID]->GetFormID());
+			const auto myFoxID = pimpl->myPseudoFox ? pimpl->myPseudoFox->GetRefID() : 0;
+
+			pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *gnomeRef) {
+				auto target = (TESObjectREFR *)LookupFormByID(myFoxID);
+				sd::DoCombatSpellApply((Actor *)gnomeRef, spell, target);
+			});
+		}
 	}
 
 	void RemotePlayer::MagicAttackEnd(int32_t handID)
@@ -1694,7 +1780,14 @@ namespace ci
 		if (handID < 0 || handID > 1)
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		// Not implemented
+
+		if (pimpl->isMagicAttackStarted[handID])
+		{
+			pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *gnomeRef) {
+				sd::DoCombatSpellApply((Actor *)gnomeRef, (SpellItem *)LookupFormByID(ID_SpellItem::Telekinesis), nullptr);
+			});
+			pimpl->isMagicAttackStarted[handID] = false;
+		}
 	}
 
 	void RemotePlayer::SetVisualMagicEffect(const ci::Spell *spell)
@@ -1744,6 +1837,10 @@ namespace ci
 		auto result = pimpl->lookSync->Apply(pimpl->lookData);
 		ApplyPackage(result);
 		result->TESActorBaseData::flags.bleedoutOverride = true;
+		result->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
+		result->combatStyle->general.magicMult = 5;
+		result->combatStyle->general.meleeMult = 15;
+		result->height = pimpl->height;
 		return result;
 	}
 

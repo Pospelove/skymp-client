@@ -144,6 +144,7 @@
     <ClCompile Include="GameUtility\LockTimer.cpp" />
     <ClCompile Include="GameUtility\KeyboardManager.cpp" />
     <ClCompile Include="GameUtility\MenuDisabler.cpp" />
+    <ClCompile Include="GameUtility\SimpleRef.cpp" />
     <ClCompile Include="GameUtility\SkyUILib.cpp" />
     <ClCompile Include="GameUtility\MiscUtility.cpp" />
     <ClCompile Include="GameUtility\PauseDisabler.cpp" />
@@ -204,6 +205,7 @@
     <ClInclude Include="GameUtility\LockTimer.h" />
     <ClInclude Include="GameUtility\KeyboardManager.h" />
     <ClInclude Include="GameUtility\MenuDisabler.h" />
+    <ClInclude Include="GameUtility\SimpleRef.h" />
     <ClInclude Include="GameUtility\SkyUILib.h" />
     <ClInclude Include="GameUtility\MiscUtility.h" />
     <ClInclude Include="GameUtility\PauseDisabler.h" />
