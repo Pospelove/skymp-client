@@ -1254,9 +1254,9 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
-	void OnHit(ci::IActor *self, const ci::HitEventData &eventData)
+	void OnHit(ci::IActor *hitTarget, const ci::HitEventData &eventData)
 	{
-		const auto playerID = GetID(self);
+		const auto playerID = GetID(hitTarget);
 		const auto weaponID = GetID(eventData.weapon);
 
 		RakNet::BitStream bsOut;
@@ -1265,12 +1265,11 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(weaponID);
 		bsOut.Write(eventData.powerAttack);
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-
 	}
 
-	void OnHit(ci::Object *self, const ci::HitEventData &eventData)
+	void OnHit(ci::Object *hitTarget, const ci::HitEventData &eventData)
 	{
-		const auto objectID = GetID(self);
+		const auto objectID = GetID(hitTarget);
 		const auto weaponID = GetID(eventData.weapon);
 
 		RakNet::BitStream bsOut;
@@ -1287,7 +1286,8 @@ class ClientLogic : public ci::IClientLogic
 		*Telekinesis = nullptr,
 		*Fireball = nullptr,
 		*Sparks = nullptr,
-		*Firebolt = nullptr;
+		*Firebolt = nullptr,
+		*FireRune = nullptr;
 
 	void OnWorldInit() override
 	{
@@ -1349,12 +1349,22 @@ class ClientLogic : public ci::IClientLogic
 			);
 			Firebolt->AddEffect(FireDamageFFAimed, 22.5, 1.0);
 
+			FireRune = new ci::Spell(0x0005DB90);
+			auto FireRuneFFLocation = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::ValueMod,
+				0x0005DB8F,
+				ci::MagicEffect::CastingType::FireAndForget,
+				ci::MagicEffect::Delivery::TargetLocation
+			);
+			FireRune->AddEffect(FireRuneFFLocation, 50.0, 2.0);
+
 			localPlayer->AddSpell(Flames, true);
 			localPlayer->AddSpell(Healing, true);
 			localPlayer->AddSpell(Telekinesis, true);
 			localPlayer->AddSpell(Fireball, true);
 			localPlayer->AddSpell(Sparks, true);
 			localPlayer->AddSpell(Firebolt, true);
+			localPlayer->AddSpell(FireRune, true);
 
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 
@@ -1679,12 +1689,22 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//clone")
 		{
+			auto onHit = [](const ci::HitEventData &eventData) {
+				if (eventData.spell != nullptr)
+					ci::Chat::AddMessage(L"Magic Hit");
+				else if (eventData.weapon != nullptr)
+					ci::Chat::AddMessage(L"Weap Hit");
+				else
+					ci::Chat::AddMessage(L"H2H Hit");
+			};
+
 			auto p = new ci::RemotePlayer(
 				localPlayer->GetName(), 
 				localPlayer->GetLookData(), 
 				localPlayer->GetPos(), 
 				localPlayer->GetCell(), 
-				localPlayer->GetWorldSpace());
+				localPlayer->GetWorldSpace(), 
+				onHit);
 
 			p->ApplyMovementData(localPlayer->GetMovementData());
 

@@ -15,6 +15,7 @@ enum class InvisibleFoxEngine {
 };
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
+extern std::map<TESForm *, const ci::Spell *> knownSpells;
 extern clock_t localPlCrosshairRefUpdateMoment;
 
 class CIAccess
@@ -265,6 +266,11 @@ namespace ci
 			return &remotePlayerKnownItems;
 		}
 
+		static decltype(knownSpells) *RemotePlayerKnownSpells() { // lock gMutex to use this
+			static decltype(knownSpells) remotePlayerKnownSpells;
+			return &remotePlayerKnownSpells;
+		}
+
 		class HitEventSinkGlobal : public BSTEventSink<TESHitEvent>
 		{
 		public:
@@ -281,12 +287,14 @@ namespace ci
 				if (LookupFormByID(evn->sourceFormID) != nullptr && LookupFormByID(evn->sourceFormID)->formType == FormType::Enchantment)
 					return EventResult::kEvent_Continue;
 
-				if (evn->caster != g_thePlayer || evn->target == nullptr || evn->projectileFormID != NULL)
+				if (evn->caster != g_thePlayer || evn->target == nullptr /*|| evn->projectileFormID != NULL*/)
 					return EventResult::kEvent_Continue;
 
 				const uint32_t targetID = evn->target->formID;
 				HitEventData hitEventData_;
 				hitEventData_.powerAttack = evn->flags.powerAttack;
+
+				auto sourceForm = LookupFormByID(evn->sourceFormID);
 
 				std::thread([=] {
 					auto hitEventData = hitEventData_;
@@ -294,7 +302,7 @@ namespace ci
 					std::lock_guard<dlf_mutex> l(gMutex);
 
 					const ci::ItemType *weapon = nullptr;
-					auto sourceForm = LookupFormByID(evn->sourceFormID);
+					const ci::Spell *spell = nullptr;
 					if (sourceForm != nullptr)
 					{
 						try {
@@ -303,8 +311,15 @@ namespace ci
 						}
 						catch (...) {
 						}
+						try {
+							std::lock_guard<dlf_mutex> l(gMutex);
+							spell = RemotePlayerKnownSpells()->at(sourceForm);
+						}
+						catch (...) {
+						}
 					}
 					hitEventData.weapon = weapon;
+					hitEventData.spell = spell;
 
 					for (auto it = allRemotePlayers.begin(); it != allRemotePlayers.end(); ++it)
 					{
@@ -313,7 +328,7 @@ namespace ci
 							continue;
 						std::lock_guard<dlf_mutex> l1(pl->pimpl->mutex);
 						auto ref = (TESObjectREFR *)LookupFormByID(pl->pimpl->formID);
-						if (!ref/* || ref->formType != FormType::Reference*/)
+						if (!ref)
 							continue;
 						if (ref->formID != targetID)
 							continue;
@@ -1261,9 +1276,7 @@ namespace ci
 	bool RemotePlayer::NeedsGnome(int32_t i) const
 	{
 		return pimpl->handsMagicProxy[i] != nullptr
-			&& pimpl->handsMagicProxy[i]->GetDelivery() == Spell::Delivery::Aimed
-			//&& pimpl->handsMagicProxy[i]->GetCastingType() == Spell::CastingType::Concentration
-			;
+			&& (pimpl->handsMagicProxy[i]->GetDelivery() != Spell::Delivery::Self);
 	}
 
 	uint32_t RemotePlayer::GetLocationID() const
@@ -1277,6 +1290,7 @@ namespace ci
 	{
 		SAFE_CALL("RemotePlayer", [&] {
 			*Impl::RemotePlayerKnownItems() = knownItems;
+			*Impl::RemotePlayerKnownSpells() = knownSpells;
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
@@ -1722,11 +1736,9 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->spawnStage == SpawnStage::Spawned)
 		{
-			//const auto refID = pimpl->formID;
 			const auto foxID = pimpl->myPseudoFox ? pimpl->myPseudoFox->GetRefID() : 0;
 			if (spell != nullptr)
 			{
-				//SET_TIMER_LIGHT(1, [=] {
 				if (pimpl->gnomes[handID])
 				{
 					pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *ref) {
@@ -1746,7 +1758,6 @@ namespace ci
 						}
 					});
 				}
-				//});
 			}
 		}
 	}

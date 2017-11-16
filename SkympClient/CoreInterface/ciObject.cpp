@@ -18,6 +18,7 @@ std::set<ci::Object *> allObjects;
 
 extern std::map<const ci::ItemType *, uint32_t> inventory;
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
+extern std::map<TESForm *, const ci::Spell *> knownSpells;
 extern ErrorHandling::DeadlockFreeMutex<0> localPlMutex;
 
 namespace ci
@@ -325,21 +326,39 @@ struct ci::Object::Impl
 				return EventResult::kEvent_Continue;
 			
 			const ci::ItemType *weapon = nullptr;
-			auto sourceForm = LookupFormByID(evn->sourceFormID);
-			if (sourceForm != nullptr)
 			{
-				try {
-					weapon = knownItems.at(sourceForm);
-				}
-				catch (...) {
+				auto sourceForm = LookupFormByID(evn->sourceFormID);
+				if (sourceForm != nullptr)
+				{
+					try {
+						weapon = knownItems.at(sourceForm);
+					}
+					catch (...) {
+					}
 				}
 			}
+
+			const ci::Spell *spell = nullptr;
+			{
+				auto sourceForm = LookupFormByID(evn->sourceFormID);
+				if (sourceForm != nullptr)
+				{
+					try {
+						spell = knownSpells.at(sourceForm);
+					}
+					catch (...) {
+					}
+				}
+			}
+
+
 
 			const uint32_t targetID = evn->target->formID;
 
 			HitEventData hitEventData;
 			hitEventData.powerAttack = evn->flags.powerAttack;
 			hitEventData.weapon = weapon;
+			hitEventData.spell = spell;
 
 			std::thread([=] {
 				std::lock_guard<dlf_mutex> l(gMutex);

@@ -10,11 +10,13 @@ namespace ci
 	class LocalPlayer;
 	class ItemType;
 	class Object;
+	class Spell;
 
 	struct HitEventData
 	{
 		bool powerAttack = false;
 		const ci::ItemType *weapon = nullptr;
+		const ci::Spell *spell = nullptr;
 	};
 
 	class Object
