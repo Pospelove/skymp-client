@@ -28,6 +28,8 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Object *> objects;
 	std::map<uint32_t, ci::ItemType *> itemTypes;
 	std::set<ci::Object *> hostedJustNow;
+	std::map<uint32_t, ci::MagicEffect *> effects;
+	std::map<uint32_t, ci::Spell *> spells;
 	bool silentInventoryChanges = false;
 
 	uint16_t GetID(const ci::IActor *player)
@@ -55,6 +57,16 @@ class ClientLogic : public ci::IClientLogic
 		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
 		{
 			if (it->second == itemType)
+				return it->first;
+		}
+		return -1;
+	}
+
+	uint32_t GetID(const ci::Spell *spell)
+	{
+		for (auto it = spells.begin(); it != spells.end(); ++it)
+		{
+			if (it->second == spell)
 				return it->first;
 		}
 		return -1;
@@ -355,6 +367,25 @@ class ClientLogic : public ci::IClientLogic
 				player->ApplyMovementData(movData);
 				player->SetCell(localPlayer->GetCell());
 				player->SetWorldSpace(localPlayer->GetWorldSpace());
+
+				auto rPlayer = dynamic_cast<ci::RemotePlayer *>(player);
+				if (rPlayer != nullptr)
+				{
+					int32_t clearVisualEffect = 0;
+					for (int32_t i = 1; i >= 0; --i)
+						if ((int32_t)movData.castStage[i] != 0)
+						{
+							rPlayer->MagicAttackBegin(i);
+							rPlayer->SetVisualMagicEffect(rPlayer->GetEquippedSpell(i));
+						}
+						else
+						{
+							rPlayer->MagicAttackEnd(i);
+							++clearVisualEffect;
+						}
+					if (clearVisualEffect == 2)
+						rPlayer->SetVisualMagicEffect(nullptr);
+				}
 			}
 			catch (...) {
 			}
@@ -855,6 +886,60 @@ class ClientLogic : public ci::IClientLogic
 
 			break;
 		}
+		case ID_PLAYER_SPELLLIST:
+		{
+			uint16_t playerID;
+			bsIn.Read(playerID);
+
+			ci::IActor *pl;
+			try {
+				pl = players.at(playerID);
+			}
+			catch (...) {
+				pl = nullptr;
+			}
+			if (!pl)
+				break;
+
+			using SpellList = std::set<ci::Spell *>;
+
+			SpellList spellList;
+
+			while (true)
+			{
+				uint32_t spellID;
+				const bool read = bsIn.Read(spellID);
+				if (!read)
+					break;
+				try {
+					spellList.insert(spells.at(spellID));
+				}
+				catch (...) {
+				}
+			}
+
+			static std::map<uint16_t, SpellList> lastSpellList;
+
+			{
+				std::vector<ci::Spell *> toRemove;
+				std::set_difference(lastSpellList[playerID].begin(), lastSpellList[playerID].end(), spellList.begin(), spellList.end(),
+					std::inserter(toRemove, toRemove.begin()));
+				for (auto sp : toRemove)
+					pl->RemoveSpell(sp, this->silentInventoryChanges);
+			}
+
+			{
+				std::vector<ci::Spell *> toAdd;
+				std::set_difference(spellList.begin(), spellList.end(), lastSpellList[playerID].begin(), lastSpellList[playerID].end(),
+					std::inserter(toAdd, toAdd.begin()));
+				for (auto sp : toAdd)
+					pl->AddSpell(sp, this->silentInventoryChanges);
+			}
+
+			lastSpellList[playerID] = spellList;
+
+			break;
+		}
 		case ID_PLAYER_HIT:
 		{
 			uint16_t playerID;
@@ -977,6 +1062,40 @@ class ClientLogic : public ci::IClientLogic
 			else
 			{
 				pl->UnequipItem(pl->GetEquippedAmmo(), true, false, false);
+			}
+			break;
+		}
+		case ID_PLAYER_MAGIC_EQUIPMENT:
+		{
+			uint16_t playerID;
+			uint32_t spellIDs[2];
+			bsIn.Read(playerID);
+
+			ci::IActor *pl;
+			try {
+				pl = players.at(playerID);
+			}
+			catch (...) {
+				pl = nullptr;
+			}
+			if (!pl)
+				break;
+
+			for (int32_t i = 0; i <= 1; ++i)
+			{
+				const bool leftHand = (i == 1);
+
+				bsIn.Read(spellIDs[i]);
+				if (spellIDs[i] != ~0)
+				{
+					try {
+						pl->EquipSpell(spells.at(spellIDs[i]), leftHand);
+					}
+					catch (...) {
+					}
+				}
+				else
+					pl->UnequipSpell(pl->GetEquippedSpell(leftHand), leftHand);
 			}
 			break;
 		}
@@ -1129,6 +1248,55 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
+		case ID_SPELL:
+		{
+			uint32_t id;
+			uint32_t formID;
+			uint32_t numEffects;
+			bsIn.Read(id);
+			bsIn.Read(formID);
+			bsIn.Read(numEffects);
+
+			if (spells[id] == nullptr)
+			{
+				spells[id] = new ci::Spell(formID);
+				for (uint32_t i = 0; i != numEffects; ++i)
+				{
+					uint32_t effectID;
+					float mag, dur, area;
+					bsIn.Read(effectID);
+					bsIn.Read(mag);
+					bsIn.Read(dur);
+					bsIn.Read(area);
+					try {
+						spells[id]->AddEffect(effects.at(effectID), mag, dur);
+					}
+					catch (...) {
+					}
+				}
+			}
+			else
+				bsIn.IgnoreBytes(16 * numEffects);
+			break;
+		}
+		case ID_EFFECT:
+		{
+			uint32_t id = 0;
+			uint32_t formID = 0;
+			uint8_t archetype = 0;
+			uint8_t castingType = 0;
+			uint8_t delivery = 0;
+			bsIn.Read(id);
+			bsIn.Read(formID);
+			bsIn.Read(archetype);
+			bsIn.Read(castingType);
+			bsIn.Read(delivery);
+			if (effects[id] == nullptr)
+			{
+				effects[id] = new ci::MagicEffect(ci::MagicEffect::Archetype(archetype), formID, ci::MagicEffect::CastingType(castingType), ci::MagicEffect::Delivery(delivery));
+			}
+			break;
+		}
 		default:
 			ci::Chat::AddMessage(L"Unknown packet type " + std::to_wstring(packet->data[0]));
 			break;
@@ -1258,12 +1426,14 @@ class ClientLogic : public ci::IClientLogic
 	{
 		const auto playerID = GetID(hitTarget);
 		const auto weaponID = GetID(eventData.weapon);
+		const auto spellID = GetID(eventData.spell);
 
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_HIT_PLAYER);
 		bsOut.Write(playerID);
 		bsOut.Write(weaponID);
 		bsOut.Write(eventData.powerAttack);
+		bsOut.Write(spellID);
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
@@ -1271,23 +1441,16 @@ class ClientLogic : public ci::IClientLogic
 	{
 		const auto objectID = GetID(hitTarget);
 		const auto weaponID = GetID(eventData.weapon);
+		const auto spellID = GetID(eventData.spell);
 
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_HIT_OBJECT);
 		bsOut.Write(objectID);
 		bsOut.Write(weaponID);
 		bsOut.Write(eventData.powerAttack);
+		bsOut.Write(spellID);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
-
-
-	ci::Spell *Flames = nullptr,
-		*Healing = nullptr,
-		*Telekinesis = nullptr,
-		*Fireball = nullptr,
-		*Sparks = nullptr,
-		*Firebolt = nullptr,
-		*FireRune = nullptr;
 
 	void OnWorldInit() override
 	{
@@ -1295,77 +1458,6 @@ class ClientLogic : public ci::IClientLogic
 
 		if (firstInit)
 		{
-			Flames = new ci::Spell(0x00012FCD);
-			auto FireDamageConcAimed = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod, 
-				0x00013CA9, 
-				ci::MagicEffect::CastingType::Concentration, 
-				ci::MagicEffect::Delivery::Aimed
-			);
-			Flames->AddEffect(FireDamageConcAimed, 100.0, 1.0);
-
-			Healing = new ci::Spell(0x00012FCC);
-			auto RestoreHealthConcSelf = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod,
-				0x0001CEA4,
-				ci::MagicEffect::CastingType::Concentration,
-				ci::MagicEffect::Delivery::Self
-			);
-			Healing->AddEffect(RestoreHealthConcSelf, 25.0, 1.0);
-
-			Telekinesis = new ci::Spell(0x0001A4CC);
-			auto TelekinesisEffect = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::Telekinesis,
-				0x0001A4CB,
-				ci::MagicEffect::CastingType::Concentration,
-				ci::MagicEffect::Delivery::Aimed
-			);
-			Telekinesis->AddEffect(TelekinesisEffect, 1.0, 0.0);
-
-			Fireball = new ci::Spell(0x0001C789);
-			auto FireDamageFFAimedArea = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod,
-				0x0001CEA1,
-				ci::MagicEffect::CastingType::FireAndForget,
-				ci::MagicEffect::Delivery::Aimed
-			);
-			Fireball->AddEffect(FireDamageFFAimedArea, 40.0, 2.0);
-
-			Sparks = new ci::Spell(0x0002DD2A);
-			auto ShockDamageConcAimed = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod,
-				0x00013CAB,
-				ci::MagicEffect::CastingType::Concentration,
-				ci::MagicEffect::Delivery::Aimed
-			);
-			Sparks->AddEffect(ShockDamageConcAimed, 8.0, 1.0);
-
-			Firebolt = new ci::Spell(0x00012FD0);
-			auto FireDamageFFAimed = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod,
-				0x00012F03,
-				ci::MagicEffect::CastingType::FireAndForget,
-				ci::MagicEffect::Delivery::Aimed
-			);
-			Firebolt->AddEffect(FireDamageFFAimed, 22.5, 1.0);
-
-			FireRune = new ci::Spell(0x0005DB90);
-			auto FireRuneFFLocation = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod,
-				0x0005DB8F,
-				ci::MagicEffect::CastingType::FireAndForget,
-				ci::MagicEffect::Delivery::TargetLocation
-			);
-			FireRune->AddEffect(FireRuneFFLocation, 50.0, 2.0);
-
-			localPlayer->AddSpell(Flames, true);
-			localPlayer->AddSpell(Healing, true);
-			localPlayer->AddSpell(Telekinesis, true);
-			localPlayer->AddSpell(Fireball, true);
-			localPlayer->AddSpell(Sparks, true);
-			localPlayer->AddSpell(Firebolt, true);
-			localPlayer->AddSpell(FireRune, true);
-
 			localPlayer->onPlayerBowShot.Add([=](float power) {
 
 				const auto powerInt = int32_t(power * 100);
@@ -1458,6 +1550,13 @@ class ClientLogic : public ci::IClientLogic
 				}
 				catch (...) {
 					ci::Log("ERROR:ClientLogic UpdateEquippedWeapon<>()");
+				}
+				try {
+					UpdateEquippedSpell<0>();
+					UpdateEquippedSpell<1>();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateEquippedSpell<>()");
 				}
 				try {
 					UpdateEquippedAmmo();
@@ -1660,24 +1759,6 @@ class ClientLogic : public ci::IClientLogic
 			
 			}
 		}
-		else if (cmdText == L"//magic")
-		{
-			if (arguments.empty())
-				return ci::Chat::AddMessage(L"Use: //magic [0-1]");
-
-			const auto handID = (bool)atoi(WstringToString(arguments[0]).data());
-
-			const auto eq = localPlayer->GetEquippedSpell(handID);
-			if (eq)
-			{
-				localPlayer->UnequipSpell(eq, handID);
-			}
-			else
-			{
-				localPlayer->AddSpell(Flames, true);
-				localPlayer->EquipSpell(Flames, handID);
-			}
-		}
 		else if (cmdText == L"//hit")
 		{
 			RakNet::BitStream bsOut;
@@ -1801,6 +1882,14 @@ class ClientLogic : public ci::IClientLogic
 	{
 		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
 			if (it->second == itemType)
+				return it->first;
+		return ~0;
+	}
+
+	uint32_t GetSpellID(const ci::Spell *spell)
+	{
+		for (auto it = spells.begin(); it != spells.end(); ++it)
+			if (it->second == spell)
 				return it->first;
 		return ~0;
 	}
@@ -2016,6 +2105,38 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			weapWas = weap;
+		}
+	}
+
+	template<int32_t handID>
+	void UpdateEquippedSpell()
+	{
+		enum : bool {
+			isLeftHand = handID != 0
+		};
+		const ci::Spell *const sp = localPlayer->GetEquippedSpell(isLeftHand);
+		static const ci::Spell *spWas = nullptr;
+		if (sp != spWas)
+		{
+			if (spWas != nullptr)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_UNEQUIP_SPELL);
+				bsOut.Write(GetSpellID(spWas));
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+			}
+
+			if (sp != nullptr)
+			{
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_EQUIP_SPELL);
+				bsOut.Write(GetSpellID(sp));
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
+			}
+
+			spWas = sp;
 		}
 	}
 
