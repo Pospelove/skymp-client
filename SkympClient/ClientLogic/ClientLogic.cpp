@@ -1115,6 +1115,21 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
+		case ID_PLAYER_SPELL_RELEASE:
+		{
+			uint16_t playerID;
+			int32_t handID;
+			bsIn.Read(playerID);
+			bsIn.Read(handID);
+			try {
+				auto remotePlayer = dynamic_cast<ci::RemotePlayer *>(players.at(playerID));
+				if (remotePlayer)
+					remotePlayer->FireMagic(remotePlayer->GetEquippedSpell(handID), handID);
+			}
+			catch (...) {
+			}
+			break;
+		}
 		case ID_ITEMTYPES:
 		{
 			struct
@@ -1468,7 +1483,10 @@ class ClientLogic : public ci::IClientLogic
 			});
 
 			localPlayer->onPlayerMagicRelease.Add([=](int32_t handID) {
-
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_SPELL_RELEASE);
+				bsOut.Write(handID);
+				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 			});
 		}
 

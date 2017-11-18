@@ -458,33 +458,6 @@ namespace ci
 		pimpl->worldSpaceID = worldSpaceID;
 		pimpl->onHit = onHit;
 
-		for (int32_t i = 0; i <= 1; ++i)
-		{
-			static TESNPC *gnomeNpc = nullptr;
-			if (gnomeNpc == nullptr)
-			{
-				static auto exampleNpc = AllocateNPC();
-				gnomeNpc = (TESNPC *)LookupFormByID(ID_TESNPC::WEAdventurerBattlemageBretonMFire);
-				gnomeNpc->TESSpellList::unk04->numSpells = 0;
-				gnomeNpc->TESSpellList::unk04->spells = nullptr;
-				gnomeNpc->height = 0.1f;
-				gnomeNpc->combatStyle = exampleNpc->GetCombatStyle();
-				gnomeNpc->voiceType = exampleNpc->GetVoiceType();
-				gnomeNpc->TESAIForm::unk10 = exampleNpc->TESAIForm::unk10;
-			}
-
-			pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
-			pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
-				sd::EnableAI((Actor *)ref, false);
-				sd::SetActorValue((Actor *)ref, "Invisibility", 100.0f);
-				sd::AllowPCDialogue((Actor *)ref, false);
-				cd::SetDisplayName(ref, WstringToString(name), true);
-				sd::SetActorValue((Actor *)ref, "DamageResist", 100.0f);
-				sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
-				sd::SetActorValue((Actor *)ref, "Health", 32000.f);
-			});
-		}
-
 		AVData avData;
 		avData.base = 0;
 		avData.modifier = 0;
@@ -561,6 +534,39 @@ namespace ci
 				}
 			}
 		}).detach();
+	}
+
+	void RemotePlayer::CreateGnomes()
+	{
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+			if (pimpl->gnomes[i] == nullptr)
+			{
+				static TESNPC *gnomeNpc = nullptr;
+				if (gnomeNpc == nullptr)
+				{
+					static auto exampleNpc = AllocateNPC();
+					gnomeNpc = (TESNPC *)LookupFormByID(ID_TESNPC::WEAdventurerBattlemageBretonMFire);
+					gnomeNpc->TESSpellList::unk04->numSpells = 0;
+					gnomeNpc->TESSpellList::unk04->spells = nullptr;
+					gnomeNpc->height = 0.1f;
+					gnomeNpc->combatStyle = exampleNpc->GetCombatStyle();
+					gnomeNpc->voiceType = exampleNpc->GetVoiceType();
+					gnomeNpc->TESAIForm::unk10 = exampleNpc->TESAIForm::unk10;
+				}
+
+				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
+				pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
+					sd::EnableAI((Actor *)ref, false);
+					sd::SetActorValue((Actor *)ref, "Invisibility", 100.0f);
+					sd::AllowPCDialogue((Actor *)ref, false);
+					cd::SetDisplayName(ref, WstringToString(this->GetName()), true);
+					sd::SetActorValue((Actor *)ref, "DamageResist", 100.0f);
+					sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
+					sd::SetActorValue((Actor *)ref, "Health", 32000.f);
+				});
+			}
+		}
 	}
 
 	void RemotePlayer::UpdateNonSpawned()
@@ -1081,6 +1087,8 @@ namespace ci
 
 		if (pimpl->greyFaceFixed)
 		{
+			if (this->NeedsGnome(0) || this->NeedsGnome(1))
+				this->CreateGnomes();
 			this->UpdateGnomes(actor);
 			this->DeleteProjectile(actor);
 			this->UpdateMovement(actor);

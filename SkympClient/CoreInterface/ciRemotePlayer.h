@@ -78,6 +78,7 @@ namespace ci
 
 		void AsyncFoxDestroy();
 		void AsyncFoxCreate();
+		void CreateGnomes();
 
 		void UpdateNonSpawned();
 
