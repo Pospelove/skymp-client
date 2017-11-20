@@ -595,7 +595,7 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 		});
 	}*/
 
-	SET_TIMER(0, [=] {
+	SET_TIMER_LIGHT(0, [=] {
 		auto cstr = (char *)avName.data();
 		auto val = sd::GetActorValue(g_thePlayer, cstr);
 		auto dest = val / sd::GetActorValuePercentage(g_thePlayer, cstr) * percentage;
@@ -841,6 +841,69 @@ void PreventKillmoves()
 }
 
 template <int32_t hand>
+void PreventMagicEffects()
+{
+	static SpellItem *eqWas = nullptr;
+	auto eq = sd::GetEquippedSpell(g_thePlayer, !hand);
+
+	if (eq && g_thePlayer->IsWeaponDrawn() == false)
+		eq = nullptr;
+
+	static auto menus = { "BarterMenu",
+		"Book Menu",
+		"ContainerMenu",
+		"Crafting Menu",
+		"FavoritesMenu",
+		"GiftMenu",
+		"InventoryMenu",
+		"MagicMenu"
+	};
+
+	if (eq)
+		for (auto menu : menus)
+		{
+			if (MenuManager::GetSingleton()->IsMenuOpen(menu))
+			{
+				eq = nullptr;
+				break;
+			}
+		}
+
+	static std::map <TESForm *, std::vector <EffectItem>> dmg;
+	if (eqWas != eq)
+	{
+		if (eq)
+		{
+			if (eq->effectItemList.size() != 0)
+			{
+				std::vector<EffectItem> vec;
+				for (size_t i = 0; i != eq->effectItemList.size(); ++i)
+				{
+					EffectItem item;
+					item = *eq->effectItemList[i];
+					vec.push_back(item);
+					eq->effectItemList[i]->magnitude = 0.0f;
+				}
+				dmg[eq] = vec;
+			}
+		}
+
+		if (eqWas)
+		{
+			try {
+				for (size_t i = 0; i != eqWas->effectItemList.size(); ++i)
+				{
+					eqWas->effectItemList[i]->magnitude = dmg[eqWas][i].magnitude;
+				}
+			}
+			catch (...) {
+			}
+		}
+		eqWas = eq;
+	}
+}
+
+template <int32_t hand>
 void SendMagicReleaseEvent(const ci::Spell *spell, SpellItem *spellForm)
 {
 	using CastStage = ci::MovementData::CastStage;
@@ -964,6 +1027,9 @@ void ci::LocalPlayer::Update()
 
 	PreventKillmoves<0>();
 	PreventKillmoves<1>();
+
+	PreventMagicEffects<0>();
+	PreventMagicEffects<1>();
 
 	auto spell0 = this->GetEquippedSpell(0), spell1 = this->GetEquippedSpell(1);
 	SendMagicReleaseEvent<0>(spell0, spell0 ? (SpellItem *)LookupFormByID(spell0->GetFormID()) : nullptr);

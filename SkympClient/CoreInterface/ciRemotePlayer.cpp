@@ -80,7 +80,7 @@ namespace ci
 		auto nonDrawn = (TESPackage *)LookupFormByID(0x000654E2);
 		auto drawn = (TESPackage *)LookupFormByID(0x0004E4BB);
 
-		static auto useMagic = (TESPackage *) nullptr;
+		/* static */ auto useMagic = (TESPackage *) nullptr;
 		if (!useMagic)
 		{
 			const size_t packageN = 0;
@@ -330,7 +330,9 @@ namespace ci
 						auto ref = (TESObjectREFR *)LookupFormByID(pl->pimpl->formID);
 						if (!ref)
 							continue;
-						if (ref->formID != targetID)
+						if (ref->formID != targetID
+							&& (pl->pimpl->gnomes[0] == nullptr || pl->pimpl->gnomes[0]->GetFormID() != targetID)
+							&& (pl->pimpl->gnomes[1] == nullptr || pl->pimpl->gnomes[1]->GetFormID() != targetID))
 							continue;
 						auto onHit = pl->pimpl->onHit;
 						if (onHit)
@@ -641,7 +643,7 @@ namespace ci
 
 					const float angleRad = this->GetAngleZ() / 180 * acos(-1);
 					float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD_FROM_HAND");
-					if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr)
+					if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr || !actor->IsWeaponDrawn())
 						distance += 48;
 					newPos += {distance * sin(angleRad), distance * cos(angleRad), 0};
 					newPos.z += SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND");

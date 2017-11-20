@@ -156,6 +156,12 @@ NiPoint3 SimpleRef::GetRot() const
 	return pimpl->rot;
 }
 
+uint32_t SimpleRef::GetFormID() const
+{
+	std::lock_guard<dlf_mutex> l(pimpl->m);
+	return pimpl->refID;
+}
+
 void SimpleRef::Task(std::function<void(TESObjectREFR *)> f, bool persist)
 {
 	std::lock_guard<dlf_mutex> l(pimpl->m);

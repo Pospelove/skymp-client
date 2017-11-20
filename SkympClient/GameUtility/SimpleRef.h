@@ -10,6 +10,7 @@ public:
 	NiPoint3 GetPos() const;
 	void SetRot(const NiPoint3 &rot);
 	NiPoint3 GetRot() const;
+	uint32_t GetFormID() const;
 
 	void TaskPersist(std::function<void(TESObjectREFR *)> f) {
 		return this->Task(f, true);

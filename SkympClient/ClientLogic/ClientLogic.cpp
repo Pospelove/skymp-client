@@ -99,6 +99,7 @@ class ClientLogic : public ci::IClientLogic
 
 	bool haveName = false;
 	bool allowUpdateAVs = false;
+	clock_t lastUpdateByServer[1024]; // index is AV ID
 
 	struct
 	{
@@ -969,16 +970,13 @@ class ClientLogic : public ci::IClientLogic
 					break;
 				try {
 					currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
-					ci::SetTimer(avID == av.Health ? 200 : 1, [=] {
-						try {
-							players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
-							// Необработанное исключение по адресу 0x72187646 (msvcr120.dll) в TESV.exe: Запрашивается выход из программы в результате неустранимой ошибки.
-						}
-						catch (...) {
-							ci::Log("ERROR:ClientLogic World Crash");
-						}
-					});
+					try {
+						players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
+					}
+					catch (...) {
+					}
 					allowUpdateAVs = true;
+					lastUpdateByServer[avID] = clock();
 				}
 				catch (...) {
 				}
@@ -1367,6 +1365,9 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnStartup() override
 	{
+		for (int32_t i = 0; i != 1024; ++i)
+			this->lastUpdateByServer[i] = NULL;
+
 		ci::Chat::Init();
 		ci::Chat::AddMessage(L"#eeeeeeSkyMP Client Started");
 		ci::LocalPlayer::GetSingleton()->SetName(L"Player");
@@ -1499,6 +1500,21 @@ class ClientLogic : public ci::IClientLogic
 	{
 		if (testUpd)
 			testUpd();
+
+		{
+			static bool wasDead = false;
+			bool isDead = localPlayer->GetAVData("health").percentage == 0;
+			if (isDead != wasDead)
+			{
+				wasDead = isDead;
+				if (isDead)
+				{
+					// Forget magic
+					this->effects.clear();
+					this->spells.clear();
+				}
+			}
+		}
 
 		try {
 			static bool was = false;
@@ -2031,6 +2047,8 @@ class ClientLogic : public ci::IClientLogic
 			lastUpd = clock();
 			for (uint8_t avID = av.Health; avID <= av.Stamina; ++avID)
 			{
+				if (clock() - this->lastUpdateByServer[avID] < 333)
+					continue;
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_AV_CHANGED);
 				const auto name = av.GetAVName(avID);
