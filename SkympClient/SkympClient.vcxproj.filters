@@ -154,6 +154,9 @@
     <ClCompile Include="GameUtility\SimpleRef.cpp">
       <Filter>core\GameUtility</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciDataSearch.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -394,6 +397,9 @@
     </ClInclude>
     <ClInclude Include="GameUtility\SimpleRef.h">
       <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciDataSearch.h">
+      <Filter>core_interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

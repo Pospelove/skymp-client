@@ -997,7 +997,6 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
-
 	SAFE_CALL("LocalPlayer", [&] {
 
 		if (!set)

@@ -1087,7 +1087,16 @@ class ClientLogic : public ci::IClientLogic
 				if (spellIDs[i] != ~0)
 				{
 					try {
-						pl->EquipSpell(spells.at(spellIDs[i]), leftHand);
+						ci::Spell *sp;
+						try {
+							sp = spells.at(spellIDs[i]);
+						}
+						catch (...) {
+							sp = nullptr;
+							ci::Log("ERROR:ClientLogic spell not found");
+						}
+
+						pl->EquipSpell(sp, leftHand);
 					}
 					catch (...) {
 					}
@@ -1285,6 +1294,7 @@ class ClientLogic : public ci::IClientLogic
 						spells[id]->AddEffect(effects.at(effectID), mag, dur);
 					}
 					catch (...) {
+						ci::Log("ERROR:ClientLogic effect not found");
 					}
 				}
 			}
@@ -1307,6 +1317,47 @@ class ClientLogic : public ci::IClientLogic
 			if (effects[id] == nullptr)
 			{
 				effects[id] = new ci::MagicEffect(ci::MagicEffect::Archetype(archetype), formID, ci::MagicEffect::CastingType(castingType), ci::MagicEffect::Delivery(delivery));
+			}
+			break;
+		}
+		case ID_DATASEARCH_INIT:
+		{
+			static bool inited = false;
+			if (inited == false)
+			{
+				inited = true;
+				ci::Chat::AddMessage(L"DataSearch process activated", true);
+
+				enum class Opcode : uint8_t {
+					NavMesh = 0,
+				};
+
+				ci::DataSearch::RequestNavMesh([this](ci::DataSearch::NavMeshData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::NavMesh);
+					bsOut.Write(res.formID);
+					bsOut.Write((uint32_t)res.vertices.size());
+					for (size_t i = 0; i != res.vertices.size(); ++i)
+					{
+						bsOut.Write(res.vertices[i].x);
+						bsOut.Write(res.vertices[i].y);
+						bsOut.Write(res.vertices[i].z);
+					}
+					bsOut.Write((uint32_t)res.triangles.size());
+					for (size_t i = 0; i != res.triangles.size(); ++i)
+					{
+						bsOut.Write(res.triangles[i].verticeIDs[0]);
+						bsOut.Write(res.triangles[i].verticeIDs[1]);
+						bsOut.Write(res.triangles[i].verticeIDs[2]);
+					}
+					bsOut.Write((uint32_t)res.externalConnections.size());
+					for (size_t i = 0; i != res.externalConnections.size(); ++i)
+					{
+						bsOut.Write(res.externalConnections[i]);
+					}
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+				});
 			}
 			break;
 		}

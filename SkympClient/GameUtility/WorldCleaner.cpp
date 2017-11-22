@@ -67,6 +67,12 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 
 	switch (formType)
 	{
+	case FormType::NAVI:
+		ErrorHandling::SendError("ERROR:WorldCleaner Wow! NAVI found");
+		break;
+	case FormType::NAVM:
+		ErrorHandling::SendError("ERROR:WorldCleaner Wow! NAVM found");
+		break;
 	case FormType::NPC:
 	case FormType::LeveledCharacter:
 		sd::Delete(ref); // was cd::delete

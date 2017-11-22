@@ -18,6 +18,7 @@
 #include "ciIActor.h"
 #include "ciLocalPlayer.h"
 #include "ciRemotePlayer.h"
+#include "ciDataSearch.h"
 #include "ciMain.h"
 
 #endif

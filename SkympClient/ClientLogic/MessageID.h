@@ -28,6 +28,7 @@ enum : RakNet::MessageID {
 	ID_UNEQUIP_SPELL,
 	ID_BOW_SHOT,
 	ID_SPELL_RELEASE,
+	ID_DATASEARCH_RESULT,
 
 	// client <---> server
 	ID_MESSAGE,
@@ -69,4 +70,5 @@ enum : RakNet::MessageID {
 	ID_CHAT_BUBBLE,
 	ID_SPELL,
 	ID_EFFECT,
+	ID_DATASEARCH_INIT,
 };
