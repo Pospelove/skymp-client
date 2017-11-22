@@ -649,6 +649,13 @@ namespace ci
 
 					const float angleRad = this->GetAngleZ() / 180 * acos(-1);
 					float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD_FROM_HAND");
+
+					auto isCasting = [&](int32_t i) {
+						return this->GetMovementData().castStage[i] != ci::MovementData::CastStage::None;
+					};
+					if (isCasting(!i) && !isCasting(i))
+						newPos.z -= 48;
+
 					if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr || !actor->IsWeaponDrawn())
 						distance += 48;
 					newPos += {distance * sin(angleRad), distance * cos(angleRad), 0};
