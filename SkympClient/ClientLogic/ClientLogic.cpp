@@ -889,6 +889,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_SPELLLIST:
 		{
+			ci::Log(L"ID_PLAYER_SPELLLIST");
 			uint16_t playerID;
 			bsIn.Read(playerID);
 
@@ -916,6 +917,7 @@ class ClientLogic : public ci::IClientLogic
 					spellList.insert(spells.at(spellID));
 				}
 				catch (...) {
+					ci::Log("ERROR:ClientLogic Unknown spell in SpellList");
 				}
 			}
 
@@ -926,7 +928,10 @@ class ClientLogic : public ci::IClientLogic
 				std::set_difference(lastSpellList[playerID].begin(), lastSpellList[playerID].end(), spellList.begin(), spellList.end(),
 					std::inserter(toRemove, toRemove.begin()));
 				for (auto sp : toRemove)
-					pl->RemoveSpell(sp, this->silentInventoryChanges);
+				{
+					if (pl == localPlayer)
+						pl->RemoveSpell(sp, this->silentInventoryChanges);
+				}
 			}
 
 			{
@@ -1065,6 +1070,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_MAGIC_EQUIPMENT:
 		{
+			ci::Log(L"ID_PLAYER_MAGIC_EQUIPMENT");
 			uint16_t playerID;
 			uint32_t spellIDs[2];
 			bsIn.Read(playerID);
@@ -1272,6 +1278,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_SPELL:
 		{
+			ci::Log(L"ID_SPELL");
 			uint32_t id;
 			uint32_t formID;
 			uint32_t numEffects;
@@ -1291,7 +1298,7 @@ class ClientLogic : public ci::IClientLogic
 					bsIn.Read(dur);
 					bsIn.Read(area);
 					try {
-						spells[id]->AddEffect(effects.at(effectID), mag, dur);
+						spells[id]->AddEffect(effects.at(effectID), abs(mag), dur);
 					}
 					catch (...) {
 						ci::Log("ERROR:ClientLogic effect not found");
@@ -1304,6 +1311,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_EFFECT:
 		{
+			ci::Log(L"ID_EFFECT");
 			uint32_t id = 0;
 			uint32_t formID = 0;
 			uint8_t archetype = 0;
@@ -1561,8 +1569,8 @@ class ClientLogic : public ci::IClientLogic
 				if (isDead)
 				{
 					// Forget magic
-					this->effects.clear();
-					this->spells.clear();
+					//this->effects.clear();
+					//this->spells.clear();
 				}
 			}
 		}

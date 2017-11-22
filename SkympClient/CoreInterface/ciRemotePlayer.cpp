@@ -221,11 +221,11 @@ namespace ci
 		bool greyFaceFixed = false;
 		MovementData movementData;
 		MovementData_::SyncState syncState;
+		clock_t lastDespawn = 0;
 		UInt32 rating = 0;
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::set<const ci::Spell *> spellList;
 		std::queue<uint8_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData;
@@ -569,6 +569,12 @@ namespace ci
 				});
 			}
 		}
+	}
+
+	void RemotePlayer::DestroyGnomes()
+	{
+		for (int32_t i = 0; i <= 1; ++i)
+			pimpl->gnomes[i] = nullptr;
 	}
 
 	void RemotePlayer::UpdateNonSpawned()
@@ -1000,10 +1006,11 @@ namespace ci
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			if (pimpl->syncState.fatalErrors != 0)
+			if (pimpl->syncState.fatalErrors != 0 && clock() - pimpl->lastDespawn > 5000)
 			{
 				this->ForceDespawn(L"Despawned: Fatal Error in Sync");
 				pimpl->syncState.fatalErrors = 0;
+				pimpl->lastDespawn = clock();
 			}
 		});
 
@@ -1165,6 +1172,8 @@ namespace ci
 
 		if (pimpl->spawnStage != SpawnStage::NonSpawned)
 			return;
+
+		this->DestroyGnomes();
 
 		pimpl->spawnStage = SpawnStage::Spawning;
 
@@ -1529,19 +1538,10 @@ namespace ci
 
 	void RemotePlayer::AddSpell(const Spell *spell, bool silent)
 	{
-		if (!spell || spell->IsEmpty())
-			return;
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		pimpl->spellList.insert(spell);
 	}
 
 	void RemotePlayer::RemoveSpell(const Spell *spell, bool silent)
 	{
-		if (!spell || spell->IsEmpty())
-			return;
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		pimpl->spellList.erase(spell);
-
 		for (int32_t i = 0; i <= 1; ++i)
 			this->UnequipSpell(spell, i);
 	}
@@ -1549,8 +1549,6 @@ namespace ci
 	void RemotePlayer::EquipSpell(const Spell *spell, bool leftHand)
 	{
 		if (!spell || spell->IsEmpty())
-			return;
-		if (pimpl->spellList.find(spell) == pimpl->spellList.end())
 			return;
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->handsMagicProxy[leftHand] = spell;

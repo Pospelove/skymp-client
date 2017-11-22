@@ -563,7 +563,7 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 		return;
 	if (avName_[0] == '_')
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			cd::SetGameSettingFloat(&avName_.data()[1], avData.base + avData.modifier, {});
 		});
 	}
@@ -584,18 +584,8 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	};
 	static std::map<std::string, AVData> data;
 
-	SET_TIMER(0, [=] {
-		sd::SetActorValue(g_thePlayer, (char *)avName.data(), base + modifier);
-	});
-	/*const auto modOld = data[avName].modifier;
-	if (modOld != 0)
-	{
-		SET_TIMER(0, [=] {
-			sd::ModActorValue(g_thePlayer, (char *)avName.data(), modifier - modOld);
-		});
-	}*/
-
 	SET_TIMER_LIGHT(0, [=] {
+		sd::SetActorValue(g_thePlayer, (char *)avName.data(), base + modifier);
 		auto cstr = (char *)avName.data();
 		auto val = sd::GetActorValue(g_thePlayer, cstr);
 		auto dest = val / sd::GetActorValuePercentage(g_thePlayer, cstr) * percentage;
@@ -639,7 +629,7 @@ ci::LookData lastAppliedLook;
 void ci::LocalPlayer::ApplyLookData(const LookData &lookData)
 {
 	SET_TIMER(0, [=] {
-		if (this->GetLookData() != lookData)
+		//if (this->GetLookData() != lookData)
 			lookSync->Apply(lookData, g_thePlayer);
 		lastAppliedLook = lookData;
 	});

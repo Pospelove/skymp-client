@@ -28,39 +28,53 @@ namespace LookData_
 	clock_t lastApplyTintMasks = 0;
 	std::map<TESNPC *, std::vector<ci::LookData::TintMask>> appiedTintMasks;
 
+	void Apply(const ci::LookData &lookData, Actor *actor);
+
 	void QueueNiNodeUpdate(Actor *actor, int32_t numCalls = 0)
 	{
-		return cd::QueueNiNodeUpdate(actor, {});
-		/*if (!actor)
-			return;
-		auto npc = (TESNPC *)actor->baseForm;
-		if (actor != g_thePlayer)
-		{
-			return cd::QueueNiNodeUpdate(actor);
-		}
+		enum {
+			Simple,
+			VeryFatAndDeprecated
+		};
 
-		if (npc->numHeadParts == 0)
+		const int32_t mode = Simple;
+
+		switch (mode)
 		{
-			//sd::PrintNote("No HPs");
-			if (numCalls < 3)
+		case Simple:
+			cd::QueueNiNodeUpdate(actor, {});
+			return;
+		case VeryFatAndDeprecated:
+			if (!actor)
+				return;
+			auto npc = (TESNPC *)actor->baseForm;
+			if (actor != g_thePlayer)
 			{
-				SET_TIMER(50, [=] {
-					QueueNiNodeUpdate(g_thePlayer, numCalls + 1);
-				});
+				return cd::QueueNiNodeUpdate(actor);
+			}
+
+			if (npc->numHeadParts == 0)
+			{
+				if (numCalls < 3)
+				{
+					SET_TIMER(50, [=] {
+						QueueNiNodeUpdate(g_thePlayer, numCalls + 1);
+					});
+				}
+				else
+				{
+					isReapply = true;
+					Apply(lookToReapply, g_thePlayer);
+				}
 			}
 			else
 			{
-				isReapply = true;
-				Apply(lookToReapply, g_thePlayer);
-				//sd::PrintNote("Reapply");
+				const cd::Value<Actor> cdActor = actor;
+				cd::QueueNiNodeUpdate(cdActor, [cdActor] {
+				});
 			}
+			return;
 		}
-		else
-		{
-			const cd::Value<Actor> cdActor = actor;
-			cd::QueueNiNodeUpdate(cdActor, [cdActor] {
-			});
-		}*/
 	}
 
 #define PREFIX "actors\\character\\character assets\\tintmasks\\"

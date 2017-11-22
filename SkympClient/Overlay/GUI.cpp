@@ -196,29 +196,12 @@ void GUI::InjectKey(unsigned char Key, bool isPressed)
 
 	auto keyboardManager = KeyboardManager::GetSingletone();
 	const bool mainMenuOpen = MenuManager::GetSingleton()->IsMenuOpen("Main Menu");
-	//const bool shift = sd::GetKeyPressed(VK_LSHIFT) /*|| (mainMenuOpen && keyboardManager->GetKeyPressed(DIK_LSHIFT))*/;
-	//const bool shift = ((sd::GetKeyPressed(VK_LSHIFT, TRUE) || mainMenuOpen) && keyboardManager->GetKeyPressed(DIK_LSHIFT));
-	const bool shift = (GetAsyncKeyState(VK_LSHIFT) & (1 << 15)) != 0;
+	const bool shift = (GetAsyncKeyState(VK_LSHIFT) & (1 << 15)) != 0 || (GetAsyncKeyState(VK_RSHIFT) & (1 << 15)) != 0;
 	const bool caps = ((GetKeyState(VK_CAPITAL) & 0x0001) != 0);
 	CharsMap map;
-	if (isRussianLanguage)
-	{
-		/*key = map.ToRussian(key);
-		if (shift || caps)
-			key = toupperUnicode(key);*/
-
-			/*if (key == L'Q')
-				key = L'É';
-			if (key == L'q')
-				key = L'é';*/
-	}
-	else
+	if (!isRussianLanguage)
 	{
 		key = map.ToEnglish(key);
-		/*if (caps || shift)
-			key = toupper(key);
-		else
-			key = tolower(key);*/
 	}
 
 	std::basic_string<WCHAR> nums = L"1234567890", chars = isRussianLanguage ? L"!\"¹;%:?*()" : L"!@#$%^&*()";
@@ -287,7 +270,6 @@ void GUI::InjectKey(unsigned char Key, bool isPressed)
 		}
 	}
 
-	//if (1 | !IsRussianLanguage()) // PVS
 	{
 		key = tolower(key);
 		key = map.ToEnglish(key);
@@ -391,7 +373,6 @@ void GUI::InjectKey(unsigned char Key, bool isPressed)
 			if (shift || caps)
 				key = L'¨';
 		}
-		//TheChat->AddChatMessage(std::to_string(Key));
 	}
 
 	const WCHAR *shiftNum[] = { L"!@#$%^&*()", L"!\"¹;%:?*()" },
@@ -400,14 +381,6 @@ void GUI::InjectKey(unsigned char Key, bool isPressed)
 	{
 		key = (shift ? shiftNum : num)[isRussianLanguage != false][Key - 2];
 	}
-
-	/*if (keyboardManager->GetKeyPressed(0x35) && isRussianLanguage)
-	{
-		if (key == L'Þ')
-			key = L',';
-		else if (key == L'þ')
-			key = L'.';
-	}*/
 
 	if (key != '#')
 	{
