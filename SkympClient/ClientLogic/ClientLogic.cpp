@@ -406,11 +406,11 @@ class ClientLogic : public ci::IClientLogic
 					if (clearVisualEffect == 2)
 						rPlayer->SetVisualMagicEffect(nullptr);
 
-					if (rPlayer->IsBroken())
+					/*if (rPlayer->IsBroken())
 					{
 						ci::Log("ERROR:ClientLogic RemotePlayer is broken");
 						this->StreamOut(playerid);
-					}
+					}*/
 				}
 			}
 			catch (...) {
@@ -1397,10 +1397,25 @@ class ClientLogic : public ci::IClientLogic
 		case ID_TEXT_CREATE:
 		{
 			uint32_t id;
+			NiPoint3 pos;
+			uint32_t txtSize;
+			std::wstring txt;
 			bsIn.Read(id);
+			bsIn.Read(pos.x);
+			bsIn.Read(pos.y);
+			bsIn.Read(pos.z);
+			bsIn.Read(txtSize);
+			for (uint32_t i = 0; i != txtSize; ++i)
+			{
+				wchar_t wch;
+				bsIn.Read(wch);
+				txt += wch;
+			}
 			if (text3Ds.find(id) != text3Ds.end())
 				delete text3Ds[id];
 			text3Ds[id] = new ci::Text3D(L" ", { 1000000000,1000000000,1000000000 });
+			text3Ds[id]->SetPos(pos);
+			text3Ds[id]->SetText(txt);
 			break;
 		}
 		case ID_TEXT_DESTROY:
@@ -1410,48 +1425,9 @@ class ClientLogic : public ci::IClientLogic
 			auto it = text3Ds.find(id);
 			if (it != text3Ds.end())
 			{
+				delete it->second;
 				text3Ds.erase(it);
 			}
-		}
-		case ID_TEXT_CONTENT:
-		{
-			uint32_t id;
-			bsIn.Read(id);
-
-			std::wstring str;
-			while (true)
-			{
-				wchar_t wch;
-				const bool read = bsIn.Read(wch);
-				if (!read)
-					break;
-				str += wch;
-			}
-
-			try {
-				text3Ds.at(id)->SetText(str);
-			}
-			catch (...) {
-			}
-		}
-		case ID_TEXT_STATE:
-		{
-			uint32_t id;
-			bsIn.Read(id);
-
-			NiPoint3 pos;
-			bsIn.Read(pos.x);
-			bsIn.Read(pos.y);
-			bsIn.Read(pos.z);
-
-			try {
-				text3Ds.at(id)->SetPos(pos);
-			}
-			catch (...) {
-			}
-		}
-		case ID_TEXT_MISCDATA:
-		{
 			break;
 		}
 		default:

@@ -104,8 +104,8 @@ public:
 			try {
 				this->lastUpdateMT = clock();
 
-				while (sd::GetKeyPressed(VK_F9))
-					sd::QuitToMainMenu();
+				//while (sd::GetKeyPressed(VK_F9))
+				//	sd::QuitToMainMenu();
 
 				sd::Wait(0);
 
@@ -265,7 +265,7 @@ public:
 
 		while (1)
 		{
-			if (sd::GetKeyPressed(VK_F9))
+			if (0 && sd::GetKeyPressed(VK_F9))
 			{
 				auto msg = L"Unable to load saved game in online mode";
 				auto str = WstringToString(msg);

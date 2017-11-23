@@ -1179,7 +1179,7 @@ namespace ci
 		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
 		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 			refToPlaceAt = nullptr;
-		if (!refToPlaceAt)
+		if (1 || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
 		cd::PlaceAtMe(refToPlaceAt, (TESNPC *)LookupFormByID(npcID), 1, true, false, [=](cd::Value<TESObjectREFR> ac) {
