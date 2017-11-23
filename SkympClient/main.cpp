@@ -104,6 +104,9 @@ public:
 			try {
 				this->lastUpdateMT = clock();
 
+				while (sd::GetKeyPressed(VK_F9))
+					sd::QuitToMainMenu();
+
 				sd::Wait(0);
 
 				auto callAndGetTime = [](std::function<void()> callable) {
@@ -262,6 +265,17 @@ public:
 
 		while (1)
 		{
+			if (sd::GetKeyPressed(VK_F9))
+			{
+				auto msg = L"Unable to load saved game in online mode";
+				auto str = WstringToString(msg);
+				ErrorHandling::SendError(str.data());
+				ci::Chat::AddMessage(msg);
+				sd::QuitToMainMenu();
+				Sleep(1000);
+				std::exit(EXIT_FAILURE);
+			}
+
 			static auto menuManager = MenuManager::GetSingleton();
 			try
 			{

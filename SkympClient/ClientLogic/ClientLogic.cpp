@@ -30,6 +30,7 @@ class ClientLogic : public ci::IClientLogic
 	std::set<ci::Object *> hostedJustNow;
 	std::map<uint32_t, ci::MagicEffect *> effects;
 	std::map<uint32_t, ci::Spell *> spells;
+	std::map<uint32_t, ci::Text3D *> text3Ds;
 	bool silentInventoryChanges = false;
 
 	uint16_t GetID(const ci::IActor *player)
@@ -219,6 +220,24 @@ class ClientLogic : public ci::IClientLogic
 		ci::Chat::AddMessage(net.connectingMsg);
 	}
 
+	void StreamOut(uint16_t playerid)
+	{
+		if (net.peer != nullptr && playerid != net.myID)
+		{
+			RakNet::BitStream bsOut;
+			bsOut.Write(ID_FORGET_PLAYER);
+			bsOut.Write(playerid);
+			net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+			try {
+				delete players.at(playerid);
+				players.erase(playerid);
+			}
+			catch (...) {
+				ci::Log("ERROR:ClientLogic Already streamed out");
+			}
+		}
+	}
+
 	void ProcessPacket(RakNet::Packet *packet)
 	{
 		RakNet::BitStream bsOut;
@@ -386,6 +405,12 @@ class ClientLogic : public ci::IClientLogic
 						}
 					if (clearVisualEffect == 2)
 						rPlayer->SetVisualMagicEffect(nullptr);
+
+					if (rPlayer->IsBroken())
+					{
+						ci::Log("ERROR:ClientLogic RemotePlayer is broken");
+						this->StreamOut(playerid);
+					}
 				}
 			}
 			catch (...) {
@@ -434,7 +459,7 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(locationID);
 
 			uint16_t characters;
-			bsIn.Read(characters);
+			bsIn.Read(characters); 
 
 			std::wstring name;
 			for (size_t i = 0; i != characters; ++i)
@@ -1141,6 +1166,10 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
+		case ID_PLAYER_ACTIVE_EFFECTS:
+		{
+			break;
+		}
 		case ID_ITEMTYPES:
 		{
 			struct
@@ -1363,6 +1392,66 @@ class ClientLogic : public ci::IClientLogic
 					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 			}
+			break;
+		}
+		case ID_TEXT_CREATE:
+		{
+			uint32_t id;
+			bsIn.Read(id);
+			if (text3Ds.find(id) != text3Ds.end())
+				delete text3Ds[id];
+			text3Ds[id] = new ci::Text3D(L" ", { 1000000000,1000000000,1000000000 });
+			break;
+		}
+		case ID_TEXT_DESTROY:
+		{
+			uint32_t id;
+			bsIn.Read(id);
+			auto it = text3Ds.find(id);
+			if (it != text3Ds.end())
+			{
+				text3Ds.erase(it);
+			}
+		}
+		case ID_TEXT_CONTENT:
+		{
+			uint32_t id;
+			bsIn.Read(id);
+
+			std::wstring str;
+			while (true)
+			{
+				wchar_t wch;
+				const bool read = bsIn.Read(wch);
+				if (!read)
+					break;
+				str += wch;
+			}
+
+			try {
+				text3Ds.at(id)->SetText(str);
+			}
+			catch (...) {
+			}
+		}
+		case ID_TEXT_STATE:
+		{
+			uint32_t id;
+			bsIn.Read(id);
+
+			NiPoint3 pos;
+			bsIn.Read(pos.x);
+			bsIn.Read(pos.y);
+			bsIn.Read(pos.z);
+
+			try {
+				text3Ds.at(id)->SetPos(pos);
+			}
+			catch (...) {
+			}
+		}
+		case ID_TEXT_MISCDATA:
+		{
 			break;
 		}
 		default:
@@ -1919,6 +2008,18 @@ class ClientLogic : public ci::IClientLogic
 			static bool tr = true;
 			ci::TraceCDCalls(tr);
 			tr = !tr;
+		}
+		else if (cmdText == L"//error")
+		{
+			for (auto &pair : players)
+			{
+				auto rPl = dynamic_cast<ci::RemotePlayer *>(pair.second);
+				if (rPl != nullptr)
+				{
+					rPl->TestMakeBroken();
+					ci::Chat::AddMessage(L"#BEBEBE" L"Done");
+				}
+			}
 		}
 		else
 		{

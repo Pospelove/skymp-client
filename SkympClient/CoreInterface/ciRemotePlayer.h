@@ -68,6 +68,8 @@ namespace ci
 		void MagicAttackBegin(int32_t handID);
 		void MagicAttackEnd(int32_t handID);
 		void SetVisualMagicEffect(const ci::Spell *source);
+		bool IsBroken() const;
+		void TestMakeBroken();
 
 	private:
 

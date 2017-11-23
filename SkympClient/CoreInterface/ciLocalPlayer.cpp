@@ -776,6 +776,26 @@ void ci::LocalPlayer::SetDisplayGold(uint32_t count)
 	pcGold = count;
 }
 
+void ci::LocalPlayer::AddActiveEffect(const ci::Spell *parentSpell, const ci::MagicEffect *effect, const ci::IActor *caster, float magnitude, int64_t endMoment)
+{
+	if (effect && parentSpell && caster != nullptr)
+	{
+		SET_TIMER_LIGHT(0, [=] {
+			auto spellForm = (SpellItem *)LookupFormByID(parentSpell->GetFormID());
+			if (spellForm == nullptr)
+				return;
+
+			sd::Spell::RemoteCast(spellForm, g_thePlayer, g_thePlayer, g_thePlayer);
+		});
+	}
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+}
+
+void ci::LocalPlayer::ClearActiveEffects()
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+}
+
 clock_t timer = clock() + 5000;
 bool set = false;
 

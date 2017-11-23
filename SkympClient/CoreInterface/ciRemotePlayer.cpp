@@ -235,6 +235,7 @@ namespace ci
 		bool isMagicAttackStarted[2];
 		const void *visualMagicEffect = nullptr;
 		std::map<int32_t, std::unique_ptr<SimpleRef>> gnomes;
+		bool broken = false;
 
 		struct Equipment
 		{
@@ -551,11 +552,12 @@ namespace ci
 					gnomeNpc = (TESNPC *)LookupFormByID(ID_TESNPC::WEAdventurerBattlemageBretonMFire);
 					gnomeNpc->TESSpellList::unk04->numSpells = 0;
 					gnomeNpc->TESSpellList::unk04->spells = nullptr;
-					gnomeNpc->height = 0.1f;
 					gnomeNpc->combatStyle = exampleNpc->GetCombatStyle();
 					gnomeNpc->voiceType = exampleNpc->GetVoiceType();
 					gnomeNpc->TESAIForm::unk10 = exampleNpc->TESAIForm::unk10;
 				}
+
+				gnomeNpc->height = 0.1f;
 
 				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
 				pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
@@ -996,17 +998,6 @@ namespace ci
 
 	void RemotePlayer::DespawnIfNeed(Actor *actor)
 	{
-		/*SAFE_CALL("RemotePlayer", [&] {
-		for (int32_t i = 0; i <= 1; ++i)
-		{
-		if (pimpl->eq.handsMagic[i] == nullptr && sd::GetEquippedSpell(actor, !i) != nullptr)
-		{
-		this->ForceDespawn(L"Despawned: Equipment error");
-		break;
-		}
-		}
-		});*/
-
 		SAFE_CALL("RemotePlayer", [&] {
 			if (pimpl->height != ((TESNPC *)actor->baseForm)->height)
 				this->ForceDespawn(L"Despawned: Height changed");
@@ -1018,6 +1009,7 @@ namespace ci
 				this->ForceDespawn(L"Despawned: Fatal Error in Sync");
 				pimpl->syncState.fatalErrors = 0;
 				pimpl->lastDespawn = clock();
+				pimpl->broken = true;
 			}
 		});
 
@@ -1845,6 +1837,18 @@ namespace ci
 				}
 			}
 		});
+	}
+
+	bool RemotePlayer::IsBroken() const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return pimpl->broken;
+	}
+
+	void RemotePlayer::TestMakeBroken()
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		pimpl->broken = true;
 	}
 
 	void RemotePlayer::SetHeight(float h)
