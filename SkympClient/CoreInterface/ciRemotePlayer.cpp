@@ -104,6 +104,18 @@ namespace ci
 		data.next->next->next = nullptr;
 	}
 
+	void RunGnomeBehavior(TESObjectREFR *ref, const std::wstring &name)
+	{
+		sd::EnableAI((Actor *)ref, false);
+		sd::SetActorValue((Actor *)ref, "Invisibility", 100.0f);
+		sd::AllowPCDialogue((Actor *)ref, false);
+		cd::SetDisplayName(ref, WstringToString(name), true);
+		sd::SetActorValue((Actor *)ref, "DamageResist", 100.0f);
+		sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
+		sd::SetActorValue((Actor *)ref, "Health", 32000.f);
+		sd::StopCombat((Actor *)ref);
+	}
+
 	TESObjectCELL *GetParentNonExteriorCell(TESObjectREFR *ref)
 	{
 		auto cell = sd::GetParentCell(ref);
@@ -562,14 +574,9 @@ namespace ci
 				gnomeNpc->height = 0.1f;
 
 				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
+				const auto name = this->GetName();
 				pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
-					sd::EnableAI((Actor *)ref, false);
-					sd::SetActorValue((Actor *)ref, "Invisibility", 100.0f);
-					sd::AllowPCDialogue((Actor *)ref, false);
-					cd::SetDisplayName(ref, WstringToString(this->GetName()), true);
-					sd::SetActorValue((Actor *)ref, "DamageResist", 100.0f);
-					sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
-					sd::SetActorValue((Actor *)ref, "Health", 32000.f);
+					RunGnomeBehavior(ref, name);
 				});
 			}
 		}
@@ -672,6 +679,16 @@ namespace ci
 
 				gnome->SetPos(newPos);
 				gnome->SetRot({ 0,0,this->GetAngleZ() });
+
+				static std::map<uint32_t, clock_t> lastBehaviorUpdate;
+				if (clock() - lastBehaviorUpdate[gnome->GetFormID()] > 5000)
+				{
+					const auto name = this->GetName();
+					gnome->TaskSingle([name](TESObjectREFR *ref) {
+						RunGnomeBehavior(ref, name);
+					});
+					lastBehaviorUpdate[gnome->GetFormID()] = clock();
+				}
 			}
 		}
 	}
