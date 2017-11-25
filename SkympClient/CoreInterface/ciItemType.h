@@ -32,6 +32,11 @@ namespace ci
 			WEAP_Warhammer =		0x0B,
 			WEAP_Bow =				0x0C,
 			WEAP_Crossbow =			0x0D,
+			ARMO_Armor =			0x0E,
+			ARMO_Boots =			0x0F,
+			ARMO_Gauntlets =		0x10,
+			ARMO_Helmet =			0x11,
+			ARMO_Shield =			0x12,
 		};
 
 		ItemType(Class class_, Subclass subclass, uint32_t existingItemID);

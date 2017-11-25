@@ -406,11 +406,11 @@ class ClientLogic : public ci::IClientLogic
 					if (clearVisualEffect == 2)
 						rPlayer->SetVisualMagicEffect(nullptr);
 
-					/*if (rPlayer->IsBroken())
+					if (rPlayer->IsBroken())
 					{
 						ci::Log("ERROR:ClientLogic RemotePlayer is broken");
 						this->StreamOut(playerid);
-					}*/
+					}
 				}
 			}
 			catch (...) {

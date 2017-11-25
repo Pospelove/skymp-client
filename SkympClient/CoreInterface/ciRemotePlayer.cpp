@@ -343,6 +343,8 @@ namespace ci
 								onHit(hitEventData);
 							}).detach();
 						}
+						else
+							pl->pimpl->broken = true;
 						break;
 					}
 				}).detach();
@@ -988,7 +990,28 @@ namespace ci
 				if (pimpl->eq.ammo != nullptr)
 					eq.other.insert(LookupFormByID(pimpl->eq.ammo->GetFormID()));
 				for (auto &item : pimpl->eq.armor)
-					eq.other.insert(LookupFormByID(item->GetFormID()));
+				{
+					const bool emptyLeftHand = pimpl->eq.hands[1] == nullptr && 
+						(!pimpl->eq.hands[0] 
+							|| pimpl->eq.hands[0]->GetSubclass() < ci::ItemType::Subclass::WEAP_Greatsword
+							|| pimpl->eq.hands[0]->GetSubclass() > ci::ItemType::Subclass::WEAP_Crossbow);
+
+					const bool dontEquipPlease = item->GetSubclass() == ci::ItemType::Subclass::ARMO_Shield && !emptyLeftHand;
+
+					if (!dontEquipPlease)
+					{
+						eq.other.insert(LookupFormByID(item->GetFormID()));
+					}
+					else
+					{
+						static bool reported = false;
+						if (reported == false)
+						{
+							reported = true;
+							ErrorHandling::SendError("WARN:RemotePlayer Incorrect equipment");
+						}
+					}
+				}
 				Equipment_::ApplyOther(actor, eq);
 				pimpl->eqLast.armor = pimpl->eq.armor;
 				pimpl->eqLast.ammo = pimpl->eq.ammo;
