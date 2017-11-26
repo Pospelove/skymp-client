@@ -32,6 +32,8 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Spell *> spells;
 	std::map<uint32_t, ci::Text3D *> text3Ds;
 	bool silentInventoryChanges = false;
+	bool dataSearchEnabled = false;
+	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
 
 	uint16_t GetID(const ci::IActor *player)
 	{
@@ -1359,10 +1361,35 @@ class ClientLogic : public ci::IClientLogic
 			if (inited == false)
 			{
 				inited = true;
+				this->dataSearchEnabled = true;
 				ci::Chat::AddMessage(L"DataSearch process activated", true);
 
 				enum class Opcode : uint8_t {
 					NavMesh = 0,
+					TeleportDoors = 1,
+					Container = 2,
+					Door = 3,
+					Item = 4,
+				};
+
+				this->tpdCallback = [this](ci::DataSearch::TeleportDoorsData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::TeleportDoors);
+					for (int32_t i = 0; i != 2; ++i)
+					{
+						bsOut.Write(res.doors[i].refID);
+						bsOut.Write(res.doors[i].baseID);
+						bsOut.Write(res.doors[i].locationID);
+						bsOut.Write(res.doors[i].pos.x);
+						bsOut.Write(res.doors[i].pos.y);
+						bsOut.Write(res.doors[i].pos.z);
+						bsOut.Write(res.doors[i].rot.x);
+						bsOut.Write(res.doors[i].rot.y);
+						bsOut.Write(res.doors[i].rot.z);
+					}
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					ci::Chat::AddMessage(L"#BEBEBE" L"TPDData sent");
 				};
 
 				ci::DataSearch::RequestNavMesh([this](ci::DataSearch::NavMeshData res) {
@@ -1391,6 +1418,39 @@ class ClientLogic : public ci::IClientLogic
 					}
 					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
+
+				ci::DataSearch::RequestContainers([this](ci::DataSearch::ContainerData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::Container);
+					bsOut.Write(res.refID);
+					bsOut.Write(res.baseID);
+					bsOut.Write(res.locationID);
+					bsOut.Write(res.pos.x);
+					bsOut.Write(res.pos.y);
+					bsOut.Write(res.pos.z);
+					bsOut.Write(res.rot.x);
+					bsOut.Write(res.rot.y);
+					bsOut.Write(res.rot.z);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+				});
+
+				ci::DataSearch::RequestDoors([this](ci::DataSearch::DoorData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::Door);
+					bsOut.Write(res.refID);
+					bsOut.Write(res.baseID);
+					bsOut.Write(res.locationID);
+					bsOut.Write(res.pos.x);
+					bsOut.Write(res.pos.y);
+					bsOut.Write(res.pos.z);
+					bsOut.Write(res.rot.x);
+					bsOut.Write(res.rot.y);
+					bsOut.Write(res.rot.z);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+				});
+
 			}
 			break;
 		}
@@ -1921,6 +1981,19 @@ class ClientLogic : public ci::IClientLogic
 			bsOut.Write(GetItemTypeID(localPlayer->GetEquippedWeapon()));
 			bsOut.Write(false);
 			net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+		}
+		else if (cmdText == L"//tpd")
+		{
+			if (dataSearchEnabled)
+			{
+				ci::DataSearch::RequestTeleportDoorsManual([this](ci::DataSearch::TeleportDoorsData res) {
+					if (this->tpdCallback != nullptr)
+						this->tpdCallback(res);
+				});
+				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch TPD module is ready");
+			}
+			else
+				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
 		}
 		else if (cmdText == L"//clone")
 		{

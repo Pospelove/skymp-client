@@ -4,6 +4,15 @@ namespace ci
 {
 	namespace DataSearch
 	{
+		struct ReferenceData
+		{
+			uint32_t refID = 0;
+			uint32_t baseID = 0;
+			NiPoint3 pos = { 0,0,0 };
+			NiPoint3 rot = { 0,0,0 };
+			uint32_t locationID = 0;
+		};
+
 		struct NavMeshData
 		{
 			struct Triangle
@@ -22,6 +31,35 @@ namespace ci
 			std::vector<uint32_t> externalConnections;
 		};
 
+		struct TeleportDoorsData
+		{
+			struct TeleportDoor : ReferenceData
+			{
+			};
+
+			TeleportDoor doors[2];
+		};
+
+		struct ContainerData : ReferenceData
+		{
+		};
+
+		struct DoorData : ReferenceData
+		{
+		};
+
+		struct ItemData : ReferenceData
+		{
+			uint32_t value = 0;
+			uint32_t damage = 0;
+			ci::ItemType::Class cl;
+			ci::ItemType::Subclass subCl;
+		};
+
 		void RequestNavMesh(std::function<void(NavMeshData)> callback);
+		void RequestTeleportDoorsManual(std::function<void(TeleportDoorsData)> callback);
+		void RequestContainers(std::function<void(ContainerData)> callback);
+		void RequestDoors(std::function<void(DoorData)> callback);
+		void RequestItems(std::function<void(ItemData)> callback);
 	}
 }

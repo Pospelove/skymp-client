@@ -47,6 +47,12 @@ bool WorldCleaner::IsFormProtected(RefHandle formID) const
 	return this->protectedForms.find(formID) != this->protectedForms.end();
 }
 
+void WorldCleaner::SetCallback(FormType t, std::function<void(TESObjectREFR *)> f)
+{
+	std::lock_guard<dlf_mutex> lock(mutex);
+	callbacks[t] = f;
+}
+
 void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 {
 	std::lock_guard<dlf_mutex> lock(mutex);
@@ -64,6 +70,10 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	if (this->IsFormProtected(refID) || this->IsFormProtected(baseFormID))
 		return;
 
+	if (callbacks[formType] != nullptr)
+	{
+		callbacks[formType](ref);
+	}
 
 	switch (formType)
 	{
