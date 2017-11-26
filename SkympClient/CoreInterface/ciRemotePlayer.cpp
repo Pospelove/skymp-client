@@ -649,8 +649,13 @@ namespace ci
 			pimpl->spawnStage = SpawnStage::NonSpawned;
 			return;
 		}
-		if (lastForceSpawn + 3000 < clock())
+
+		const auto timeoutMs = SyncOptions::GetSingleton()->GetInt("SPAWNING_TIMEOUT");
+		if (timeoutMs != NULL && lastForceSpawn + timeoutMs < clock())
 		{
+			ErrorHandling::SendError("ERROR:RemotePlayer Spawning %s failed",
+				WstringToString(this->GetName()).data());
+
 			currentSpawning = nullptr;
 			pimpl->spawnStage = SpawnStage::NonSpawned;
 
