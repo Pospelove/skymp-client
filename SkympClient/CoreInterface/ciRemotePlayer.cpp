@@ -22,7 +22,7 @@ class CIAccess
 {
 public:
 	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
+		return ci::Plugin::callbacksMutex;
 	}
 };
 
@@ -431,7 +431,12 @@ namespace ci
 				auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
 				if (actor == nullptr)
 					return;
-				if (!sd::HasLOS(g_thePlayer, actor))
+				if (PlayerCamera::GetSingleton()->IsInScreen(p->GetPos())
+					|| PlayerCamera::GetSingleton()->IsInScreen(p->GetPos() + NiPoint3{ 0,0,64 })
+					|| PlayerCamera::GetSingleton()->IsInScreen(p->GetPos() + NiPoint3{ 0,0,128 }))
+				{
+				}
+				else
 					return;
 			}
 

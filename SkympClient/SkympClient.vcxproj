@@ -172,6 +172,7 @@
     <ClInclude Include="ClientLogic\Config.h" />
     <ClInclude Include="ClientLogic\MessageID.h" />
     <ClInclude Include="ClientLogic\Serialization.h" />
+    <ClInclude Include="ClientLogic\SkympAgent.h" />
     <ClInclude Include="Common\clip.h" />
     <ClInclude Include="Common\clip_win.h" />
     <ClInclude Include="Common\ErrorHandling.h" />

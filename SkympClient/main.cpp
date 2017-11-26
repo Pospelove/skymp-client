@@ -69,7 +69,7 @@ public:
 	void OnScriptDragonLoaded()
 	{
 		try {
-			auto &logic = ci::IClientLogic::clientLogic;
+			auto &logic = ci::Plugin::clientLogic;
 			if (logic)
 			{
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
@@ -238,7 +238,7 @@ public:
 		MenuDisabler::SetDisabled("Console", true);
 		//PlayerControls_::SetEnabled(Control::Console, true);
 
-		auto &logic = ci::IClientLogic::clientLogic;
+		auto &logic = ci::Plugin::clientLogic;
 
 		std::thread([this] {
 			while (1)

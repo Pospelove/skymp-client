@@ -119,7 +119,7 @@ public:
 	static void OnItemDropped(const ci::ItemType *itemType, uint32_t count)
 	{
 		std::thread([=] {
-			auto logic = ci::IClientLogic::clientLogic;
+			auto logic = ci::Plugin::clientLogic;
 			if (logic != nullptr)
 			{
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
@@ -129,7 +129,7 @@ public:
 	}
 
 	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
+		return ci::Plugin::callbacksMutex;
 	}
 };
 
