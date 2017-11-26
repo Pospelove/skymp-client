@@ -1222,8 +1222,8 @@ namespace ci
 		if (1 || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
-		cd::PlaceAtMe(refToPlaceAt, (TESNPC *)LookupFormByID(npcID), 1, true, false, [=](cd::Value<TESObjectREFR> ac) {
-			SET_TIMER(0, [=] {
+		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
+			SET_TIMER_LIGHT(1, [=] {
 				const auto id = ac.GetFormID();
 				if (LookupFormByID(id) == nullptr)
 					return;
@@ -1275,7 +1275,20 @@ namespace ci
 				if (currentSpawning == this)
 					currentSpawning = nullptr;
 			});
-		});
+		};
+
+		if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
+		{
+			auto refr = sd::PlaceAtMe(refToPlaceAt, LookupFormByID(npcID), 1, true, false);
+			cd::Value<TESObjectREFR> cdRefr = refr;
+			SET_TIMER_LIGHT(1, [cdRefr, onPlace] {
+				onPlace(cdRefr);
+			});
+		}
+		else
+		{
+			cd::PlaceAtMe(refToPlaceAt, LookupFormByID(npcID), 1, true, false, onPlace);
+		}
 	}
 
 	void RemotePlayer::ForceDespawn(const wchar_t *reason)
