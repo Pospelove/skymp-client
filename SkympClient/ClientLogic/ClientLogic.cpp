@@ -235,7 +235,7 @@ class ClientLogic : public ci::IClientLogic
 				players.erase(playerid);
 			}
 			catch (...) {
-				ci::Log("ERROR:ClientLogic Already streamed out");
+				ci::Log("WARN:ClientLogic Attempt to streamout unknown player");
 			}
 		}
 	}
@@ -416,6 +416,8 @@ class ClientLogic : public ci::IClientLogic
 				}
 			}
 			catch (...) {
+				ci::Log("ERROR:ClientLogic RemotePlayer not found %u", playerid);
+				this->StreamOut(playerid);
 			}
 			break;
 		}
