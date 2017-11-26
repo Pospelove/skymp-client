@@ -183,11 +183,25 @@ namespace ci
 			if (!isTaskRunning)
 			{
 				isTaskRunning = true;
-				cd::PlaceAtMe(g_thePlayer, GetPlaceAtMeMarkerBase(), 1, true, false, [](cd::Value<TESObjectREFR> result) {
+
+				auto onPlace = [](cd::Value<TESObjectREFR> result) {
 					std::lock_guard<dlf_mutex> l(mutex);
 					markerFormID = result.GetFormID();
 					isTaskRunning = false;
-				});
+				};
+
+				if (SyncOptions::GetSingleton()->GetInt("UNSAFE_MARKER_PLACEATME") != 0)
+				{
+					auto refr = sd::PlaceAtMe(g_thePlayer, GetPlaceAtMeMarkerBase(), 1, true, false);
+					cd::Value<TESObjectREFR> cdRefr = refr;
+					SET_TIMER_LIGHT(0, [cdRefr, onPlace] {
+						onPlace(cdRefr);
+					});
+				}
+				else
+				{
+					cd::PlaceAtMe(g_thePlayer, GetPlaceAtMeMarkerBase(), 1, true, false, onPlace);
+				}
 			}
 			return;
 		}

@@ -68,6 +68,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"HANDGNOME_OFFSET_FORWARD_FROM_HAND = 4\n"
 		"HANDGNOME_OFFSET_Z_FROM_HAND = -7\n"
 		"UNSAFE_PLACEATME = 1\n"
+		"UNSAFE_MARKER_PLACEATME = 1\n"
 
 		"ci::LocalPlayer\n"
 		"DISABLE_PLAYER_DAMAGE = 1\n"
