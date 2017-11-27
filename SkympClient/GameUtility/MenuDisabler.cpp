@@ -64,11 +64,20 @@ void MenuDisabler::Update_OT()
 {
 	std::lock_guard<std::mutex> lck(mutex);
 
-	auto mm = MenuManager::GetSingleton();
+	auto mm = MenuManager::GetSingleton(); 
 	if (mm != nullptr)
 		for (auto it = menus.begin(); it != menus.end(); ++it)
 		{
 			if (mm->IsMenuOpen(*it) && disabledMenus.find(*it) != disabledMenus.end())
-				mm->CloseMenu(*it);
+			{
+				if (*it == (std::string)"Console")
+				{
+					keybd_event(VK_OEM_3, 41, NULL, NULL);
+					keybd_event(VK_OEM_3, 41, KEYEVENTF_KEYUP, NULL);
+					Sleep(100);
+				}
+				else
+					mm->CloseMenu(*it);
+			}
 		}
 }

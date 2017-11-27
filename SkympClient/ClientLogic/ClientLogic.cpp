@@ -54,7 +54,7 @@ class ClientLogic : public ci::IClientLogic
 
 		Bot(std::wstring name)
 		{
-			this->ConnectToServer("127.0.0.1", 7777, "A1", "123456", name);
+			this->ConnectToServer(g_config[CONFIG_IP], 7777, "A1", "123456", name);
 			this->name = name;
 		}
 

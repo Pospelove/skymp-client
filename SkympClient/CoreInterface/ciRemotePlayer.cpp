@@ -724,7 +724,14 @@ namespace ci
 			if (this->IsDerived() == false)
 			{
 				const NiPoint3 offset = { 0, 0, 128 + 16 };
-				const auto nicknamePos = cd::GetPosition(actor) + offset;
+				auto nicknamePos = cd::GetPosition(actor) + offset;
+
+				const auto headPos = Utility::GetNodeWorldPosition(actor, "NPC Head [Head]", false);
+				if (headPos.Length() > 0)
+				{
+					nicknamePos = headPos;
+					nicknamePos += {0, 0, 22};
+				}
 
 				if (pimpl->nicknameLabel == nullptr && pimpl->nicknameEnabled)
 					pimpl->nicknameLabel.reset(new ci::Text3D(this->GetName(), nicknamePos));

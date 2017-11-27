@@ -265,6 +265,12 @@ public:
 
 		while (1)
 		{
+			if (MenuManager::GetSingleton()->IsMenuOpen("Console"))
+			{
+				auto &allowTextInput = (*(uint8_t *)((*(uint32_t *)0x012E7458) + 0x98));
+				allowTextInput = false;
+			}
+
 			if (0 && sd::GetKeyPressed(VK_F9))
 			{
 				auto msg = L"Unable to load saved game in online mode";
