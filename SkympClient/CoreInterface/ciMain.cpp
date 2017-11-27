@@ -1,10 +1,10 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
 
-ci::Plugin *ci::Plugin::clientLogic = nullptr;
-ci::Mutex ci::Plugin::callbacksMutex;
+ci::IClientLogic *ci::IClientLogic::clientLogic = nullptr;
+ci::Mutex ci::IClientLogic::callbacksMutex;
 
-ci::Plugin::Plugin()
+ci::IClientLogic::IClientLogic()
 {
 	if (!clientLogic)
 		clientLogic = this;

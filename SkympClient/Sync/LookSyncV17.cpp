@@ -10,7 +10,7 @@ class CIAccess
 public:
 	static void OnRaceMenuExit()
 	{
-		auto &logic = ci::Plugin::clientLogic;
+		auto &logic = ci::IClientLogic::clientLogic;
 		if (logic)
 		{
 			std::lock_guard<ci::Mutex> l(logic->callbacksMutex);

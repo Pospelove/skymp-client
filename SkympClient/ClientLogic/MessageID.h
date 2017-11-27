@@ -1,9 +1,6 @@
 #pragma once
 #include <MessageIdentifiers.h>
 
-#define MAX_NICKNAME			(24u)
-#define MAX_PASSWORD			(32u)
-
 enum : RakNet::MessageID {
 	// client ----> server
 	ID_HANDSHAKE = ID_USER_PACKET_ENUM,

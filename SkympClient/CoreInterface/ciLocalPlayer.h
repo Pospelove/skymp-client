@@ -11,7 +11,6 @@ namespace ci
 		friend class ::SkympClientDll;
 	public:
 		static LocalPlayer *GetSingleton();
-		static std::shared_ptr<IActor> GetSingletonSmart();
 
 		void SetName(const std::wstring &name) override;
 		void SetPos(NiPoint3 pos) override;

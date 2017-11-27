@@ -8,13 +8,13 @@ class CIAccess;
 
 namespace ci
 {
-	class Plugin
+	class IClientLogic
 	{
 		friend class ::SkympClientDll;
 		friend class ::CIAccess;
 
 	public:
-		Plugin();
+		IClientLogic();
 
 		/**
 		* Вызывается единожды при запуске игры
@@ -60,7 +60,7 @@ namespace ci
 		virtual void OnItemDropped(const ci::ItemType *itemType, uint32_t count) = 0;
 
 	protected:
-		 static Plugin *clientLogic;
+		 static IClientLogic *clientLogic;
 		 static Mutex callbacksMutex;
 	};
 }

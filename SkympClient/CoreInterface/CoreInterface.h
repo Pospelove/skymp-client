@@ -6,9 +6,11 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "ciTypes.h"
+#include "..\Skyrim\include\Skyrim\NetImmerse\NiPoint3.h"
+
 #include "ciGUI.h"
 #include "ciOther.h"
+#include "ciTypes.h"
 #include "ciObject.h"
 #include "ciItemType.h"
 #include "ciMagicEffect.h"

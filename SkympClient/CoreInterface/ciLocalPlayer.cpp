@@ -119,7 +119,7 @@ public:
 	static void OnItemDropped(const ci::ItemType *itemType, uint32_t count)
 	{
 		std::thread([=] {
-			auto logic = ci::Plugin::clientLogic;
+			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
@@ -129,7 +129,7 @@ public:
 	}
 
 	static ci::Mutex &GetMutex() {
-		return ci::Plugin::callbacksMutex;
+		return ci::IClientLogic::callbacksMutex;
 	}
 };
 
@@ -264,13 +264,8 @@ struct CheckTeleport
 
 ci::LocalPlayer *ci::LocalPlayer::GetSingleton()
 {
-	return (ci::LocalPlayer *)GetSingletonSmart().get();
-}
-
-std::shared_ptr<ci::IActor> ci::LocalPlayer::GetSingletonSmart()
-{
-	static std::shared_ptr<ci::IActor> pl(new ci::LocalPlayer);
-	return pl;
+	static LocalPlayer pl;
+	return &pl;
 }
 
 ci::LocalPlayer::LocalPlayer()

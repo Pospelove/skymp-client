@@ -9,7 +9,7 @@ class CIAccess
 {
 public:
 	static ci::Mutex &GetMutex() {
-		return ci::Plugin::callbacksMutex;
+		return ci::IClientLogic::callbacksMutex;
 	}
 };
 

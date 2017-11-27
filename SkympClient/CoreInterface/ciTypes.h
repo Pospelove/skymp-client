@@ -1,6 +1,5 @@
 #pragma once
 
-#include "..\Skyrim\include\Skyrim\NetImmerse\NiPoint3.h"
 #include <array>
 #include <vector>
 
