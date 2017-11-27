@@ -207,7 +207,7 @@ namespace ci
 		}
 
 		auto pos = cd::GetPosition(g_thePlayer);
-		GetRelXy(sd::GetAngleZ(g_thePlayer) + 128 + 90, GetRespawnRadius(isInteriorNow) * 0.85, &pos.x, &pos.y);
+		GetRelXy(sd::GetAngleZ(g_thePlayer) + 128 + 90, GetRespawnRadius(isInteriorNow) * 0.3, &pos.x, &pos.y);
 		static clock_t lastTranslateTo = 0;
 		if (clock() - lastTranslateTo > 1000)
 		{
@@ -1251,7 +1251,7 @@ namespace ci
 		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
 		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 			refToPlaceAt = nullptr;
-		if (1 || !refToPlaceAt)
+		if (!refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
