@@ -63,6 +63,9 @@ void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 	catch (const std::exception &e)
 	{
 		sd::PrintNote((char *)e.what());
+		ErrorHandling::SendError("FATAL:Timer %s", e.what());
+		Sleep(1000);
+		std::exit(EXIT_FAILURE);
 	}
 }
 
