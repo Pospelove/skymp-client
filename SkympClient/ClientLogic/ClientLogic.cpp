@@ -541,8 +541,8 @@ class ClientLogic : public ci::IClientLogic
 				}
 			}
 			catch (...) {
-				ci::Log("ERROR:ClientLogic RemotePlayer not found %u", playerid);
-				this->StreamOut(playerid);
+				//ci::Log("ERROR:ClientLogic RemotePlayer not found %u", playerid);
+				//this->StreamOut(playerid);
 			}
 			break;
 		}

@@ -23,13 +23,36 @@ void MoveTo(uint32_t markerRefID)
 
 	if (SyncOptions::GetSingleton()->GetInt("MUTE_SOUND_ON_TP") != FALSE)
 	{
-		DWORD dwVolume;
-		if (waveOutGetVolume(NULL, &dwVolume) == MMSYSERR_NOERROR)
-			waveOutSetVolume(NULL, 0); // mute volume
+		auto setVolume = [](DWORD v) {
+			WAVEFORMATEX    wfx = { 0 };
+
+			wfx.wFormatTag = WAVE_FORMAT_PCM;
+			wfx.cbSize = 0;
+			wfx.nChannels = 1;
+			wfx.nSamplesPerSec = 1000;
+			wfx.wBitsPerSample = 16;
+			wfx.nBlockAlign = wfx.wBitsPerSample / 8;
+			wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
+
+			auto hEvent = CreateEvent(0, TRUE, FALSE, 0);
+			if (hEvent)
+			{
+				HWAVEOUT out;
+				waveOutOpen(&out,
+					WAVE_MAPPER,
+					&wfx,
+					(DWORD)0,
+					(DWORD)GetModuleHandle(NULL),
+					CALLBACK_NULL);
+				waveOutSetVolume(out, v);
+			}
+		};
+
+		setVolume(0);
 
 		SET_TIMER(0, [=] {
 			SET_TIMER(1500, [=] {
-				waveOutSetVolume(NULL, dwVolume ? dwVolume : 0xFFFF);
+				setVolume(-1);
 			});
 		});
 	}

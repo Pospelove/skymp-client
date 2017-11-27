@@ -41,8 +41,8 @@ void SetPositionSoftly(TESObjectREFR *ref, NiPoint3 pos)
 
 void SetAngleSoftly(TESObjectREFR *ref, NiPoint3 rot)
 {
-	if (ref->formID < 0xFF000000)
-		return;
+	//if (ref->formID < 0xFF000000)
+	//	return;
 
 	auto newRot = rot;
 	while (newRot.x >= 360)
