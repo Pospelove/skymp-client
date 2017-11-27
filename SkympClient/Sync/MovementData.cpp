@@ -331,7 +331,7 @@ namespace MovementData_
 	{
 		SET_TIMER(SyncOptions::GetSingleton()->GetInt("FirstApplyDelay"), [=] {
 			if (!cd::IsWeaponDrawn(actor))
-				cd::SendAnimationEvent(actor, "IdleForceDefaultState");
+				SendAnimationEvent(actor, "IdleForceDefaultState", true); // unsafe call to prevent delay
 		});
 	}
 

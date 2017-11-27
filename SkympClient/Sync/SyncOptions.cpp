@@ -81,7 +81,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"SAFE_ITEM_REMOVE = 0\n"
 
 		"; MovementData\n"
-		"FirstApplyDelay = 300\n"
+		"FirstApplyDelay = 500\n"
 		"Hard.smartAngle = 0\n"
 		"Hard.weapDrawnUpdateRate = 1000\n"
 		"Hard.positionUpdateRate = 0\n"
