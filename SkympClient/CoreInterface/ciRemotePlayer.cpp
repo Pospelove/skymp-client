@@ -37,6 +37,7 @@ namespace ci
 	RemotePlayer *currentFixingGreyFace = nullptr;
 	dlf_mutex gMutex;
 	uint32_t numInvisibleFoxes = 0;
+	bool errorsInSpawn = false;
 
 	struct WorldSpellData
 	{
@@ -1082,6 +1083,7 @@ namespace ci
 				pimpl->syncState.fatalErrors = 0;
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
+				errorsInSpawn = true;
 			}
 		});
 
@@ -1251,7 +1253,7 @@ namespace ci
 		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
 		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 			refToPlaceAt = nullptr;
-		if (!refToPlaceAt)
+		if (errorsInSpawn || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
