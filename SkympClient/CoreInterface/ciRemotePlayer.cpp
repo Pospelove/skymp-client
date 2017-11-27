@@ -431,7 +431,13 @@ namespace ci
 				auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
 				if (actor == nullptr)
 					return;
-				if (!sd::HasLOS(g_thePlayer, actor))
+				const auto pos = p->GetPos();
+				if (PlayerCamera::GetSingleton()->IsInScreen(pos)
+					|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,64 })
+					|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,128 }))
+				{
+				}
+				else
 					return;
 			}
 

@@ -204,6 +204,9 @@
     <Filter Include="core\Sync">
       <UniqueIdentifier>{ecfb9d90-c2a0-451a-8e81-bc3d17cb42d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="client_logic\Bots">
+      <UniqueIdentifier>{f0a3ce43-a777-454e-b62e-4bdff5c5e5ed}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ScriptDragon\enums.h">
@@ -400,6 +403,9 @@
     </ClInclude>
     <ClInclude Include="CoreInterface\ciDataSearch.h">
       <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientLogic\Agent.h">
+      <Filter>client_logic\Bots</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -169,6 +169,7 @@
     <ClCompile Include="WinAPI\WinAPI.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ClientLogic\Agent.h" />
     <ClInclude Include="ClientLogic\Config.h" />
     <ClInclude Include="ClientLogic\MessageID.h" />
     <ClInclude Include="ClientLogic\Serialization.h" />

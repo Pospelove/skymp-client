@@ -14,15 +14,17 @@
 #include "Config.h"
 #include "MessageID.h"
 
-
 #define MAX_NICKNAME			(24u)
 #define MAX_PASSWORD			(32u)
 
-ci::LookData ld;
+#include "Agent.h"
+
+std::map<int32_t, ci::MovementData> recordData;
 
 class ClientLogic : public ci::IClientLogic
 {
 	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
+	ci::LookData ld;
 	std::map<uint16_t, ci::IActor *> players;
 	std::map<uint16_t, std::shared_ptr<ci::Text3D>> playerBubbles;
 	std::map<uint32_t, ci::Object *> objects;
@@ -34,6 +36,129 @@ class ClientLogic : public ci::IClientLogic
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
+	bool record = false;
+	clock_t recordStart = 0;
+
+	class Bot : public SkympAgent
+	{
+	public:
+
+		virtual void Output(std::wstring message, bool isNotification) override
+		{
+			ci::Chat::AddMessage(L"#33CCFF" + this->name + L" << " + message);
+			if (message == L"Connected.")
+			{
+				connectedMoment = clock();
+			}
+		}
+
+		Bot(std::wstring name)
+		{
+			this->ConnectToServer("127.0.0.1", 7777, "A1", "123456", name);
+			this->name = name;
+		}
+
+		~Bot()
+		{
+			this->CloseConnection();
+		}
+
+		void Tick()
+		{
+			this->SkympAgent::Tick();
+		}
+
+	private:
+
+		std::wstring name;
+		clock_t connectedMoment;
+		mutable ci::MovementData md;
+
+		virtual ci::MovementData GetMyMovement() const
+		{
+
+			if (this->md.pos.y == 0)
+			{
+				md = ci::LocalPlayer::GetSingleton()->GetMovementData();
+			}
+			return md;
+
+			/*
+			auto ms = clock() - connectedMoment;
+			return recordData[ms];*/
+		}
+
+		virtual bool AmIOnPause() const
+		{
+			return 0;
+		}
+
+		virtual std::shared_ptr<uint8_t> GetMyNextAnimation() const
+		{
+			return nullptr;
+		}
+
+		virtual ci::AVData GetMyAVData(std::string avName) const
+		{
+			ci::AVData av;
+			av.base = 100;
+			av.modifier = 0;
+			av.percentage = 1;
+			return av;
+		}
+
+		virtual std::vector<uint32_t> GetMyEquippedArmor() const
+		{
+			return {};
+		}
+
+		virtual uint32_t GetMyEquippedWeapon(int32_t handID) const
+		{
+			return ~0;
+		}
+
+		virtual uint32_t GetMyEquippedAmmo() const
+		{
+			return ~0;
+		}
+
+		virtual uint32_t GetMyEquippedSpell(int32_t handID) const
+		{
+			return ~0;
+		}
+
+		virtual bool GetObjectMustBeHostedByMe(uint32_t objectID) const
+		{
+			return false;
+		}
+
+		virtual uint16_t GetObjectHost(uint32_t objectID) const
+		{
+			return ~0;
+		}
+
+		virtual NiPoint3 GetObjectLocalPos(uint32_t objectID) const
+		{
+			return { 0,0,0 };
+		}
+
+		virtual NiPoint3 GetObjectLocalRot(uint32_t objectID) const
+		{
+			return { 0,0,0 };
+		}
+
+		virtual bool IsObjectGrabbedByMe(uint32_t objectID) const
+		{
+			return false;
+		}
+
+		virtual float GetObjectLocalSpeed(uint32_t objectID) const
+		{
+			return 0;
+		}
+	};
+	std::map<std::wstring, std::shared_ptr<Bot>> bots;
+	std::list<Bot *> botss;
 
 	uint16_t GetID(const ci::IActor *player)
 	{
@@ -441,6 +566,8 @@ class ClientLogic : public ci::IClientLogic
 						name += ch;
 					}
 					try {
+						if (id != net.myID)
+							name += L" [" + std::to_wstring(id) + L"]";
 						players.at(id)->SetName(name);
 					}
 					catch (...) {
@@ -483,6 +610,12 @@ class ClientLogic : public ci::IClientLogic
 				catch (...) {
 				}
 			};
+
+			if (players[id] != nullptr)
+			{
+				delete players[id];
+				players[id] = nullptr;
+			}
 
 			players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
 			break;
@@ -1677,9 +1810,26 @@ class ClientLogic : public ci::IClientLogic
 	}
 
 	std::function<void()> testUpd;
+	std::list<std::function<void()>> fns;
 
 	void OnUpdate() override
 	{
+		if (record)
+		{
+			int32_t ms = clock() - recordStart;
+			recordData[ms] = ci::LocalPlayer::GetSingleton()->GetMovementData();
+		}
+
+		for (auto &pair : bots)
+		{
+			if (pair.second != nullptr)
+				pair.second->Tick();
+		}
+		for (auto &f : fns)
+		{
+			f();
+		}
+
 		if (testUpd)
 			testUpd();
 
@@ -2070,6 +2220,69 @@ class ClientLogic : public ci::IClientLogic
 					rPl->TestMakeBroken();
 					ci::Chat::AddMessage(L"#BEBEBE" L"Done");
 				}
+			}
+		}
+		else if (cmdText == L"//bot")
+		{
+			if (arguments.empty())
+			{
+				ci::Chat::AddMessage(L"#BEBEBE" L"//bot <connect/disconnect> <name>");
+				return;
+			}
+
+			if (arguments.size() == 2)
+			{
+				if (arguments[0] == L"connect")
+				{
+					bots[arguments[1]].reset(new Bot(arguments[1]));
+				}
+				else if (arguments[0] == L"diconnect")
+				{
+					bots[arguments[1]].reset();
+				}
+			}
+		}
+		else if (cmdText == L"//bots")
+		{
+			if (arguments.empty())
+			{
+				ci::Chat::AddMessage(L"#BEBEBE" L"//bots <count>");
+				return;
+			}
+			for (int32_t i = 0; i < atoi(WstringToString(arguments[0]).data()); ++i)
+			{
+				std::thread([=] {
+					srand(clock());
+					auto layner = new Bot(L"layner" + std::to_wstring(rand() % 100000));
+					while (1)
+					{
+						Sleep(1000);
+						layner->Tick();
+					}
+				}).detach();
+				/*static int i1 = 1;
+				auto nm = L"layner" + std::to_wstring(i1++);
+				auto layner = new Bot(nm);
+				botss.push_back(layner);
+				fns.push_back([=] {
+					layner->Tick();
+				});*/
+
+			}
+		}
+		else if (cmdText == L"//record")
+		{
+			if (!record)
+			{
+				ci::Chat::AddMessage(L"#BEBEBE" L"Record started");
+				record = true;
+				recordData.clear();
+				recordStart = clock();
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"#BEBEBE" L"Record finished");
+				record = false;
 			}
 		}
 		else
