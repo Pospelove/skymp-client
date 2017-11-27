@@ -1133,7 +1133,7 @@ namespace ci
 				auto actor = (Actor *)LookupFormByID(formID);
 				sd::Enable(actor, false);
 				cd::KeepOffsetFromActor(cd::Value<Actor>(formID), cd::Value<Actor>(formID), 0, 0, 0, 0, 0, 0, 1, 1);
-				SET_TIMER(100, [=] {
+				SET_TIMER(200, [=] {
 					if (this == currentFixingGreyFace)
 						currentFixingGreyFace = nullptr;
 
@@ -1315,7 +1315,7 @@ namespace ci
 		{
 			auto refr = sd::PlaceAtMe(refToPlaceAt, LookupFormByID(npcID), 1, true, false);
 			cd::Value<TESObjectREFR> cdRefr = refr;
-			SET_TIMER_LIGHT(1, [cdRefr, onPlace] {
+			SET_TIMER_LIGHT(200, [cdRefr, onPlace] {
 				onPlace(cdRefr);
 			});
 		}
@@ -1956,7 +1956,8 @@ namespace ci
 		result->TESActorBaseData::flags.bleedoutOverride = true;
 		result->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
 		result->combatStyle->general.magicMult = 5;
-		result->combatStyle->general.meleeMult = 15;
+		result->combatStyle->general.meleeMult = 13.5;
+		result->combatStyle->general.staffMult = 15;
 		result->height = pimpl->height;
 		return result;
 	}
