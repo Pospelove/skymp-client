@@ -77,7 +77,7 @@ public:
 	virtual void DestroyText3D(uint32_t text3dID) = 0;
 
 	virtual ci::MovementData GetMyMovement() const = 0;
-	virtual bool AmIOnPause() const = 0;
+	virtual bool IsMyGameOnLoadScreen() const = 0;
 	virtual std::shared_ptr<uint8_t> GetMyNextAnimation() const = 0;
 	virtual ci::AVData GetMyAVData(std::string avName) const = 0;
 	virtual std::vector<uint32_t> GetMyEquippedArmor() const = 0;
@@ -354,7 +354,7 @@ private:
 
 		try {
 			static bool was = false;
-			bool nowOpen = this->AmIOnPause();
+			bool nowOpen = this->IsMyGameOnLoadScreen();
 			if (net.fullyConnected && was != nowOpen)
 			{
 				const RakNet::MessageID msgid = nowOpen ? ID_LOADING_START : ID_LOADING_STOP;

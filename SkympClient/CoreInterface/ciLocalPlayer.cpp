@@ -264,8 +264,13 @@ struct CheckTeleport
 
 ci::LocalPlayer *ci::LocalPlayer::GetSingleton()
 {
-	static LocalPlayer pl;
-	return &pl;
+	return (ci::LocalPlayer *)GetSingletonSmart().get();
+}
+
+std::shared_ptr<ci::IActor> ci::LocalPlayer::GetSingletonSmart()
+{
+	static std::shared_ptr<ci::IActor> pl(new ci::LocalPlayer);
+	return pl;
 }
 
 ci::LocalPlayer::LocalPlayer()

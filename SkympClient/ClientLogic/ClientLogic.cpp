@@ -59,6 +59,13 @@ class ClientLogic :
 
 	void OnUpdate() override
 	{
+		const auto myID = this->SkympAgent::GetPlayerID();
+		if (myID != (uint16_t)~0)
+		{
+			players[myID] = ci::LocalPlayer::GetSingletonSmart();
+
+		}
+
 		this->SkympAgent::Tick();
 
 		if (this->testUpd != nullptr)
@@ -327,9 +334,9 @@ class ClientLogic :
 		return localPlayer->GetMovementData();
 	}
 
-	bool AmIOnPause() const override
+	bool IsMyGameOnLoadScreen() const override
 	{
-		return ci::IsInPause();
+		return ci::IsLoadScreenOpen();
 	}
 
 	std::shared_ptr<uint8_t> GetMyNextAnimation() const override
@@ -1285,7 +1292,7 @@ class ClientLogic :
 	std::map<uint32_t, ci::Spell *> spells;
 	std::map<uint32_t, ci::Object *> objects;
 	std::map<uint32_t, ci::ItemType *> itemTypes;
-	std::map<uint16_t, std::unique_ptr<ci::IActor>> players;
+	std::map<uint16_t, std::shared_ptr<ci::IActor>> players;
 	bool haveName = false;
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
