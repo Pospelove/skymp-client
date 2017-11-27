@@ -235,6 +235,20 @@ namespace MovementData_
 		result.isSprinting = cd::IsSprinting(actor);
 		result.isSwimming = cd::IsSwimming(actor);
 
+		static bool rPressed = false;
+		static clock_t rReleaseMoment = 0;
+		if (sd::GetKeyPressed('R'))
+		{
+			rPressed = true;
+			rReleaseMoment = clock();
+		}
+		else
+		{
+			if (clock() - rReleaseMoment > 200)
+				rPressed = false;
+		}
+		result.isRPressed = (g_thePlayer && rPressed) ? 1 : 0;
+
 		if (result.speedSampled != 0)
 		{
 			const bool isRunning =
@@ -444,7 +458,7 @@ namespace MovementData_
 						syncStatus.shotsRecordStart = clock();
 					syncStatus.numShots++;
 					syncStatus.lastShot = clock();
-					SendAnimationEvent(cdActor, "attackRelease", 1);
+					SendAnimationEvent(cdActor, md.isRPressed ? "attackStop" : "attackRelease", 1);
 				}
 			}
 		}

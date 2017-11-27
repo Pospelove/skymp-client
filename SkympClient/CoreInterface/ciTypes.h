@@ -95,6 +95,7 @@ namespace ci
 		bool isBlocking = false;
 		bool isFirstPerson = false;
 		bool isSwimming = false;
+		uint32_t isRPressed = 0;
 
 		bool isEmpty() {
 			return pos == NiPoint3{0, 0, 0};

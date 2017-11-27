@@ -22,6 +22,7 @@ inline void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
 	bsOut.Write(d.isBlocking);
 	bsOut.Write(d.isFirstPerson);
 	bsOut.Write(d.isSwimming);
+	bsOut.Write(d.isRPressed);
 }
 
 inline void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
@@ -46,6 +47,7 @@ inline void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
 	bsIn.Read(d.isBlocking);
 	bsIn.Read(d.isFirstPerson);
 	bsIn.Read(d.isSwimming);
+	bsIn.Read(d.isRPressed);
 }
 
 inline void Serialize(RakNet::BitStream &bsOut, const ci::LookData &d)
