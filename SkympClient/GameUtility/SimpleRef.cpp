@@ -102,7 +102,7 @@ void SimpleRef::Update()
 			});
 			break;
 		case SPAWNED:
-			SAFE_CALL("SimpleRef", [&] {
+			auto f = [&] {
 				auto ref = (TESObjectREFR *)LookupFormByID(pimpl->refID);
 				if (ref && ref->formType != FormType::Reference && ref->formType != FormType::Character)
 					ref = nullptr;
@@ -117,6 +117,14 @@ void SimpleRef::Update()
 
 				sd::TranslateTo(ref, pimpl->pos.x, pimpl->pos.y, pimpl->pos.z, pimpl->rot.x, pimpl->rot.y, pimpl->rot.z, 10000.f, 10000.f);
 
+				if (ref->baseForm->formType == FormType::NPC)
+				{
+					sd::ForceActorValue((Actor *)ref, "Invisibility", 100);
+					sd::SetActorValue((Actor *)ref, "Invisibility", 100);
+					sd::UnequipAll((Actor *)ref);
+					sd::RemoveAllItems((Actor *)ref, nullptr, false, false);
+				}
+
 				const auto tasks = pimpl->tasks;
 				pimpl->tasks = {};
 
@@ -126,7 +134,8 @@ void SimpleRef::Update()
 						task(ref);
 					});
 				}
-			});
+			};
+			SAFE_CALL("SimpleRef", f);
 			break;
 		}
 	});

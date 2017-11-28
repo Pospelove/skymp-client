@@ -136,4 +136,28 @@ namespace Utility
 			VirtualProtect((void *)0x00B9DE83, 16, oldProtect, &oldProtect);
 		}
 	}
+
+	TESObjectSTAT *GetCastingArt(EffectSetting *effect)
+	{
+		static auto base = LookupFormByID(ID_TESObjectSTAT::Fireball01HandEffects0000);
+
+		static std::map<EffectSetting *, TESObjectSTAT *> statics;
+
+		if (statics[effect] == nullptr)
+		{
+			statics[effect] = FormHeap_Allocate<TESObjectSTAT>();
+			memcpy(statics[effect], base, sizeof TESObjectSTAT);
+			statics[effect]->formID = 0;
+			statics[effect]->SetFormID(Utility::NewFormID(), true);
+
+			auto castingArt = effect->properties.castingArt;
+
+			auto asModel = dynamic_cast<TESModelTextureSwap *>(statics[effect]);
+			auto baseAsModel = dynamic_cast<TESModelTextureSwap *>(castingArt);
+			memcpy(asModel, baseAsModel, sizeof *(asModel));
+
+		}
+
+		return statics[effect];
+	}
 }

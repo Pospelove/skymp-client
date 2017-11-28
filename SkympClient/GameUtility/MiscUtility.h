@@ -9,4 +9,5 @@ namespace Utility
 	HWND FindMainWindow();
 	NiPoint3 GetNodeWorldPosition(TESObjectREFR *obj, BSFixedString nodeName, bool firstPerson);
 	void MuteItemsSound();
+	TESObjectSTAT *GetCastingArt(EffectSetting *effect);
 }

@@ -37,7 +37,7 @@ namespace ci
 	RemotePlayer *currentFixingGreyFace = nullptr;
 	dlf_mutex gMutex;
 	uint32_t numInvisibleFoxes = 0;
-	bool errorsInSpawn = false;
+	uint64_t errorsInSpawn = false;
 
 	struct WorldSpellData
 	{
@@ -395,6 +395,7 @@ namespace ci
 			if (spell != nullptr)
 			{
 				auto dest = (SpellItem *)LookupFormByID(packages[0].second);
+
 				const auto formID = dest->formID;
 				memcpy(dest, spell, sizeof SpellItem);
 				dest->formID = formID;
@@ -592,7 +593,17 @@ namespace ci
 					gnomeNpc->TESAIForm::unk10 = exampleNpc->TESAIForm::unk10;
 				}
 
+				gnomeNpc->defaultOutfit = gnomeNpc->sleepOutfit = nullptr;
+				gnomeNpc->TESContainer::numEntries = 0;
+				gnomeNpc->TESContainer::entries = nullptr;
+				gnomeNpc->race = (TESRace *)LookupFormByID(0x00071E6A);
 				gnomeNpc->height = 0.1f;
+				gnomeNpc->TESSpellList::unk04->numSpells = 0;
+				gnomeNpc->TESSpellList::unk04->spells = 0;
+				gnomeNpc->TESSpellList::unk04->numShouts = 0;
+				gnomeNpc->TESSpellList::unk04->shouts = 0;
+				gnomeNpc->numHeadParts = 0;
+				gnomeNpc->headparts = 0;
 
 				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
 				const auto name = this->GetName();
@@ -693,8 +704,10 @@ namespace ci
 					if (isCasting(!i) && !isCasting(i))
 						newPos.z -= 48;
 
-					if (i == 1 || sd::GetEquippedSpell(actor, !i) == nullptr || !actor->IsWeaponDrawn())
+					if (sd::GetEquippedSpell(actor, !i) == nullptr || !actor->IsWeaponDrawn())
 						distance += 48;
+					else if (i == 1)
+						distance += 16;
 					newPos += {distance * sin(angleRad), distance * cos(angleRad), 0};
 					newPos.z += SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND");
 				}
@@ -1077,13 +1090,13 @@ namespace ci
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			if (pimpl->syncState.fatalErrors != 0 && clock() - pimpl->lastDespawn > 5000)
+			if (pimpl->syncState.fatalErrors != 0 && clock() - pimpl->lastDespawn > 50)
 			{
 				this->ForceDespawn(L"Despawned: Fatal Error in Sync");
 				pimpl->syncState.fatalErrors = 0;
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
-				errorsInSpawn = true;
+				errorsInSpawn++;
 			}
 		});
 
@@ -1253,7 +1266,7 @@ namespace ci
 		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
 		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 			refToPlaceAt = nullptr;
-		if (errorsInSpawn || !refToPlaceAt)
+		if (errorsInSpawn > 22 || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
@@ -1380,7 +1393,8 @@ namespace ci
 
 	bool RemotePlayer::NeedsGnome(int32_t i) const
 	{
-		return pimpl->handsMagicProxy[i] != nullptr
+		return this->GetMovementData().isWeapDrawn 
+			&& pimpl->handsMagicProxy[i] != nullptr
 			&& (pimpl->handsMagicProxy[i]->GetDelivery() != Spell::Delivery::Self);
 	}
 

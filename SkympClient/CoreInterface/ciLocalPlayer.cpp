@@ -1030,6 +1030,16 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+	auto sp = sd::GetEquippedSpell(g_thePlayer, 1);
+	if (sp && sd::GetKeyPressed(0x31))
+	{
+		auto effect = sp->effectItemList.front()->mgef;
+		auto stat = Utility::GetCastingArt(effect);
+		auto ref = sd::PlaceAtMe(g_thePlayer, stat, 1, true, false);
+		auto p = cd::GetPosition(g_thePlayer) += {0, 0, 64};
+		sd::SetPosition(ref, p.x, p.y, p.z);
+	}
+
 	SAFE_CALL("LocalPlayer", [&] {
 
 		if (!set)
