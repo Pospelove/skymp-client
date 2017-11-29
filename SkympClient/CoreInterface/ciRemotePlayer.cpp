@@ -1142,14 +1142,14 @@ namespace ci
 
 			const auto formID = pimpl->formID;
 			const bool isInterior = pimpl->currentNonExteriorCell != nullptr; //-V561
-			SET_TIMER(100, [=] {
+			SET_TIMER(0, [=] {
 				auto actor = (Actor *)LookupFormByID(formID);
 				if (actor != nullptr)
 				{
 					sd::Enable(actor, false);
 					cd::KeepOffsetFromActor(cd::Value<Actor>(formID), cd::Value<Actor>(formID), 0, 0, 0, 0, 0, 0, 1, 1);
 				}
-				SET_TIMER(500, [=] {
+				SET_TIMER(200, [=] {
 					if (this == currentFixingGreyFace)
 						currentFixingGreyFace = nullptr;
 
@@ -1273,7 +1273,7 @@ namespace ci
 			refToPlaceAt = g_thePlayer;
 
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
-			SET_TIMER_LIGHT(1, [=] {
+			SET_TIMER_LIGHT(300, [=] {
 				const auto id = ac.GetFormID();
 				if (LookupFormByID(id) == nullptr)
 					return;
