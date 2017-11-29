@@ -1269,67 +1269,59 @@ namespace ci
 		if (errorsInSpawn > 28 || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
+		const bool der = this->IsDerived();
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
-
-			SET_TIMER_LIGHT(0, [=] {
+			SET_TIMER_LIGHT(der ? 0 : 300, [=] {
 				const auto id = ac.GetFormID();
+				if (LookupFormByID(id) == nullptr)
+					return;
+
+				std::lock_guard<dlf_mutex> l(gMutex);
+				if (allRemotePlayers.find(this) == allRemotePlayers.end())
+					return;
+
+				std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+
+				pimpl->formID = id;
+				WorldCleaner::GetSingleton()->SetFormProtected(pimpl->formID, true);
+				pimpl->spawnStage = SpawnStage::Spawned;
+				pimpl->spawnMoment = clock();
+				pimpl->greyFaceFixed = false;
+				pimpl->syncState = {};
+
 				auto actor = (Actor *)LookupFormByID(id);
 				if (actor != nullptr)
 				{
-					sd::TranslateTo(actor, pimpl->movementData.pos.x, pimpl->movementData.pos.y, pimpl->movementData.pos.z, 0, 0, 0, 100000, 1100);
+					sd::SetActorValue(actor, "Confidence", 4.0);
+					sd::SetActorValue(actor, "Agression", 0.0);
+					sd::SetActorValue(actor, "attackdamagemult", 0.0);
+					sd::SetActorValue(actor, "Variable01", rand());
+					sd::SetActorValue(actor, "MagicResist", 100);
+
+					BSFixedString name = WstringToString(pimpl->name).c_str();
+					actor->SetDisplayName(name, true);
+
+					cd::SetPosition(ac, pimpl->movementData.pos);
+					sd::RemoveFromAllFactions(actor);
 					sd::BlockActivation(actor, true);
 					sd::AllowPCDialogue(actor, false);
-				}
-				SET_TIMER_LIGHT(300, [=] {
-					const auto id = ac.GetFormID();
-					if (LookupFormByID(id) == nullptr)
-						return;
 
-					std::lock_guard<dlf_mutex> l(gMutex);
-					if (allRemotePlayers.find(this) == allRemotePlayers.end())
-						return;
+					enum {
+						CWPlayerAlly = 0x0008F36D,
+					};
+					cd::AddToFaction(
+						cd::Value<Actor>(actor->formID),
+						cd::Value<TESFaction>(CWPlayerAlly));
 
-					std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-
-					pimpl->formID = id;
-					WorldCleaner::GetSingleton()->SetFormProtected(pimpl->formID, true);
-					pimpl->spawnStage = SpawnStage::Spawned;
-					pimpl->spawnMoment = clock();
-					pimpl->greyFaceFixed = false;
-					pimpl->syncState = {};
-
-					auto actor = (Actor *)LookupFormByID(id);
-					if (actor != nullptr)
+					if (!this->IsDerived())
 					{
-						sd::SetActorValue(actor, "Confidence", 4.0);
-						sd::SetActorValue(actor, "Agression", 0.0);
-						sd::SetActorValue(actor, "attackdamagemult", 0.0);
-						sd::SetActorValue(actor, "Variable01", rand());
-						sd::SetActorValue(actor, "MagicResist", 100);
-
-						BSFixedString name = WstringToString(pimpl->name).c_str();
-						actor->SetDisplayName(name, true);
-
-						cd::SetPosition(ac, pimpl->movementData.pos);
-						sd::RemoveFromAllFactions(actor);
-
-						enum {
-							CWPlayerAlly = 0x0008F36D,
-						};
-						cd::AddToFaction(
-							cd::Value<Actor>(actor->formID),
-							cd::Value<TESFaction>(CWPlayerAlly));
-
-						if (!this->IsDerived())
-						{
-						}
 					}
+				}
 
-					cd::KeepOffsetFromActor(cd::Value<Actor>(ac.GetFormID()), cd::Value<Actor>(ac.GetFormID()), 0, 0, 0, 0, 0, 0, 1, 1);
+				cd::KeepOffsetFromActor(cd::Value<Actor>(ac.GetFormID()), cd::Value<Actor>(ac.GetFormID()), 0, 0, 0, 0, 0, 0, 1, 1);
 
-					if (currentSpawning == this)
-						currentSpawning = nullptr;
-				});
+				if (currentSpawning == this)
+					currentSpawning = nullptr;
 			});
 		};
 
