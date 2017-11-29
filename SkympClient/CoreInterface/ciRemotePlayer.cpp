@@ -1092,7 +1092,7 @@ namespace ci
 				pimpl->syncState.fatalErrors = 0;
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
-				errorsInSpawn++;
+				//errorsInSpawn++; // should i uncomment ?
 				markerFormID = 0;
 			}
 		});
