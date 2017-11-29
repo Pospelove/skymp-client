@@ -822,6 +822,16 @@ void ci::LocalPlayer::ClearActiveEffects()
 clock_t timer = clock() + 5000;
 bool set = false;
 
+auto inventoryLikeMenus = { "BarterMenu",
+	"Book Menu",
+	"ContainerMenu",
+	"Crafting Menu",
+	"FavoritesMenu",
+	"GiftMenu",
+	"InventoryMenu",
+	"MagicMenu"
+};
+
 template <int32_t hand>
 void PreventKillmoves()
 {
@@ -831,18 +841,8 @@ void PreventKillmoves()
 	if (eq && g_thePlayer->IsWeaponDrawn() == false)
 		eq = nullptr;
 
-	static auto menus = { "BarterMenu",
-		"Book Menu",
-		"ContainerMenu",
-		"Crafting Menu",
-		"FavoritesMenu",
-		"GiftMenu",
-		"InventoryMenu",
-		"MagicMenu"
-	};
-
 	if(eq)
-		for (auto menu : menus)
+		for (auto menu : inventoryLikeMenus)
 		{
 			if (MenuManager::GetSingleton()->IsMenuOpen(menu))
 			{
@@ -882,18 +882,8 @@ void PreventMagicEffects()
 	if (eq && g_thePlayer->IsWeaponDrawn() == false)
 		eq = nullptr;
 
-	static auto menus = { "BarterMenu",
-		"Book Menu",
-		"ContainerMenu",
-		"Crafting Menu",
-		"FavoritesMenu",
-		"GiftMenu",
-		"InventoryMenu",
-		"MagicMenu"
-	};
-
 	if (eq)
-		for (auto menu : menus)
+		for (auto menu : inventoryLikeMenus)
 		{
 			if (MenuManager::GetSingleton()->IsMenuOpen(menu))
 			{
@@ -937,7 +927,7 @@ void PreventMagicEffects()
 					eqWas->effectItemList[i]->magnitude = dmg[eqWas][i].magnitude;
 					if (dmg[eqWas][i].magnitude == 0)
 					{
-						ErrorHandling::SendError("ERROR:LocalPlayer Magic calculations");
+						ErrorHandling::SendError("ERROR:LocalPlayer Effect magnitude");
 					}
 				}
 			}
@@ -990,6 +980,34 @@ void SendMagicReleaseEvent(const ci::Spell *spell, SpellItem *spellForm)
 			}
 		}
 		was = now;
+	}
+}
+
+void UpdateSpellsCost()
+{
+	bool open = false;
+	for (auto menu : inventoryLikeMenus)
+		open = open || MenuManager::GetSingleton()->IsMenuOpen(menu);
+
+	for (auto &pair : knownSpells)
+	{
+		auto spellForm = (SpellItem *)pair.first;
+		if (spellForm->formType != FormType::Spell)
+			continue;
+
+		try {
+			const float realCost = knownSpells.at(spellForm)->GetCost();
+
+			float newCost;
+			if (open)
+				newCost = realCost;
+			else
+				newCost = sd::GetActorValue(g_thePlayer, "Magicka") >= realCost ? 0 : 1000000000;
+			spellForm->effectItemList[0]->cost = newCost;
+		}
+		catch (...) {
+			ErrorHandling::SendError("ERROR:LocalPlayer Effect cost");
+		}
 	}
 }
 
@@ -1084,6 +1102,8 @@ void ci::LocalPlayer::Update()
 
 	PreventMagicEffects<0>();
 	PreventMagicEffects<1>();
+
+	UpdateSpellsCost();
 
 	auto spell0 = this->GetEquippedSpell(0), spell1 = this->GetEquippedSpell(1);
 	SendMagicReleaseEvent<0>(spell0, spell0 ? (SpellItem *)LookupFormByID(spell0->GetFormID()) : nullptr);

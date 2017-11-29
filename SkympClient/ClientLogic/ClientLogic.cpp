@@ -1471,6 +1471,10 @@ class ClientLogic : public ci::IClientLogic
 			}
 			else
 				bsIn.IgnoreBytes(16 * numEffects);
+
+			float cost = 0;
+			bsIn.Read(cost);
+			spells[id]->SetCost(cost);
 			break;
 		}
 		case ID_EFFECT:

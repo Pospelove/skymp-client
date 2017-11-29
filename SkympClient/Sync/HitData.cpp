@@ -153,6 +153,7 @@ bool HitData_::Apply(Actor *actor, uint8_t hitAnimID, bool unsafe)
 
 		auto anim = GetAnimName(hitAnimID);
 		SendAnimationEvent(actor, anim, unsafe);
+		return true;
 	}
 	catch (...) {
 		return false;
