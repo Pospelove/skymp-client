@@ -38,6 +38,7 @@ namespace ci
 	dlf_mutex gMutex;
 	uint32_t numInvisibleFoxes = 0;
 	uint64_t errorsInSpawn = false;
+	uint32_t markerFormID = 0;
 
 	struct WorldSpellData
 	{
@@ -144,7 +145,6 @@ namespace ci
 		return (TESObjectSTAT *)LookupFormByID(0x15);
 	}
 
-	FormID markerFormID = 0;
 	void UpdatePlaceAtMeMarker()
 	{
 		auto GetRelXy = [](float rzrot, float dist, float *outX, float *outY) {
@@ -152,8 +152,6 @@ namespace ci
 			*outX += dist * sin(rzrot);
 			*outY += dist * cos(rzrot);
 		};
-
-		static dlf_mutex mutex;
 
 		static TESObjectCELL *cellWas = nullptr;
 		static void *wpWas = nullptr;
@@ -169,7 +167,6 @@ namespace ci
 			isInteriorNow = isInterior[1];
 			if (isInterior[0] || isInterior[1] || wpWas != wpNow)
 			{
-				std::lock_guard<dlf_mutex> l(mutex);
 				markerFormID = 0;
 			}
 
@@ -186,7 +183,6 @@ namespace ci
 				isTaskRunning = true;
 
 				auto onPlace = [](cd::Value<TESObjectREFR> result) {
-					std::lock_guard<dlf_mutex> l(mutex);
 					markerFormID = result.GetFormID();
 					isTaskRunning = false;
 				};
@@ -1097,6 +1093,7 @@ namespace ci
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
 				errorsInSpawn++;
+				markerFormID = 0;
 			}
 		});
 
@@ -1269,7 +1266,7 @@ namespace ci
 		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
 		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 			refToPlaceAt = nullptr;
-		if (errorsInSpawn > 22 || !refToPlaceAt)
+		if (errorsInSpawn > 28 || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
