@@ -1588,7 +1588,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.x);
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
-					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					//net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 			}
