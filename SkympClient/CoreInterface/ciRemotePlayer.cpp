@@ -707,7 +707,7 @@ namespace ci
 					if (sd::GetEquippedSpell(actor, !i) == nullptr || !actor->IsWeaponDrawn())
 						distance += 48;
 					else if (i == 1)
-						distance += 16;
+						distance += 44;
 					newPos += {distance * sin(angleRad), distance * cos(angleRad), 0};
 					newPos.z += SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND");
 				}
@@ -1142,11 +1142,14 @@ namespace ci
 
 			const auto formID = pimpl->formID;
 			const bool isInterior = pimpl->currentNonExteriorCell != nullptr; //-V561
-			SET_TIMER(0, [=] {
+			SET_TIMER(100, [=] {
 				auto actor = (Actor *)LookupFormByID(formID);
-				sd::Enable(actor, false);
-				cd::KeepOffsetFromActor(cd::Value<Actor>(formID), cd::Value<Actor>(formID), 0, 0, 0, 0, 0, 0, 1, 1);
-				SET_TIMER(200, [=] {
+				if (actor != nullptr)
+				{
+					sd::Enable(actor, false);
+					cd::KeepOffsetFromActor(cd::Value<Actor>(formID), cd::Value<Actor>(formID), 0, 0, 0, 0, 0, 0, 1, 1);
+				}
+				SET_TIMER(500, [=] {
 					if (this == currentFixingGreyFace)
 						currentFixingGreyFace = nullptr;
 
