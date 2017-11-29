@@ -20,6 +20,7 @@ namespace MovementData_
 	bool isPCBlocking = false;
 	clock_t weapDrawStart = 0;
 	clock_t lastAnySwing = 0;
+	std::set<uint32_t> actorsWithErrors;
 
 	bool HasEquippedBow(Actor *actor) {
 		enum {
@@ -330,8 +331,13 @@ namespace MovementData_
 	void OnFirstApply(cd::Value<Actor> actor)
 	{
 		SET_TIMER(SyncOptions::GetSingleton()->GetInt("FirstApplyDelay"), [=] {
-			if (!cd::IsWeaponDrawn(actor))
-				SendAnimationEvent(actor, "IdleForceDefaultState", true); // unsafe call to prevent delay
+			try {
+				if (!cd::IsWeaponDrawn(actor))
+					SendAnimationEvent(actor, "IdleForceDefaultState", true); // unsafe call to prevent delay
+			}
+			catch (...) {
+				actorsWithErrors.insert(actor.GetFormID());
+			}
 		});
 	}
 
@@ -816,9 +822,15 @@ namespace MovementData_
 			syncStatus.appliedOnce = true;
 		}
 
-		const bool firstApplyFinished = clock() - syncStatus.firstApplyStartMoment > SyncOptions::GetSingleton()->GetInt("FirstApplyDelay") * 1.25;
+		const bool firstApplyFinished = clock() - syncStatus.firstApplyStartMoment > SyncOptions::GetSingleton()->GetInt("FirstApplyDelay") * 2;
 		if (!firstApplyFinished)
 			return;
+
+		if (actorsWithErrors.find(ac->formID) != actorsWithErrors.end())
+		{
+			++syncStatus.fatalErrors;
+			actorsWithErrors.erase(ac->formID);
+		}
 
 		if (syncStatus.firstNormalApplyMoment == 0)
 		{

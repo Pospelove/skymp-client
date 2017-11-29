@@ -14,8 +14,9 @@
 #include "Config.h"
 #include "MessageID.h"
 
-#define MAX_NICKNAME			(24u)
-#define MAX_PASSWORD			(32u)
+#define MAX_NICKNAME							(24u)
+#define MAX_PASSWORD							(32u)
+#define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
 #include "Agent.h"
 
@@ -566,7 +567,7 @@ class ClientLogic : public ci::IClientLogic
 						name += ch;
 					}
 					try {
-						if (id != net.myID)
+						if (ADD_PLAYER_ID_TO_NICKNAME_LABEL && id != net.myID)
 							name += L" [" + std::to_wstring(id) + L"]";
 						players.at(id)->SetName(name);
 					}

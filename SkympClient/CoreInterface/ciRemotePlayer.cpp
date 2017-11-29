@@ -807,7 +807,12 @@ namespace ci
 			{
 				auto hitAnimID = pimpl->hitAnimsToApply.front();
 				pimpl->hitAnimsToApply.pop();
-				HitData_::Apply(actor, hitAnimID, pimpl->syncState.fullyUnsafeSync);
+				const bool success = HitData_::Apply(actor, hitAnimID, pimpl->syncState.fullyUnsafeSync);
+				if (success)
+				{
+					pimpl->syncState.fatalErrors++;
+					return;
+				}
 				if (HitData_::IsPowerAttack(hitAnimID))
 					pimpl->syncState.forceFixAfterHitAnim = true;
 			}
@@ -1266,7 +1271,7 @@ namespace ci
 		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
 		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 			refToPlaceAt = nullptr;
-		if (errorsInSpawn > 22 || !refToPlaceAt)
+		if (errorsInSpawn > 3 || !refToPlaceAt)
 			refToPlaceAt = g_thePlayer;
 
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {

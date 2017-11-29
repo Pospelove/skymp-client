@@ -144,18 +144,19 @@ const char *GetAEName(const EquipData &equipData, Direction dir, bool isLeftHand
 	return "AttackStartH2HLeft";
 }
 
-void HitData_::Apply(Actor *actor, uint8_t hitAnimID, bool unsafe)
+bool HitData_::Apply(Actor *actor, uint8_t hitAnimID, bool unsafe)
 {
-	if (!actor)
-		return;
-	actor->race->data.unarmedDamage = 0;
+	try {
+		if (!actor)
+			return false;
+		actor->race->data.unarmedDamage = 0;
 
-	//unsafe = true; // PVS
-
-	auto anim = GetAnimName(hitAnimID);
-	//ci::Chat::AddMessage(L"in >> " + StringToWstring(anim));
-	SendAnimationEvent(actor, anim, unsafe);
-	//sd::StartCombat(actor, g_thePlayer);
+		auto anim = GetAnimName(hitAnimID);
+		SendAnimationEvent(actor, anim, unsafe);
+	}
+	catch (...) {
+		return false;
+	}
 }
 
 int32_t numSwings = 0;
