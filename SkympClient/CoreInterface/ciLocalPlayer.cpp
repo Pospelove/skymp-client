@@ -917,7 +917,15 @@ void PreventMagicEffects()
 					vec.push_back(item);
 					eq->effectItemList[i]->magnitude = 0.0f;
 				}
-				dmg[eq] = vec;
+				bool fail = false;
+				for (auto ei : vec)
+					if (ei.magnitude == 0)
+					{
+						fail = true;
+						break;
+					}
+				if (!fail)
+					dmg[eq] = vec;
 			}
 		}
 
@@ -927,6 +935,10 @@ void PreventMagicEffects()
 				for (size_t i = 0; i != eqWas->effectItemList.size(); ++i)
 				{
 					eqWas->effectItemList[i]->magnitude = dmg[eqWas][i].magnitude;
+					if (dmg[eqWas][i].magnitude == 0)
+					{
+						ErrorHandling::SendError("ERROR:LocalPlayer Magic calculations");
+					}
 				}
 			}
 			catch (...) {
