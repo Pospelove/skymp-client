@@ -1556,7 +1556,7 @@ class ClientLogic : public ci::IClientLogic
 					{
 						bsOut.Write(res.externalConnections[i]);
 					}
-					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					//net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 				ci::DataSearch::RequestContainers([this](ci::DataSearch::ContainerData res) {

@@ -146,3 +146,8 @@ uint32_t ItemType::GetFormID() const
 		formID = pimpl->item->formID;
 	return formID;
 }
+
+MagicItem *ItemType::GetMagicItem()
+{
+	return nullptr;
+}

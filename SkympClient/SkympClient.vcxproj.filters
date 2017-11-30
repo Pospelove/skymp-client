@@ -157,6 +157,9 @@
     <ClCompile Include="CoreInterface\ciDataSearch.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciMagic.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -406,6 +409,9 @@
     </ClInclude>
     <ClInclude Include="ClientLogic\Agent.h">
       <Filter>client_logic\Bots</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciMagic.h">
+      <Filter>core_interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

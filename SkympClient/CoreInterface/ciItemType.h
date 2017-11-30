@@ -1,9 +1,10 @@
 #pragma once
 #include <memory>
+#include "ciMagic.h"
 
 namespace ci
 {
-	class ItemType
+	class ItemType : public Magic
 	{
 		friend class LocalPlayer;
 		friend class RemotePlayer;
@@ -15,6 +16,7 @@ namespace ci
 			Weapon =				0x01,
 			Armor =					0x02,
 			Ammo =					0x03,
+			Ingredient =			0x04,
 		};
 
 		enum class Subclass
@@ -56,5 +58,7 @@ namespace ci
 
 		struct Impl;
 		std::unique_ptr<Impl> pimpl;
+
+		MagicItem *GetMagicItem() override;
 	};
 }

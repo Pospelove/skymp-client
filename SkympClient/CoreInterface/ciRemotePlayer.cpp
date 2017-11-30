@@ -1271,6 +1271,18 @@ namespace ci
 
 		const bool der = this->IsDerived();
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
+
+			auto setAVsToDefault = [](Actor *actor) {
+				sd::SetActorValue(actor, "Confidence", 4.0);
+				sd::SetActorValue(actor, "Agression", 0.0);
+				sd::SetActorValue(actor, "attackdamagemult", 0.0);
+				sd::SetActorValue(actor, "Variable01", rand());
+				sd::SetActorValue(actor, "MagicResist", 100);
+			};
+
+			auto actor = (Actor *)LookupFormByID(ac.GetFormID());
+			if (actor != nullptr)
+				setAVsToDefault(actor);
 			SET_TIMER_LIGHT(der ? 0 : 300, [=] {
 				const auto id = ac.GetFormID();
 				if (LookupFormByID(id) == nullptr)
@@ -1292,11 +1304,7 @@ namespace ci
 				auto actor = (Actor *)LookupFormByID(id);
 				if (actor != nullptr)
 				{
-					sd::SetActorValue(actor, "Confidence", 4.0);
-					sd::SetActorValue(actor, "Agression", 0.0);
-					sd::SetActorValue(actor, "attackdamagemult", 0.0);
-					sd::SetActorValue(actor, "Variable01", rand());
-					sd::SetActorValue(actor, "MagicResist", 100);
+					setAVsToDefault(actor);
 
 					BSFixedString name = WstringToString(pimpl->name).c_str();
 					actor->SetDisplayName(name, true);

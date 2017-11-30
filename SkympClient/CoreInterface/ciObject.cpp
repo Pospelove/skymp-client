@@ -41,7 +41,7 @@ void SetPositionSoftly(TESObjectREFR *ref, NiPoint3 pos)
 
 void SetAngleSoftly(TESObjectREFR *ref, NiPoint3 rot)
 {
-	if (ref->formID < 0xFF000000 && ref->baseForm->formType == FormType::Door)
+	if (ref->formID < 0xFF000000)
 		return;
 
 	auto newRot = rot;
