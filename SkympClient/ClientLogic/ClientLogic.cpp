@@ -18,6 +18,8 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
+auto version = "0.9";
+
 #include "Agent.h"
 
 std::map<int32_t, ci::MovementData> recordData;
@@ -55,7 +57,7 @@ class ClientLogic : public ci::IClientLogic
 
 		Bot(std::wstring name)
 		{
-			this->ConnectToServer(g_config[CONFIG_IP], 7777, "A1", "123456", name);
+			this->ConnectToServer(g_config[CONFIG_IP], 7777, version, "123456", name);
 			this->name = name;
 		}
 
@@ -425,7 +427,9 @@ class ClientLogic : public ci::IClientLogic
 			ci::Chat::AddMessage(net.connectingMsg);
 			net.peer->Connect(net.host.data(), net.port, net.hardcodedPassword.data(), net.hardcodedPassword.size());
 			break;
-
+		case ID_INVALID_PASSWORD:
+			ci::Chat::AddMessage(L"Incompatible client version");
+			break;
 		case ID_WRONG_PASS:
 			ci::Chat::AddMessage(L"Wrong password (" + StringToWstring(net.password) + L")");
 			break;
@@ -1708,7 +1712,7 @@ class ClientLogic : public ci::IClientLogic
 			this->ConnectToServer(
 				g_config[CONFIG_IP],
 				std::atoi(g_config[CONFIG_PORT].data()),
-				"A1",
+				version,
 				g_config[CONFIG_SERVER_PASSWORD],
 				name);
 			localPlayer->SetName(name);
@@ -1754,7 +1758,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 		bsOut.Write(itemTypeID);
 		bsOut.Write(count);
-		bsOut.Write(isAdd);
+		bsOut.Write((uint32_t)isAdd);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
@@ -1953,7 +1957,7 @@ class ClientLogic : public ci::IClientLogic
 			this->ConnectToServer(
 				g_config[CONFIG_IP],
 				std::atoi(g_config[CONFIG_PORT].data()),
-				"A1",
+				version,
 				g_config[CONFIG_SERVER_PASSWORD],
 				text);
 			localPlayer->SetName(text);

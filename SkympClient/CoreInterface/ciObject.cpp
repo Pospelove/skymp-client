@@ -294,10 +294,7 @@ struct ci::Object::Impl
 						ObjectTask task{ [=](TESObjectREFR *ref) {
 							if (form)
 							{
-								if (SyncOptions::GetSingleton()->GetInt("SAFE_ITEM_REMOVE") != FALSE)
-									cd::RemoveItem(ref, form, count, true, nullptr);
-								else
-									sd::RemoveItem(ref, form, count, true, nullptr);
+								cd::RemoveItem(ref, form, count, true, nullptr);
 							}
 						} };
 						owner->pimpl->inventoryTasks.push_back(task);

@@ -59,6 +59,6 @@ namespace ci
 		struct Impl;
 		std::unique_ptr<Impl> pimpl;
 
-		MagicItem *GetMagicItem() override;
+		MagicItem *GetMagicItem() const override;
 	};
 }

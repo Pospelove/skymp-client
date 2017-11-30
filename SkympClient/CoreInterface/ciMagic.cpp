@@ -1,5 +1,6 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
+#include <bitset>
 
 namespace ci
 {
@@ -151,5 +152,28 @@ namespace ci
 			return pimpl->effects.front().magicEffect->GetDelivery();
 		else
 			return Delivery::Self;
+	}
+
+	bool Magic::IsNthEffectKnown(size_t n) const
+	{
+		if (n > 3)
+			return false;
+		auto ingr = (IngredientItem *)this->GetMagicItem();
+		if (!ingr || ingr->formType != FormType::Ingredient)
+			return false;
+		const std::bitset<8> known = ingr->knownEffects;
+		return known[n];
+	}
+
+	void Magic::SetNthEffectKnown(size_t n, bool isKnown)
+	{
+		if (n > 3)
+			return;
+		auto ingr = (IngredientItem *)this->GetMagicItem();
+		if (!ingr || ingr->formType != FormType::Ingredient)
+			return;
+		std::bitset<8> known = ingr->knownEffects;
+		known.set(n, isKnown).set(n + 4, !isKnown);
+		ingr->knownEffects = (uint8_t)known.to_ulong();
 	}
 }

@@ -29,11 +29,14 @@ namespace ci
 		CastingType GetCastingType() const;
 		Delivery GetDelivery() const;
 
+		bool IsNthEffectKnown(size_t n) const;
+		void SetNthEffectKnown(size_t n, bool known);
+
 	private:
 		struct Impl;
 		Impl *pimpl;
 
 	protected:
-		virtual MagicItem *GetMagicItem() = 0;
+		virtual MagicItem *GetMagicItem() const = 0;
 	};
 }

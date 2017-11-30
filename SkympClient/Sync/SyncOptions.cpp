@@ -78,7 +78,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"FF_CAST_DELAY = 0\n"
 
 		"; ci::Object\n"
-		"SAFE_ITEM_REMOVE = 0\n"
+		"SAFE_ITEM_REMOVE = 255\n"
 
 		"; MovementData\n"
 		"FirstApplyDelay = 249\n"

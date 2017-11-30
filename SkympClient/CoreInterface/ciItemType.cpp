@@ -80,6 +80,14 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
 		break;
+	case Class::Ingredient:
+		pimpl->item = FormHeap_Allocate<IngredientItem>();
+		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof IngredientItem);
+		pimpl->item->formID = 0;
+		pimpl->item->SetFormID(Utility::NewFormID(), true);
+		if (this->GetMagicItem() != nullptr)
+			this->GetMagicItem()->effectItemList.clear();
+		break;
 	}
 }
 
@@ -147,7 +155,15 @@ uint32_t ItemType::GetFormID() const
 	return formID;
 }
 
-MagicItem *ItemType::GetMagicItem()
+MagicItem *ItemType::GetMagicItem() const
 {
-	return nullptr;
+	if (!pimpl->item)
+		return nullptr;
+	switch (pimpl->item->formType)
+	{
+	case FormType::Ingredient:
+		return (MagicItem *)pimpl->item;
+	default:
+		return nullptr;
+	}
 }
