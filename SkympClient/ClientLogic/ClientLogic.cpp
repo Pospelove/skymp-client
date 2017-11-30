@@ -2213,6 +2213,47 @@ class ClientLogic : public ci::IClientLogic
 				this->OnChatCommand(L"//eq", {});
 			};
 		}
+		else if (cmdText == L"//testalch")
+		{
+			static auto FalmerEar = new ci::ItemType(
+				ci::ItemType::Class::Ingredient,
+				ci::ItemType::Subclass(NULL),
+				0x0003AD5D
+			);
+			static auto AlchDamageHealth = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::ValueMod,
+				0x0003EB42,
+				ci::MagicEffect::CastingType::FireAndForget,
+				ci::MagicEffect::Delivery::Self
+			);
+			static auto AlchResistPoison = new ci::MagicEffect(
+				ci::MagicEffect::Archetype::PeakValueMod,
+				0x00090041,
+				ci::MagicEffect::CastingType::FireAndForget,
+				ci::MagicEffect::Delivery::Self
+			);
+			if (FalmerEar->GetNumEffects() == 0)
+			{
+				FalmerEar->AddEffect(AlchDamageHealth, 2.0, 1.0);
+				FalmerEar->AddEffect(AlchResistPoison, 1.0, 60.0);
+			}
+			FalmerEar->SetGoldValue(25);
+			FalmerEar->SetNthEffectKnown(0, false);
+			FalmerEar->SetNthEffectKnown(1, false);
+			localPlayer->AddItem(FalmerEar, 1, false);
+
+			static auto FoodCabbadge = new ci::ItemType(
+				ci::ItemType::Class::Potion,
+				ci::ItemType::Subclass::ALCH_Food,
+				0x00064B3F
+			);
+			if (FoodCabbadge->GetNumEffects() == 0)
+			{
+				FoodCabbadge->AddEffect(AlchDamageHealth, 30.0, 1.0);
+				FoodCabbadge->AddEffect(AlchResistPoison, 90.0, 60.0);
+			}
+			localPlayer->AddItem(FoodCabbadge, 1, false);
+		}
 		else if (cmdText == L"//cddbg" || cmdText == L"//cdtrace")
 		{
 			static bool tr = true;

@@ -178,7 +178,7 @@ public:
 	virtual	EventResult	ReceiveEvent(TESContainerChangedEvent *evn, BSTEventSource<TESContainerChangedEvent> * source) override
 	{
 		if (evn->from == g_thePlayer->formID)
-			if (evn->to == 0)
+			if (evn->to == 0 && evn->toReference != 0)
 			{
 				WorldCleaner::GetSingleton()->SetFormProtected(0, true);
 				WorldCleaner::GetSingleton()->SetFormProtected(0, false);

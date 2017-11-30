@@ -17,6 +17,7 @@ namespace ci
 			Armor =					0x02,
 			Ammo =					0x03,
 			Ingredient =			0x04,
+			Potion =				0x05,
 		};
 
 		enum class Subclass
@@ -39,6 +40,9 @@ namespace ci
 			ARMO_Gauntlets =		0x10,
 			ARMO_Helmet =			0x11,
 			ARMO_Shield =			0x12,
+			ALCH_Potion =			0x13,
+			ALCH_Food =				0x14,
+			ALCH_Poison =			0x15
 		};
 
 		ItemType(Class class_, Subclass subclass, uint32_t existingItemID);

@@ -88,6 +88,17 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		if (this->GetMagicItem() != nullptr)
 			this->GetMagicItem()->effectItemList.clear();
 		break;
+	case Class::Potion:
+		pimpl->item = FormHeap_Allocate<AlchemyItem>();
+		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof AlchemyItem);
+		pimpl->item->formID = 0;
+		pimpl->item->SetFormID(Utility::NewFormID(), true);
+		if (this->GetMagicItem() != nullptr)
+			this->GetMagicItem()->effectItemList.clear();
+		if (subclass == Subclass::ALCH_Food)
+			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Food;
+		if (subclass == Subclass::ALCH_Poison)
+			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Poison;
 	}
 }
 
@@ -162,6 +173,7 @@ MagicItem *ItemType::GetMagicItem() const
 	switch (pimpl->item->formType)
 	{
 	case FormType::Ingredient:
+	case FormType::Potion:
 		return (MagicItem *)pimpl->item;
 	default:
 		return nullptr;
