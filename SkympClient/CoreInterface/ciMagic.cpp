@@ -57,7 +57,7 @@ namespace ci
 	bool Magic::AddEffect(const MagicEffect *newMagicEffect, float magnitude, float durationSec)
 	{
 		bool ret = false;
-		SAFE_CALL("Magic", [&] {
+		auto f = [&] {
 			if (!newMagicEffect)
 				return;
 			std::lock_guard<dlf_mutex> l(pimpl->m);
@@ -78,7 +78,8 @@ namespace ci
 				magicItem->effectItemList.Add(effectItem);
 			ret = true;
 			return;
-		});
+		};
+		SAFE_CALL("Magic", f);
 		return ret;
 	}
 

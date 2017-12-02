@@ -151,6 +151,42 @@ public:
 		}).detach();
 	}
 
+	static void OnItemUsed(const ci::ItemType *itemType)
+	{
+		std::thread([=] {
+			auto logic = ci::IClientLogic::clientLogic;
+			if (logic != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnItemUsed(itemType);
+			}
+		}).detach();
+	}
+
+	static void OnItemUsedInCraft(const ci::ItemType *itemType)
+	{
+		std::thread([=] {
+			auto logic = ci::IClientLogic::clientLogic;
+			if (logic != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnItemUsedInCraft(itemType);
+			}
+		}).detach();
+	}
+
+	static void OnCraftFinish(bool isPoison)
+	{
+		std::thread([=] {
+			auto logic = ci::IClientLogic::clientLogic;
+			if (logic != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnCraftFinish(isPoison);
+			}
+		}).detach();
+	}
+
 	static ci::Mutex &GetMutex() {
 		return ci::IClientLogic::callbacksMutex;
 	}
@@ -177,13 +213,34 @@ public:
 
 	virtual	EventResult	ReceiveEvent(TESContainerChangedEvent *evn, BSTEventSource<TESContainerChangedEvent> * source) override
 	{
+		if(evn->to == g_thePlayer->formID)
+			if (evn->from == 0)
+			{
+				auto count = evn->count;
+				auto form = LookupFormByID(evn->item);
+				if (count == 1)
+				{
+					SET_TIMER_LIGHT(25, [=] {
+						const bool isIllegal = knownItems.find(form) == knownItems.end();
+						const bool isPotion = form->formType == FormType::Potion;
+						if (isIllegal && isPotion)
+						{
+							const bool isPoison = ((AlchemyItem *)form)->IsPoison();
+							CIAccess().OnCraftFinish(isPoison);
+							sd::RemoveItem(g_thePlayer, form, -1, true, nullptr);
+						}
+					});
+				}
+			}
+
 		if (evn->from == g_thePlayer->formID)
-			if (evn->to == 0 && evn->toReference != 0)
+			if (evn->to == 0)
 			{
 				WorldCleaner::GetSingleton()->SetFormProtected(0, true);
 				WorldCleaner::GetSingleton()->SetFormProtected(0, false);
 				auto count = evn->count;
 				auto form = LookupFormByID(evn->item);
+				const bool toRef = evn->toReference != 0;
 				SET_TIMER_LIGHT(0, [=] {
 					if (sd::IsDead(g_thePlayer))
 						return;
@@ -195,7 +252,12 @@ public:
 					{
 						try {
 							auto itemType = knownItems.at(form);
-							CIAccess().OnItemDropped(itemType, count);
+							if (toRef)
+								CIAccess().OnItemDropped(itemType, count);
+							else if (MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"))
+								CIAccess().OnItemUsedInCraft(itemType);
+							else
+								CIAccess().OnItemUsed(itemType);
 
 							std::lock_guard<dlf_mutex> l(localPlMutex);
 							if (inventory[itemType] > count)
@@ -441,7 +503,7 @@ void ci::LocalPlayer::AddItem(const ItemType *item, uint32_t count, bool silent)
 		if (form && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 		{
 			SET_TIMER(0, [=] {
-				sd::AddItem(g_thePlayer, form, count, silent);
+				sd::AddItem(g_thePlayer, form, count, silent || MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"));
 			});
 		}
 	}
@@ -1065,16 +1127,6 @@ void ci::LocalPlayer::RecoverSpells()
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
-
-	auto sp = sd::GetEquippedSpell(g_thePlayer, 1);
-	if (sp && sd::GetKeyPressed(0x31))
-	{
-		auto effect = sp->effectItemList.front()->mgef;
-		auto stat = Utility::GetCastingArt(effect);
-		auto ref = sd::PlaceAtMe(g_thePlayer, stat, 1, true, false);
-		auto p = cd::GetPosition(g_thePlayer) += {0, 0, 64};
-		sd::SetPosition(ref, p.x, p.y, p.z);
-	}
 
 	SAFE_CALL("LocalPlayer", [&] {
 

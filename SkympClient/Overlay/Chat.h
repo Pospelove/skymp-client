@@ -26,6 +26,10 @@ public:
 	void ToggleScroll(bool show);
 	void AddToEditBox(const MyGUI::UString &text);
 	std::vector<std::wstring> GetMyMessages() const;
+	bool IsRussianUser() const {
+		std::lock_guard<dlf_mutex> l(*this->mutex);
+		return this->isRussianUser;
+	}
 
 	void Update();
 	void Update_OT();
@@ -40,7 +44,8 @@ private:
 	dlf_mutex *mutex;
 	SInt16 offset = 0;
 	SInt16 needCloseEscMenu = 0;
-	
+	bool isRussianUser = false;
+
 	void EditKeyPressEvent(MyGUI::EditBox* aSender);
 };
 

@@ -1038,10 +1038,15 @@ class ClientLogic : public ci::IClientLogic
 
 				try {
 					auto itemType = itemTypes.at(itemTypeID);
+					const bool silent = this->silentInventoryChanges;
 					if (add)
-						players.at(playerID)->AddItem(itemType, count, silentInventoryChanges);
+					{
+						if (itemType->IsCustomPotion())
+							itemType->GenPotionName();
+						players.at(playerID)->AddItem(itemType, count, silent);
+					}
 					else
-						players.at(playerID)->RemoveItem(itemType, count, silentInventoryChanges);
+						players.at(playerID)->RemoveItem(itemType, count, silent);
 					for (auto it = objects.begin(); it != objects.end(); ++it)
 					{
 						if (it->second)
@@ -1346,6 +1351,45 @@ class ClientLogic : public ci::IClientLogic
 			itemTypes[itemType.id]->SetWeight(itemType.weight);
 			itemTypes[itemType.id]->SetArmorRating(itemType.armorRating);
 			itemTypes[itemType.id]->SetDamage(itemType.damage);
+
+			uint32_t numEffects = 0;
+			if (!bsIn.Read(numEffects))
+				numEffects = 0;
+			for (uint32_t i = 0; i != numEffects; ++i)
+			{
+				enum {
+					MAX_DECREMENTS = 1,
+				};
+				uint64_t minusMinus = 0;
+				uint32_t effectID;
+				float mag, dur, area;
+				bsIn.Read(effectID);
+				bsIn.Read(mag);
+				bsIn.Read(dur);
+				bsIn.Read(area);
+				pizdaLabel:
+				ci::MagicEffect *effect;
+				try {
+					effect = effects.at(effectID);
+				}
+				catch (...) {
+					effect = nullptr;
+					std::string data;
+					for (auto &pair : effects)
+						data += std::to_string(pair.first) + ' ';
+					auto data2 = std::to_string(effectID);
+					if (minusMinus < MAX_DECREMENTS)
+					{
+						minusMinus++;
+						effectID--;
+						goto pizdaLabel;
+					}
+					else
+						ci::Log("ERROR:ClientLogic effect not found (ItemType) (" + data + ") " + data2);
+				}
+				if (effect)
+					itemTypes[itemType.id]->AddEffect(effect, abs(mag), dur);
+			}
 			break;
 		}
 		case ID_WEATHER:
@@ -1493,9 +1537,26 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(archetype);
 			bsIn.Read(castingType);
 			bsIn.Read(delivery);
-			if (effects[id] == nullptr)
+
+			using FormID = uint32_t;
+			static std::map<FormID, ci::MagicEffect *> effectPool;
+
+			if (effectPool[formID] == nullptr)
 			{
-				effects[id] = new ci::MagicEffect(ci::MagicEffect::Archetype(archetype), formID, ci::MagicEffect::CastingType(castingType), ci::MagicEffect::Delivery(delivery));
+				if (effects[id] == nullptr)
+				{
+					effects[id] = new ci::MagicEffect(ci::MagicEffect::Archetype(archetype), formID, ci::MagicEffect::CastingType(castingType), ci::MagicEffect::Delivery(delivery));
+				}
+				effectPool[formID] = effects[id];
+			}
+			else
+				effects[id] = effectPool[formID];
+
+			static size_t count = 0;
+			++count;
+			if (count != effects.size())
+			{
+				ci::Log("ERROR:ClientLogic wat");
 			}
 			break;
 		}
@@ -2366,20 +2427,38 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnItemDropped(const ci::ItemType *itemType, uint32_t count) override
 	{
-		uint32_t itemTypeID = ~0;
-		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
-			if (it->second == itemType)
-			{
-				itemTypeID = it->first;
-				break;
-			}
-
+		const uint32_t itemTypeID = GetID(itemType);
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_DROPITEM);
 		bsOut.Write(itemTypeID);
 		bsOut.Write(count);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
-		//ci::Chat::AddMessage(L"OnItemDropped " + std::to_wstring(count));
+	}
+
+	void OnItemUsed(const ci::ItemType *itemType) override
+	{
+		const uint32_t itemTypeID = GetID(itemType);
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_USEITEM);
+		bsOut.Write(itemTypeID);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void OnItemUsedInCraft(const ci::ItemType *itemType) override
+	{
+		const uint32_t itemTypeID = GetID(itemType);
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_CRAFT_INGREDIENT);
+		bsOut.Write(itemTypeID);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void OnCraftFinish(bool isPoison) override
+	{
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_CRAFT_FINISH);
+		bsOut.Write(isPoison);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
 	uint32_t GetItemTypeID(const ci::ItemType *itemType)

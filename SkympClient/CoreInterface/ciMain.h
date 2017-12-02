@@ -59,6 +59,23 @@ namespace ci
 		*/
 		virtual void OnItemDropped(const ci::ItemType *itemType, uint32_t count) = 0;
 
+		/**
+		* Вызывается, когда игрок использует (уничтожает) предмет
+		* @param itemType - тип предмета
+		*/
+		virtual void OnItemUsed(const ci::ItemType *itemType) = 0;
+
+		/**
+		* Вызывается, когда игрок использует предмет как ингредиент при крафте (алхимия, зачарование и т.д.)
+		* @param itemType - тип предмета
+		*/
+		virtual void OnItemUsedInCraft(const ci::ItemType *itemType) = 0;
+
+		/**
+		* Вызывается, когда игрок создал предмет
+		*/
+		virtual void OnCraftFinish(bool isPoison) = 0;
+
 	protected:
 		 static IClientLogic *clientLogic;
 		 static Mutex callbacksMutex;

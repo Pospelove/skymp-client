@@ -353,6 +353,9 @@ void Chat::Update_OT()
 			isRussianUserPtr = new bool(false);
 	}
 
+	if (*isRussianUserPtr)
+		this->isRussianUser = true;
+
 	// Language switch (Shift + Ctrl || Shift + Alt)
 	// Only for Russian-speaking users
 	if (isRussianUserPtr != nullptr &&

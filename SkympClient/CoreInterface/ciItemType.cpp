@@ -1,5 +1,6 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
+#include "../Overlay/Chat.h"
 
 using ci::ItemType;
 
@@ -93,12 +94,20 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof AlchemyItem);
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
-		if (this->GetMagicItem() != nullptr)
-			this->GetMagicItem()->effectItemList.clear();
-		if (subclass == Subclass::ALCH_Food)
+		/*if (subclass == Subclass::ALCH_Food)
 			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Food;
 		if (subclass == Subclass::ALCH_Poison)
-			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Poison;
+			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Poison;*/
+
+		break;
+	}
+
+	if (this->GetMagicItem() != nullptr)
+	{
+		auto &el = this->GetMagicItem()->effectItemList;
+		auto newArr = new BSTArray<EffectItem *>();
+		memcpy(&el, newArr, sizeof(*newArr));
+		el.clear();
 	}
 }
 
@@ -112,6 +121,10 @@ ItemType::Subclass ItemType::GetSubclass() const {
 
 std::wstring ItemType::GetNativeName() const {
 	return StringToWstring(pimpl->item->GetName());
+}
+
+bool ItemType::IsCustomPotion() const {
+	return this->GetClass() == Class::Potion && pimpl->data.existingItemID == ID_AlchemyItem::DefaultPotion;
 }
 
 void ItemType::SetWeight(float w)
@@ -156,6 +169,16 @@ void ItemType::SetDamage(float v)
 			((TESAmmo *)item)->settings.damage = (uint16_t)v;
 		});
 	}
+}
+
+void ItemType::GenPotionName()
+{
+	if (this->IsCustomPotion() == false)
+		return;
+	const bool isRussian = TheChat != nullptr && TheChat->IsRussianUser();
+	auto pot = (AlchemyItem *)this->pimpl->item;
+
+	// ...
 }
 
 uint32_t ItemType::GetFormID() const

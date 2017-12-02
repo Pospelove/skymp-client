@@ -51,11 +51,13 @@ namespace ci
 		Class GetClass() const;
 		Subclass GetSubclass() const;
 		std::wstring GetNativeName() const;
+		bool IsCustomPotion() const;
 
 		void SetWeight(float weight);
 		void SetGoldValue(uint32_t value);
 		void SetArmorRating(float armorRAting);
 		void SetDamage(float damage);
+		void GenPotionName();
 
 	private:
 		uint32_t GetFormID() const;
