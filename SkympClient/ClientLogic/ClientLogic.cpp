@@ -953,6 +953,7 @@ class ClientLogic : public ci::IClientLogic
 			uint32_t itemTypeID;
 			uint16_t hostPlayerID;
 			uint8_t lockLevel;
+			bool destroyed = false;
 
 			bsIn.Read(id);
 			bsIn.Read(type);
@@ -963,6 +964,7 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(itemTypeID);
 			bsIn.Read(hostPlayerID);
 			bsIn.Read(lockLevel);
+			bsIn.Read(destroyed);
 
 			try {
 				auto object = objects.at(id);
@@ -1022,7 +1024,7 @@ class ClientLogic : public ci::IClientLogic
 					break;
 				case Type::Door:
 					object->SetOpen(isOpen);
-					object->SetDestroyed(false);
+					object->SetDestroyed(destroyed);
 					object->BlockActivation(true);
 					break;
 				case Type::TeleportDoor:
@@ -1036,23 +1038,23 @@ class ClientLogic : public ci::IClientLogic
 						object->BlockActivation(true);
 						break;
 					default:
-						object->SetDestroyed(false);
+						object->SetDestroyed(destroyed);
 						object->BlockActivation(false);
 						break;
 					}
 					break;
 				case Type::Activator:
 				case Type::Furniture:
-					object->SetDestroyed(false);
+					object->SetDestroyed(destroyed);
 					object->BlockActivation(true);
 					break;
 				case Type::Container:
-					object->SetDestroyed(false);
+					object->SetDestroyed(destroyed);
 					object->BlockActivation(true);
 					object->SetOpen(isOpen);
 					break;
 				case Type::Item:
-					object->SetDestroyed(false);
+					object->SetDestroyed(destroyed);
 					object->BlockActivation(true);
 					object->SetBase(itemTypes[itemTypeID]);
 					object->SetCount(itemsCount);
