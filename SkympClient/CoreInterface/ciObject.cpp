@@ -114,8 +114,8 @@ struct ci::Object::Impl
 	bool destroyed = true, open = true, blockedActivation = true, grabbed = false;
 	int32_t motionType = Motion_Keyframed;
 	bool isDisabled = false;
-	uint32_t count = 1;
-	uint32_t lastCount = 1;
+	uint32_t count = 1, lastCount = 1;
+	uint8_t lockLevel = 0;
 	std::shared_ptr<NiPoint3> editorPos, editorRot;
 	clock_t lastUpdate = 0;
 	uint32_t updateRate = 100;
@@ -418,7 +418,8 @@ ci::Object::Object(uint32_t existingReferenceID,
 
 	this->SetPosition(pos);
 	this->SetAngle(rot);
-	this->Lock(false);
+	//this->Lock(false);
+	this->SetLockLevel(NULL);
 	this->SetMotionType(Motion_Keyframed);
 
 	WorldCleaner::GetSingleton()->SetFormProtected(pimpl->refID, true);
@@ -697,6 +698,24 @@ void ci::Object::RemoveItem(const ItemType *item, uint32_t count)
 	}
 }
 
+void ci::Object::SetLockLevel(uint8_t lockLevel)
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+	pimpl->lockLevel = lockLevel;
+
+	ObjectTask task{ [=](TESObjectREFR *ref) {
+		if (lockLevel != 0)
+		{
+			sd::Lock(ref, true, false);
+			sd::SetLockLevel(ref, lockLevel);
+		}
+		else
+			sd::Lock(ref, false, false);
+	} };
+
+	pimpl->simpleTasks.push_back(task);
+}
+
 void ci::Object::AddEventHandler(OnActivate onActivate)
 {
 	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
@@ -762,6 +781,12 @@ bool ci::Object::IsActivationBlocked() const
 {
 	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 	return pimpl->blockedActivation;
+}
+
+uint8_t ci::Object::GetLockLevel() const
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+	return pimpl->lockLevel;
 }
 
 void ci::Object::Update()
@@ -1031,6 +1056,7 @@ void ci::Object::ForceSpawn()
 			
 			pimpl->lastCount = 1;
 			this->SetCount(pimpl->count);
+			this->SetLockLevel(pimpl->lockLevel);
 
 			this->UpdateContainer();
 

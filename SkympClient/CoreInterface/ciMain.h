@@ -76,6 +76,11 @@ namespace ci
 		*/
 		virtual void OnCraftFinish(bool isPoison) = 0;
 
+		/**
+		* Вызывается, когда игрок взломал замок
+		*/
+		virtual void OnLockpick() = 0;
+
 	protected:
 		 static IClientLogic *clientLogic;
 		 static Mutex callbacksMutex;

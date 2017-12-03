@@ -63,6 +63,7 @@ namespace ci
 		void Respawn() {
 			this->ForceDespawn("Script");
 		}
+		void SetLockLevel(uint8_t lockLevel);
 
 		void AddEventHandler(OnActivate onActivate);
 
@@ -74,6 +75,7 @@ namespace ci
 		uint32_t GetBase() const;
 		int32_t GetMotionType() const;
 		bool IsActivationBlocked() const;
+		uint8_t GetLockLevel() const;
 
 		enum {
 			Motion_Dynamic = 1,

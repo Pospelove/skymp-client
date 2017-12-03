@@ -706,11 +706,43 @@ class ClientLogic : public ci::IClientLogic
 				}
 
 				case Type::Container:
-					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+
+						try {
+							auto obj = objects.at(furnitureID);
+							if(obj->GetLockLevel() != 0)
+							{
+								static std::set<uint32_t> already;
+								if (already.insert(furnitureID).second)
+								{
+									players.at(playerID)->UseFurniture(obj, true);
+								}
+								else
+								{
+									already.erase(furnitureID);
+								}
+							}
+							else
+							{
+								players.at(playerID)->UseFurniture(obj, true);
+							}
+						}
+						catch (...) {
+						}
 					break;
 
 				case Type::TeleportDoor:
 					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+					break;
+
+				case Type::Door:
+					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+					break;
+
+				case (Type)NULL:
+					break;
+
+				default:
+					ci::Log("ERROR:ClientLogic Unknown furniture type");
 					break;
 				}
 			}
@@ -903,6 +935,7 @@ class ClientLogic : public ci::IClientLogic
 			uint32_t itemsCount;
 			uint32_t itemTypeID;
 			uint16_t hostPlayerID;
+			uint8_t lockLevel;
 
 			bsIn.Read(id);
 			bsIn.Read(type);
@@ -912,6 +945,7 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(itemsCount);
 			bsIn.Read(itemTypeID);
 			bsIn.Read(hostPlayerID);
+			bsIn.Read(lockLevel);
 
 			try {
 				auto object = objects.at(id);
@@ -963,6 +997,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 
 				object->SetDisabled(isDisabled);
+				object->SetLockLevel(lockLevel);
 
 				switch (type)
 				{
@@ -2458,6 +2493,13 @@ class ClientLogic : public ci::IClientLogic
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_CRAFT_FINISH);
 		bsOut.Write(isPoison);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void OnLockpick() override
+	{
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_LOCKPICK);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 

@@ -106,6 +106,7 @@ const ci::ItemType *localPlEquippedAmmo = nullptr;
 clock_t lastLocalPlUpdate = 0;
 bool registered = false;
 clock_t localPlCrosshairRefUpdateMoment = 0;
+uint32_t lastFurniture = 0;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -183,6 +184,18 @@ public:
 			{
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 				logic->OnCraftFinish(isPoison);
+			}
+		}).detach();
+	}
+
+	static void OnLockpick()
+	{
+		std::thread([=] {
+			auto logic = ci::IClientLogic::clientLogic;
+			if (logic != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnLockpick();
 			}
 		}).detach();
 	}
@@ -476,7 +489,10 @@ void ci::LocalPlayer::UseFurniture(const Object *target, bool anim)
 				case 0x180D8:
 					//break;
 				default:
+					if (MenuManager::GetSingleton()->IsMenuOpen("Lockpicking Menu"))
+						break;
 					sd::Activate(ref, g_thePlayer, true);
+					lastFurniture = ref->formID;
 					break;
 				}
 			}
@@ -1124,9 +1140,81 @@ void ci::LocalPlayer::RecoverSpells()
 	});
 }
 
+class EscTabListener : public InputListener
+{
+public:
+
+	clock_t GetLastPress() const {
+		return this->lastEscOrTab;
+	}
+
+private:
+	virtual void OnPress(uint8_t code) override
+	{
+		if (code == 1 || code == 15)
+			lastEscOrTab = clock();
+	}
+
+	virtual void OnRelease(uint8_t code) override
+	{
+	}
+
+	virtual void OnMousePress(uint8_t code) override
+	{
+	}
+
+	virtual void OnMouseRelease(uint8_t code) override
+	{
+	}
+
+	virtual void OnMouseMove(unsigned int x, unsigned int y, unsigned int z) override
+	{
+	}
+
+	clock_t lastEscOrTab = 0;
+};
+
+bool UpdateLockpicking()
+{
+	bool result = false;
+
+	static auto listener = (EscTabListener *)nullptr;
+	if (!listener)
+	{
+		listener = new EscTabListener;
+		TheIInputHook->AddListener(listener);
+	}
+
+	static bool openWas = false;
+	const bool open = MenuManager::GetSingleton()->IsMenuOpen("Lockpicking Menu");
+	if (openWas != open)
+	{
+		if (!open 
+			&& clock() - listener->GetLastPress() > 1000)
+		{
+			CIAccess().OnLockpick();
+			result = true;
+		}
+		openWas = open;
+	}
+
+	return result;
+}
+
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	SAFE_CALL("LocalPlayer", [&] {
+		if (UpdateLockpicking())
+		{
+			auto ref = (TESObjectREFR *)LookupFormByID(lastFurniture);
+			if (ref && ref->formType == FormType::Reference)
+			{
+				sd::Lock(ref, false, false);
+			}
+		}
+	});
 
 	SAFE_CALL("LocalPlayer", [&] {
 
