@@ -37,6 +37,7 @@ enum : RakNet::MessageID {
 
 	// client <---> server
 	ID_MESSAGE,
+	ID_LEARN_EFFECT,
 
 	// client <---- server
 	ID_WRONG_PASS,

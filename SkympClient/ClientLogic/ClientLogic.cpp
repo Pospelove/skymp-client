@@ -469,6 +469,23 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
+		case ID_LEARN_EFFECT:
+		{
+			uint32_t itemTypeID;
+			uint32_t effectIdx;
+			bool learn;
+			bsIn.Read(itemTypeID);
+			bsIn.Read((uint32_t &)effectIdx);
+			bsIn.Read(learn);
+			try {
+				auto itemType = itemTypes.at(itemTypeID);
+				itemType->SetNthEffectKnown(effectIdx, learn);
+			}
+			catch (...) {
+				ci::Log("ERROR:ClientLogic Unable to learn effect");
+			}
+			break;
+		}
 		case ID_MOVE_TO:
 		{
 			struct {
@@ -2035,6 +2052,12 @@ class ClientLogic : public ci::IClientLogic
 				catch (...) {
 					ci::Log("ERROR:ClientLogic UpdateEquippedAmmo()");
 				}
+				try {
+					UpdateKnownEffects();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateKnownEffects()");
+				}
 			}
 			catch (const std::exception &e) {
 				ci::Log("ERROR:ClientLogic OnUpdate() %s", e.what());
@@ -2797,6 +2820,67 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			ammoWas = ammo;
+		}
+	}
+
+	using EffectIndex = uint32_t;
+
+	void OnEffectLearned(uint32_t itemTypeID, EffectIndex i)
+	{
+		const bool learned = true;
+
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_LEARN_EFFECT);
+		bsOut.Write(itemTypeID);
+		bsOut.Write((uint32_t)i);
+		bsOut.Write(learned);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+	}
+
+	void UpdateKnownEffects()
+	{
+		using KnownEffects = std::map<EffectIndex, bool>;
+		using KnownEffectsMap = std::map<uint32_t, KnownEffects>;
+
+		static KnownEffectsMap knownEffectsWas;
+		KnownEffectsMap knownEffects;
+
+		for (auto &pair : itemTypes)
+		{
+			auto id = pair.first;
+			auto itemType = pair.second;
+			for (EffectIndex i = 0; i != itemType->GetNumEffects(); ++i)
+			{
+				knownEffects[id][i] = itemType->IsNthEffectKnown(i);
+			}
+		}
+
+		std::map<uint32_t, std::set<EffectIndex>> learned;
+
+		for (auto &pair : knownEffects)
+		{
+			auto itemTypeID = pair.first;
+
+			for (EffectIndex i = 0; i != 4; ++i)
+			{
+				if (pair.second[i] != knownEffectsWas[itemTypeID][i])
+				{
+					knownEffectsWas[itemTypeID][i] = pair.second[i];
+					if(pair.second[i])
+						learned[itemTypeID].insert(i);
+				}
+			}
+		}
+
+		for (auto &pair : learned)
+		{
+			auto &learnedThis = pair.second;
+			auto &itemTypeID = pair.first;
+			for (auto idx : learnedThis)
+			{
+				this->OnEffectLearned(itemTypeID, idx);
+			}
+
 		}
 	}
 
