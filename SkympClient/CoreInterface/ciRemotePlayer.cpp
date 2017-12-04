@@ -249,7 +249,7 @@ namespace ci
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::queue<uint8_t> hitAnimsToApply;
+		std::queue<uint32_t> hitAnimsToApply;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData;
 		Object *myPseudoFox = nullptr;
@@ -1673,7 +1673,7 @@ namespace ci
 			pimpl->handsMagicProxy[leftHand] = nullptr;
 	}
 
-	void RemotePlayer::PlayHitAnimation(uint8_t hitAnimID)
+	void RemotePlayer::PlayAnimation(uint32_t hitAnimID)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->hitAnimsToApply.push(hitAnimID);

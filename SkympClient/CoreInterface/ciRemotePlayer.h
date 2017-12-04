@@ -43,7 +43,7 @@ namespace ci
 		void RemoveSpell(const Spell *spell, bool silent) override;
 		void EquipSpell(const Spell *spell, bool leftHand) override;
 		void UnequipSpell(const Spell *spell, bool leftHand) override;
-		void PlayHitAnimation(uint8_t animID) override;
+		void PlayAnimation(uint32_t animID) override;
 		void UpdateAVData(const std::string &avName, const AVData &data) override;
 
 		std::wstring GetName() const override;

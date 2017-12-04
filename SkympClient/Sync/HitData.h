@@ -4,7 +4,11 @@
 
 namespace HitData_
 {
-	bool Apply(Actor *actor, uint8_t hitAnimID, bool unsafe);
-	bool IsPowerAttack(uint8_t hitAnimID);
-	std::shared_ptr<uint8_t> UpdatePlayer();
+	using AnimID = uint32_t;
+
+	bool Apply(Actor *actor, AnimID animID, bool unsafe);
+	void RegisterAnimation(const std::string &animationEvent, AnimID animID);
+	bool IsPowerAttack(AnimID hitAnimID);
+	void Register();
+	std::shared_ptr<AnimID> UpdatePlayer();
 }

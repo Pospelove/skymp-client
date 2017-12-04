@@ -81,7 +81,7 @@ public:
 
 	virtual ci::MovementData GetMyMovement() const = 0;
 	virtual bool AmIOnPause() const = 0;
-	virtual std::shared_ptr<uint8_t> GetMyNextAnimation() const = 0;
+	virtual std::shared_ptr<uint32_t> GetMyNextAnimation() const = 0;
 	virtual ci::AVData GetMyAVData(std::string avName) const = 0;
 	virtual std::vector<uint32_t> GetMyEquippedArmor() const = 0;
 	virtual uint32_t GetMyEquippedWeapon(int32_t handID) const = 0;
@@ -1281,10 +1281,10 @@ private:
 
 			break;
 		}
-		case ID_PLAYER_HIT:
+		case ID_PLAYER_ANIM:
 		{
 			uint16_t playerID;
-			uint8_t hitAnimID;
+			uint32_t hitAnimID;
 			bsIn.Read(playerID);
 			bsIn.Read(hitAnimID);
 			this->PlayAnimation(playerID, hitAnimID);

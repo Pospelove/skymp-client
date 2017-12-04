@@ -28,7 +28,7 @@ namespace ci
 		void RemoveSpell(const Spell *spell, bool silent) override;
 		void EquipSpell(const Spell *spell, bool leftHand) override;
 		void UnequipSpell(const Spell *spell, bool leftHand) override;
-		void PlayHitAnimation(uint8_t animID) override;
+		void PlayAnimation(uint32_t animID) override;
 		void UpdateAVData(const std::string &avName, const AVData &data) override;
 
 		std::wstring GetName() const override;
@@ -45,7 +45,7 @@ namespace ci
 		const Spell *GetEquippedShout() const override;
 		AVData GetAVData(const std::string &avName) const override;
 
-		std::shared_ptr<uint8_t> GetNextHitAnim();
+		std::shared_ptr<uint32_t> GetNextHitAnim();
 		uint32_t GetDisplayGold() const;
 		void SetDisplayGold(uint32_t count);
 		void AddActiveEffect(const ci::Spell *parentSpell, const ci::MagicEffect *effect, const ci::IActor *caster, float magnitude, int64_t endMoment);

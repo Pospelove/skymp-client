@@ -5,6 +5,8 @@
 #include "Skyrim/Events/ScriptEvent.h"
 #include <queue>
 
+using AnimID = HitData_::AnimID;
+
 enum class Direction : uint8_t
 {
 	Standing = 0,
@@ -27,7 +29,7 @@ struct EquipData {
 
 std::queue<uint8_t> pcAttacks;
 
-const char *anims[] = {
+const char *combatAnims[] = {
 	"BashStart",
 	"attackPowerStartForwardH2HRightHand",
 	"AttackStartH2HRight",
@@ -48,27 +50,45 @@ const char *anims[] = {
 	"AttackStartH2HLeft",
 	"AttackStartDualWield",
 	"AttackPowerStartH2HCombo",
-	"AttackPowerStartDualWield"
+	"AttackPowerStartDualWield",
+	"IdleChairEnterInstant",
 };
-const size_t numAnims = sizeof anims / sizeof anims[0];
+const size_t numCombatAnims = sizeof combatAnims / sizeof combatAnims[0];
 
-const char *GetAnimName(uint8_t animID)
+std::map<AnimID, const char *> allAnims;
+
+auto addCombatAnims = []() {
+	static bool combatAnimsAdded = false;
+	if (combatAnimsAdded == false)
+	{
+		for (AnimID i = 0; i != numCombatAnims; ++i)
+			allAnims[i] = combatAnims[i];
+		combatAnimsAdded = true;
+	}
+};
+
+const char *GetAnimName(AnimID animID)
 {
-	if (animID < numAnims)
-		return anims[animID];
-	ErrorHandling::SendError("ERROR:HitData Unknown anim ID");
-	return "";
+	try {
+		addCombatAnims();
+		return allAnims.at(animID);
+	}
+	catch (...) {
+		ErrorHandling::SendError("ERROR:HitData Unknown anim ID");
+		return "";
+	}
 }
 
-uint8_t GetAnimID(const std::string &name)
+AnimID GetAnimID(const std::string &name)
 {
-	for (size_t i = 0; i != numAnims; ++i)
+	addCombatAnims();
+	for (auto &pair : allAnims)
 	{
-		if (anims[i] == name)
-			return i;
+		if (pair.second == name)
+			return pair.first;
 	}
 	ErrorHandling::SendError("ERROR:HitData Unknown anim name");
-	return 0;
+	return NULL;
 }
 
 const char *GetAEName(const EquipData &equipData, Direction dir, bool isLeftHand, bool isPowerAttack, bool isBashing, bool isDualAttack)
@@ -144,7 +164,7 @@ const char *GetAEName(const EquipData &equipData, Direction dir, bool isLeftHand
 	return "AttackStartH2HLeft";
 }
 
-bool HitData_::Apply(Actor *actor, uint8_t hitAnimID, bool unsafe)
+bool HitData_::Apply(Actor *actor, AnimID hitAnimID, bool unsafe)
 {
 	try {
 		if (!actor)
@@ -152,12 +172,21 @@ bool HitData_::Apply(Actor *actor, uint8_t hitAnimID, bool unsafe)
 		actor->race->data.unarmedDamage = 0;
 
 		auto anim = GetAnimName(hitAnimID);
+		if (!anim || strlen(anim) == 0)
+			return false;
 		SendAnimationEvent(actor, anim, unsafe);
 		return true;
 	}
 	catch (...) {
 		return false;
 	}
+}
+
+void HitData_::RegisterAnimation(const std::string &animationEvent, AnimID animID)
+{
+	const size_t chars = animationEvent.size();
+	auto str = new std::string(animationEvent);
+	allAnims[animID] = str->data();
 }
 
 int32_t numSwings = 0;
@@ -257,12 +286,16 @@ void HitData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName)
 					}
 				}
 			}
+			else if (animEventName == "idlechairenterstart")
+			{
+				ci::Chat::AddMessage(L"Hey! Detected");
+			}
 		}
 	});
 }
 
 
-std::shared_ptr<uint8_t> HitData_::UpdatePlayer()
+std::shared_ptr<AnimID> HitData_::UpdatePlayer()
 {
 	auto pc = g_thePlayer;
 	static bool isBashingWas = false;
@@ -275,10 +308,10 @@ std::shared_ptr<uint8_t> HitData_::UpdatePlayer()
 			OnWeapSwing(true);
 	}
 
-	std::shared_ptr<uint8_t> result;
+	std::shared_ptr<AnimID> result;
 	if (!pcAttacks.empty())
 	{
-		result = std::make_shared<uint8_t>(pcAttacks.front());
+		result = std::make_shared<AnimID>(pcAttacks.front());
 		pcAttacks.pop();
 	}
 
@@ -331,8 +364,18 @@ std::shared_ptr<uint8_t> HitData_::UpdatePlayer()
 	return result;
 }
 
-bool HitData_::IsPowerAttack(uint8_t hitAnimID)
+bool HitData_::IsPowerAttack(AnimID hitAnimID)
 {
 	const std::string name = GetAnimName(hitAnimID);
 	return name.find("Power") != name.npos || name.find("Bash") != name.npos;
+}
+
+void HitData_::Register()
+{
+	// Legacy (< 0.10)
+	cd::SendAnimationEvent(g_thePlayer, "Skymp_Register"); 
+	// Calls RegisterForAnimationEvent() for combat animation events and RegisterForActorAction(1..4)
+	// Implemented in Costile.psc
+
+	sd::RegisterForAnimationEvent(g_thePlayer, g_thePlayer, "IdleChairEnterStart");
 }

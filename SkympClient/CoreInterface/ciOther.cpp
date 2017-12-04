@@ -9,6 +9,8 @@
 #include "../ScriptDragon/enums.h"
 #include "../Costile/CDScript.h"
 
+#include "../Sync/HitData.h"
+
 extern LockTimer closeCursorMenuLock;
 
 class CIAccess
@@ -68,6 +70,18 @@ namespace ci
 		return ExecuteCommand(cmdType, StringToWstring(cmdString));
 	}
 
+	void RegisterAnimation(std::string animationName, uint32_t animationID)
+	{
+		SET_TIMER_LIGHT(1, [=] {
+			HitData_::RegisterAnimation(animationName, animationID);
+		});
+	}
+
+	bool IsCombatAnimID(uint32_t animationID)
+	{
+		return animationID <= 21;
+	}
+
 	void SetTimer(uint32_t ms, std::function<void()> fn)
 	{
 		if (ms == 0)
@@ -93,7 +107,7 @@ namespace ci
 				SET_TIMER(0, [] {
 					sd::ForceFirstPerson();
 					SET_TIMER(300, [] {
-						cd::SendAnimationEvent(g_thePlayer, "Skymp_Register");
+						HitData_::Register();
 					});
 				});
 			});
@@ -244,7 +258,7 @@ namespace ci
 			//ID_TESWeather::SkyrimCloudy,
 			{ ID_TESWeather::SkyrimClear, "SkyrimClear" }
 		};
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(10, [=] {
 			int weather_size = sizeof(weather_ids) / sizeof(weather_ids[0]);
 			if (weatherID < weather_size)
 			{
@@ -259,7 +273,7 @@ namespace ci
 
 	void SetWeatherType(uint8_t type)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(10, [=] {
 			auto weather = sd::FindWeather(type);
 			if (weather != nullptr)
 				ci::SetWeather(weather->formID);
@@ -268,7 +282,7 @@ namespace ci
 
 	void SetGlobalVariable(uint32_t globalID, float val)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(10, [=] {
 			auto global = (TESGlobal *)LookupFormByID(globalID);
 			if (global && global->formType == FormType::Global)
 			{

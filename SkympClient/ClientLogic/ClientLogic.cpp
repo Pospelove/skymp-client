@@ -96,7 +96,7 @@ class ClientLogic : public ci::IClientLogic
 			return 0;
 		}
 
-		virtual std::shared_ptr<uint8_t> GetMyNextAnimation() const
+		virtual std::shared_ptr<uint32_t> GetMyNextAnimation() const
 		{
 			return nullptr;
 		}
@@ -464,7 +464,19 @@ class ClientLogic : public ci::IClientLogic
 					}
 					bool isNotification;
 					bsIn.Read((uint8_t &)isNotification);
-					ci::Chat::AddMessage(message, isNotification);
+
+					if (!memcmp(message.data(), L"<RegisterAnim>", -(2) + (int32_t)sizeof L"<RegisterAnim>"))
+					{
+						std::wistringstream ss(message.data());
+						std::wstring aeName, cmdStr;
+						uint32_t aeID;
+						ss >> cmdStr;
+						ss >> aeName;
+						ss >> aeID;
+						ci::RegisterAnimation(WstringToString(aeName), aeID);
+					}
+					else
+						ci::Chat::AddMessage(message, isNotification);
 				}
 			}
 			break;
@@ -640,6 +652,13 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
+
+			uint32_t animID = ~0;
+			bsIn.Read(animID);
+			if (animID != ~0 && !ci::IsCombatAnimID(animID))
+			{
+				players[id]->PlayAnimation(animID);
+			}
 			break;
 		}
 		case ID_PLAYER_DESTROY:
@@ -697,27 +716,32 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(furnitureID);
 			try {
 
+				auto pl = players.at(playerID);
+				auto obj = objects.at(furnitureID);
+
 				switch (objectsInfo[furnitureID].type)
 				{
 					// Что происходит ниже? Я ни*** не понимаю..
 				case Type::Furniture:
 				{
-					static std::map<uint16_t, uint32_t> lastFurnitureUsed;
-					auto pl = players.at(playerID);
+					if (pl == localPlayer)
+					{
+						static std::map<uint16_t, uint32_t> lastFurnitureUsed;
 
-					auto it = objects.find(furnitureID);
-					if (it != objects.end())
-					{
-						pl->UseFurniture(it->second, true);
-						lastFurnitureUsed[playerID] = furnitureID;
-					}
-					else
-					{
-						enum {
-							mustBeTrue = true
-						};
-						pl->UseFurniture(objects.at(lastFurnitureUsed[playerID]), mustBeTrue); // 2nd activate to stop use furniture
-						lastFurnitureUsed.erase(playerID);
+						auto it = objects.find(furnitureID);
+						if (it != objects.end())
+						{
+							pl->UseFurniture(it->second, true);
+							lastFurnitureUsed[playerID] = furnitureID;
+						}
+						else
+						{
+							enum {
+								mustBeTrue = true
+							};
+							pl->UseFurniture(objects.at(lastFurnitureUsed[playerID]), mustBeTrue); // 2nd activate to stop use furniture
+							lastFurnitureUsed.erase(playerID);
+						}
 					}
 					break;
 				}
@@ -725,13 +749,12 @@ class ClientLogic : public ci::IClientLogic
 				case Type::Container:
 
 						try {
-							auto obj = objects.at(furnitureID);
 							if(obj->GetLockLevel() != 0)
 							{
 								static std::set<uint32_t> already;
 								if (already.insert(furnitureID).second)
 								{
-									players.at(playerID)->UseFurniture(obj, true);
+									pl->UseFurniture(obj, true);
 								}
 								else
 								{
@@ -740,7 +763,7 @@ class ClientLogic : public ci::IClientLogic
 							}
 							else
 							{
-								players.at(playerID)->UseFurniture(obj, true);
+								pl->UseFurniture(obj, true);
 							}
 						}
 						catch (...) {
@@ -748,11 +771,8 @@ class ClientLogic : public ci::IClientLogic
 					break;
 
 				case Type::TeleportDoor:
-					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
-					break;
-
 				case Type::Door:
-					players.at(playerID)->UseFurniture(objects.at(furnitureID), true);
+					pl->UseFurniture(obj, true);
 					break;
 
 				case (Type)NULL:
@@ -1171,14 +1191,22 @@ class ClientLogic : public ci::IClientLogic
 
 			break;
 		}
-		case ID_PLAYER_HIT:
+		case ID_PLAYER_ANIM:
 		{
 			uint16_t playerID;
-			uint8_t hitAnimID;
+			uint32_t hitAnimID;
 			bsIn.Read(playerID);
 			bsIn.Read(hitAnimID);
+
+			static bool reged = false;
+			if (!reged)
+			{
+				reged = true;
+				ci::RegisterAnimation("IdleStopInstant", ~0);
+			}
+
 			try {
-				players.at(playerID)->PlayHitAnimation(hitAnimID);
+				players.at(playerID)->PlayAnimation(hitAnimID);
 			}
 			catch (...) {
 			}
@@ -1749,6 +1777,22 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
+		case ID_REGISTER_ANIMATION:
+		{
+			/*uint32_t animID;
+			std::string name = "";
+			bsIn.Read(animID);
+			uint16_t numChars = 0;
+			bsIn.Read(numChars);
+			for(uint32_t i = 0; i != numChars; ++i)
+			{
+				char ch;
+				bsIn.Read(ch);
+				name += ch;
+			}
+			ci::RegisterAnimation(name, animID);*/
+			break;
+		}
 		default:
 			ci::Chat::AddMessage(L"Unknown packet type " + std::to_wstring(packet->data[0]));
 			break;
@@ -2276,6 +2320,10 @@ class ClientLogic : public ci::IClientLogic
 			}
 			else
 				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
+		}
+		else if (cmdText == L"//sit")
+		{
+			localPlayer->PlayAnimation(21);
 		}
 		else if (cmdText == L"//clone")
 		{

@@ -15,6 +15,9 @@ namespace ci
 	void ExecuteCommand(CommandType cmdType, const std::wstring &consoleCmdString);
 	void ExecuteCommand(CommandType cmdType, const std::string &consoleCmdString);
 
+	void RegisterAnimation(std::string animationName, uint32_t animationID);
+	bool IsCombatAnimID(uint32_t animationID);
+
 	void ShowRaceMenu();
 	void ShowMainMenu();
 

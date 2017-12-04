@@ -648,10 +648,10 @@ void ci::LocalPlayer::UnequipSpell(const Spell *spell, bool leftHand)
 }
 
 
-void ci::LocalPlayer::PlayHitAnimation(uint8_t hitAnimID)
+void ci::LocalPlayer::PlayAnimation(uint32_t hitAnimID)
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
-	SET_TIMER(0, [=] {
+	SET_TIMER_LIGHT(0, [=] {
 		HitData_::Apply(g_thePlayer, hitAnimID, true);
 	});
 }
@@ -857,9 +857,9 @@ ci::AVData ci::LocalPlayer::GetAVData(const std::string &avName_) const
 	}
 }
 
-std::queue<std::shared_ptr<uint8_t>> pcAttacks;
+std::queue<std::shared_ptr<HitData_::AnimID>> pcAttacks;
 
-std::shared_ptr<uint8_t> ci::LocalPlayer::GetNextHitAnim()
+std::shared_ptr<HitData_::AnimID> ci::LocalPlayer::GetNextHitAnim()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 	if (pcAttacks.empty())
@@ -1547,7 +1547,7 @@ void ci::LocalPlayer::Update()
 	SAFE_CALL("LocalPlayer", [&] {
 		if (!registered)
 		{
-			cd::SendAnimationEvent(g_thePlayer, "Skymp_Register");
+			HitData_::Register();
 			registered = true;
 		}
 	});

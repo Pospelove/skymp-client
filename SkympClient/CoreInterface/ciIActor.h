@@ -38,7 +38,7 @@ namespace ci
 		virtual void RemoveSpell(const Spell *spell, bool silent) = 0;
 		virtual void EquipSpell(const Spell *spell, bool leftHand) = 0;
 		virtual void UnequipSpell(const Spell *spell, bool leftHand) = 0;
-		virtual void PlayHitAnimation(uint8_t animID) = 0;
+		virtual void PlayAnimation(uint32_t animID) = 0;
 		virtual void UpdateAVData(const std::string &avName, const AVData &data) = 0;
 
 		virtual std::wstring GetName() const = 0;
