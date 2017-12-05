@@ -81,6 +81,11 @@ namespace ci
 		*/
 		virtual void OnLockpick() = 0;
 
+		/**
+		* Вызывается, когда игрок атакует оружием, на которое нанесён яд
+		*/
+		virtual void OnPoisonAttack() = 0;
+
 	protected:
 		 static IClientLogic *clientLogic;
 		 static Mutex callbacksMutex;

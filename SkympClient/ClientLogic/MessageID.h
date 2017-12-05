@@ -34,6 +34,7 @@ enum : RakNet::MessageID {
 	ID_SPELL_RELEASE,
 	ID_DATASEARCH_RESULT,
 	ID_FORGET_PLAYER,
+	ID_POISON_ATTACK,
 
 	// client <---> server
 	ID_MESSAGE,

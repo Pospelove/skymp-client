@@ -2576,6 +2576,13 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
+	void OnPoisonAttack() override
+	{
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_POISON_ATTACK);
+		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
 	uint32_t GetItemTypeID(const ci::ItemType *itemType)
 	{
 		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)

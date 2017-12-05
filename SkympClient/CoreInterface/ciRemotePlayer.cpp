@@ -21,6 +21,18 @@ extern clock_t localPlCrosshairRefUpdateMoment;
 class CIAccess
 {
 public:
+	static void OnPoisonAttack()
+	{
+		std::thread([=] {
+			auto logic = ci::IClientLogic::clientLogic;
+			if (logic != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnPoisonAttack();
+			}
+		}).detach();
+	}
+
 	static ci::Mutex &GetMutex() {
 		return ci::IClientLogic::callbacksMutex;
 	}
@@ -306,6 +318,10 @@ namespace ci
 				g_hitEventSource.RemoveEventSink(this);
 			}
 
+		private:
+			std::map<uint32_t, clock_t> lastReceive;
+			dlf_mutex m;
+
 			virtual	EventResult	ReceiveEvent(TESHitEvent *evn, BSTEventSource<TESHitEvent> * source) override
 			{
 				if (LookupFormByID(evn->sourceFormID) != nullptr && LookupFormByID(evn->sourceFormID)->formType == FormType::Enchantment)
@@ -313,6 +329,23 @@ namespace ci
 
 				if (evn->caster != g_thePlayer || evn->target == nullptr /*|| evn->projectileFormID != NULL*/)
 					return EventResult::kEvent_Continue;
+
+				{
+					bool doRet = false;
+
+					std::lock_guard<dlf_mutex> l(this->m);
+					if (clock() - lastReceive[evn->sourceFormID] < 25)
+					{
+						SET_TIMER_LIGHT(167, [] {
+							CIAccess::OnPoisonAttack();
+						});
+						doRet = true;
+					}
+					lastReceive[evn->sourceFormID] = clock();
+
+					if (doRet)
+						return EventResult::kEvent_Continue;
+				}
 
 				const uint32_t targetID = evn->target->formID;
 				HitEventData hitEventData_;
