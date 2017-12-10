@@ -3,6 +3,7 @@
 
 #include <SKSE/NiNodes.h>
 #include <SKSE/NiObjects.h>
+#include <SKSE/GameData.h>
 
 namespace Utility
 {
@@ -159,5 +160,69 @@ namespace Utility
 		}
 
 		return statics[effect];
+	}
+
+	std::set<BGSKeywordForm *> clear;
+	int32_t maxKeywords = 256;
+
+	typedef std::map <std::string, BGSKeyword *> KeywordCache;
+	static dlf_mutex s_keywordCacheLock, kdLock;
+	static KeywordCache s_keywordCache;
+
+	BGSKeyword *GetKeyword(void *staticFuncTag, BSFixedString keyword)
+	{
+		std::lock_guard<dlf_mutex> l(s_keywordCacheLock);
+
+		if (s_keywordCache.empty()) {
+			DataHandler* pDataHandler = DataHandler::GetSingleton();
+			BSTArray<BGSKeyword*>& keywords = pDataHandler->keywords;
+			for (UInt32 n = 0; n < keywords.GetSize(); n++) {
+				BGSKeyword* pKeyword = NULL;
+				keywords.GetNthItem(n, pKeyword);
+				if (pKeyword) {
+					s_keywordCache.insert(KeywordCache::value_type(BSFixedString(pKeyword->keyword.Get()).c_str(), pKeyword));
+				}
+			}
+		}
+
+
+		KeywordCache::iterator it = s_keywordCache.find(std::string(keyword.c_str()));
+		BGSKeyword* pKeyword = (it != s_keywordCache.end()) ? it->second : NULL;
+		return pKeyword;
+	}
+
+	void RemoveAllKeywords(BGSKeywordForm *form)
+	{
+		std::lock_guard<dlf_mutex> l(kdLock);
+
+		form->keywords = nullptr;
+		AddKeyword(form, "");
+	}
+
+	void AddKeyword(BGSKeywordForm *form, std::string keywordStr)
+	{
+		std::lock_guard<dlf_mutex> l(kdLock);
+
+		if (form->keywords == nullptr || clear.find(form) == clear.end())
+		{
+			form->numKeywords = 0;
+			form->keywords = new BGSKeyword	*[maxKeywords];
+			clear.insert(form);
+		}
+
+		if (form->numKeywords >= maxKeywords - 1)
+		{
+			return ErrorHandling::SendError("ERROR:MiscUtility keywords limit reached");
+		}
+
+		if (keywordStr.empty())
+			return;
+
+		auto k = GetKeyword(nullptr, keywordStr.data());
+		if (k != nullptr)
+		{
+			form->keywords[form->numKeywords] = k;
+			++form->numKeywords;
+		}
 	}
 }

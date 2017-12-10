@@ -16,7 +16,7 @@
 std::string WstringToString(const std::wstring &wstring);
 std::wstring StringToWstring(const std::string &string);
 
-class SkympAgent
+class SkympAgent // <= 0.9
 {
 public:
 

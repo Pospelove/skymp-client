@@ -90,4 +90,7 @@ namespace ci
 		std::shared_ptr<ci::Mutex> mutex;
 		std::vector<std::function<Func>> mFunctions;
 	};
+
+	void RemoveAllKeywords(uint32_t baseID);
+	void AddKeyword(uint32_t baseID, std::string keywordString);
 }

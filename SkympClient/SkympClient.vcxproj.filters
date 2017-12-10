@@ -160,6 +160,9 @@
     <ClCompile Include="CoreInterface\ciMagic.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciEnchantment.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -411,6 +414,9 @@
       <Filter>client_logic\Bots</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciMagic.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciEnchantment.h">
       <Filter>core_interface</Filter>
     </ClInclude>
   </ItemGroup>

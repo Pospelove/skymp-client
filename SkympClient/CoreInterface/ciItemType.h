@@ -4,6 +4,8 @@
 
 namespace ci
 {
+	class Enchantment;
+
 	class ItemType : public Magic
 	{
 		friend class LocalPlayer;
@@ -58,6 +60,7 @@ namespace ci
 		void SetArmorRating(float armorRAting);
 		void SetDamage(float damage);
 		void GenPotionName();
+		void SetEnchantment(const ci::Enchantment *ench);
 
 	private:
 		uint32_t GetFormID() const;

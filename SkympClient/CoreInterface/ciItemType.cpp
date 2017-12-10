@@ -56,7 +56,7 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof TESObjectWEAP);
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
-		//((TESObjectWEAP *)pimpl->item)->BGSEquipType::unk04 = GetEitherHandSlot();
+		this->SetEnchantment(nullptr);
 		break;
 	case Class::Armor:
 	{
@@ -73,6 +73,7 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		}
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
+		this->SetEnchantment(nullptr);
 		break;
 	}
 	case Class::Ammo:
@@ -179,6 +180,19 @@ void ItemType::GenPotionName()
 	auto pot = (AlchemyItem *)this->pimpl->item;
 
 	// ...
+}
+
+void ItemType::SetEnchantment(const ci::Enchantment *ench)
+{
+	const auto enchForm = ench ? (EnchantmentItem *)LookupFormByID(ench->GetFormID()) : nullptr;
+
+	const auto weap = (TESObjectWEAP *)pimpl->item;
+	if (weap && weap->formType == FormType::Weapon)
+		weap->enchantment = enchForm;
+
+	const auto armor = (TESObjectARMO *)pimpl->item;
+	if (armor && armor->formType == FormType::Armor)
+		armor->enchantment = enchForm;
 }
 
 uint32_t ItemType::GetFormID() const

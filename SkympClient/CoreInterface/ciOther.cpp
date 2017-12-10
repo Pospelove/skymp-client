@@ -337,4 +337,24 @@ namespace ci
 	void TraceCDCalls(bool trace) {
 		_putenv_s("IsTraceCDCalls", trace ? "1" : "0");
 	}
+
+	void RemoveAllKeywords(uint32_t baseID)
+	{
+		const auto form = LookupFormByID(baseID);
+		const auto kForm = DYNAMIC_CAST<BGSKeywordForm *, TESForm *>(form);
+		if (kForm != nullptr)
+			Utility::RemoveAllKeywords(kForm);
+		else
+			ci::Log("ERROR:Other bad keyword form");
+	}
+
+	void AddKeyword(uint32_t baseID, std::string keywordString)
+	{
+		const auto form = LookupFormByID(baseID);
+		const auto kForm = DYNAMIC_CAST<BGSKeywordForm *, TESForm *>(form);
+		if (kForm != nullptr)
+			Utility::AddKeyword(kForm, keywordString);
+		else
+			ci::Log("ERROR:Other bad keyword form");
+	}
 }

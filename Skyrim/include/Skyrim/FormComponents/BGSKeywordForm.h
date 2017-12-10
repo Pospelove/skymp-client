@@ -35,7 +35,8 @@ public:
 		return numKeywords;
 	}
 
-protected:
+// f*ck libSkyrim
+//protected:
 	// @members
 	BGSKeyword	** keywords;	// 04
 	UInt32		numKeywords;	// 08

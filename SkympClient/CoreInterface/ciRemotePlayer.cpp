@@ -2091,7 +2091,11 @@ namespace ci
 			enum {
 				InvisibleNPC = 0x00071E6B,
 			};
-			return (TESNPC *)LookupFormByID(InvisibleNPC);
+			auto npc = (TESNPC *)LookupFormByID(InvisibleNPC);
+			npc->height = 0.1;
+			npc->headparts = nullptr;
+			npc->numHeadParts = 0;
+			return npc;
 		}
 
 		clock_t timer = 0;
@@ -2099,6 +2103,8 @@ namespace ci
 	};
 
 	RemotePlayer *CreateGhostAxe() {
-		return new GhostAxe;
+		auto axe = new GhostAxe;
+		axe->UpdateAVData("invisibility", AVData{}); // Make invisible
+		return axe;
 	}
 }

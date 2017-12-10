@@ -15,6 +15,7 @@
 #include "ciMagicEffect.h"
 #include "ciMagic.h"
 #include "ciSpell.h"
+#include "ciEnchantment.h"
 #include "ciItemType.h"
 #include "ciIActor.h"
 #include "ciLocalPlayer.h"

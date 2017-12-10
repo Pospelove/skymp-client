@@ -120,6 +120,7 @@
     <ClCompile Include="Common\clip_win.cpp" />
     <ClCompile Include="Common\ErrorHandling.cpp" />
     <ClCompile Include="CoreInterface\ciDataSearch.cpp" />
+    <ClCompile Include="CoreInterface\ciEnchantment.cpp" />
     <ClCompile Include="CoreInterface\ciGUI.cpp" />
     <ClCompile Include="CoreInterface\ciItemType.cpp" />
     <ClCompile Include="CoreInterface\ciLocalPlayer.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="Common\ErrorHandling.h" />
     <ClInclude Include="Common\Signal.h" />
     <ClInclude Include="CoreInterface\ciDataSearch.h" />
+    <ClInclude Include="CoreInterface\ciEnchantment.h" />
     <ClInclude Include="CoreInterface\ciIActor.h" />
     <ClInclude Include="CoreInterface\ciGUI.h" />
     <ClInclude Include="CoreInterface\ciItemType.h" />

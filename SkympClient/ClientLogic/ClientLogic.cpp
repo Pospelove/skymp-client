@@ -34,8 +34,9 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::ItemType *> itemTypes;
 	std::set<ci::Object *> hostedJustNow;
 	std::map<uint32_t, ci::MagicEffect *> effects;
-	std::map<uint32_t, ci::Spell *> spells;
+	std::map<uint32_t, ci::Magic *> magic;
 	std::map<uint32_t, ci::Text3D *> text3Ds;
+	std::map<uint32_t, std::string> keywords;
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
@@ -195,12 +196,19 @@ class ClientLogic : public ci::IClientLogic
 
 	uint32_t GetID(const ci::Spell *spell)
 	{
-		for (auto it = spells.begin(); it != spells.end(); ++it)
+		for (auto it = magic.begin(); it != magic.end(); ++it)
 		{
 			if (it->second == spell)
 				return it->first;
 		}
 		return -1;
+	}
+
+	uint32_t GetID(const ci::Enchantment *ench)
+	{
+		return GetID(
+			reinterpret_cast<const ci::Spell *>(ench)
+		);
 	}
 
 	enum class Type : uint8_t
@@ -474,6 +482,16 @@ class ClientLogic : public ci::IClientLogic
 						ss >> aeName;
 						ss >> aeID;
 						ci::RegisterAnimation(WstringToString(aeName), aeID);
+					}
+					else if (!memcmp(message.data(), L"<RegisterKeyword>", -(2) + (int32_t)sizeof L"<RegisterKeyword>"))
+					{
+						std::wistringstream ss(message.data());
+						std::wstring str, cmdStr;
+						uint32_t id;
+						ss >> cmdStr;
+						ss >> str;
+						ss >> id;
+						keywords[id] = WstringToString(str);
 					}
 					else
 						ci::Chat::AddMessage(message, isNotification);
@@ -1085,6 +1103,36 @@ class ClientLogic : public ci::IClientLogic
 
 			break;
 		}
+		case ID_OBJECT_KEYWORDS:
+		{
+			uint32_t id, numKs;
+			std::list<uint32_t> keywords;
+			bsIn.Read(id);
+			bsIn.Read(numKs);
+
+			uint32_t temp;
+			for (size_t i = 0; i != numKs; ++i)
+			{
+				bsIn.Read(temp);
+				keywords.push_back(temp);
+			}
+
+			try {
+				for (auto kID : keywords)
+				{
+					ci::RemoveAllKeywords(objects.at(id)->GetBase());
+					ci::AddKeyword(objects.at(id)->GetBase(), this->keywords[kID]);
+
+					if (this->keywords[kID].empty())
+						ci::Log("ERROR:ClientLogic id_object_keywords keyword not found");
+				}
+			}
+			catch (...) {
+				ci::Log("ERROR:ClientLogic id_object_keywords object not found");
+			}
+
+			break;
+		}
 		case ID_PLAYER_INVENTORY:
 		{
 			uint16_t playerID;
@@ -1117,6 +1165,7 @@ class ClientLogic : public ci::IClientLogic
 					{
 						if (itemType->IsCustomPotion())
 							itemType->GenPotionName();
+
 						players.at(playerID)->AddItem(itemType, count, silent);
 					}
 					else
@@ -1149,9 +1198,7 @@ class ClientLogic : public ci::IClientLogic
 				break;
 
 			using SpellList = std::set<ci::Spell *>;
-
 			SpellList spellList;
-
 			while (true)
 			{
 				uint32_t spellID;
@@ -1159,12 +1206,13 @@ class ClientLogic : public ci::IClientLogic
 				if (!read)
 					break;
 				try {
-					spellList.insert(spells.at(spellID));
+					spellList.insert(dynamic_cast<ci::Spell *>(magic.at(spellID)));
 				}
 				catch (...) {
 					ci::Log("ERROR:ClientLogic Unknown spell in SpellList");
 				}
 			}
+			spellList.erase(nullptr);
 
 			static std::map<uint16_t, SpellList> lastSpellList;
 
@@ -1347,7 +1395,7 @@ class ClientLogic : public ci::IClientLogic
 					try {
 						ci::Spell *sp;
 						try {
-							sp = spells.at(spellIDs[i]);
+							sp = dynamic_cast<ci::Spell *>(magic.at(spellIDs[i]));
 						}
 						catch (...) {
 							sp = nullptr;
@@ -1472,6 +1520,22 @@ class ClientLogic : public ci::IClientLogic
 				if (effect)
 					itemTypes[itemType.id]->AddEffect(effect, abs(mag), dur);
 			}
+
+			uint32_t enchID = ~0;
+			bsIn.Read(enchID);
+			if (enchID != ~0)
+			{
+				try {
+					auto ench = dynamic_cast<ci::Enchantment *>(magic.at(enchID));
+					if (ench == nullptr)
+						ci::Log("ERROR:ClientLogic Magic - Bad dynamic cast");
+					else
+						itemTypes[itemType.id]->SetEnchantment(ench);
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic Magic not found");
+				}
+			}
 			break;
 		}
 		case ID_WEATHER:
@@ -1573,16 +1637,21 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_SPELL:
 		{
+			uint8_t isEnch = false;
 			uint32_t id;
 			uint32_t formID;
 			uint32_t numEffects;
+			bsIn.Read(isEnch);
 			bsIn.Read(id);
 			bsIn.Read(formID);
 			bsIn.Read(numEffects);
 
-			if (spells[id] == nullptr)
+			if (magic[id] == nullptr)
 			{
-				spells[id] = new ci::Spell(formID);
+				if (isEnch)
+					magic[id] = new ci::Enchantment(formID);
+				else
+					magic[id] = new ci::Spell(formID);
 				for (uint32_t i = 0; i != numEffects; ++i)
 				{
 					uint32_t effectID;
@@ -1592,7 +1661,7 @@ class ClientLogic : public ci::IClientLogic
 					bsIn.Read(dur);
 					bsIn.Read(area);
 					try {
-						spells[id]->AddEffect(effects.at(effectID), abs(mag), dur);
+						magic[id]->AddEffect(effects.at(effectID), abs(mag), dur);
 					}
 					catch (...) {
 						ci::Log("ERROR:ClientLogic effect not found");
@@ -1602,9 +1671,13 @@ class ClientLogic : public ci::IClientLogic
 			else
 				bsIn.IgnoreBytes(16 * numEffects);
 
-			float cost = 0;
-			bsIn.Read(cost);
-			spells[id]->SetCost(cost);
+			const auto asSpell = dynamic_cast<ci::Spell *>(magic[id]);
+			if (asSpell != nullptr)
+			{
+				float cost = 0;
+				bsIn.Read(cost);
+				asSpell->SetCost(cost);
+			}
 			break;
 		}
 		case ID_EFFECT:
@@ -1779,18 +1852,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_REGISTER_ANIMATION:
 		{
-			/*uint32_t animID;
-			std::string name = "";
-			bsIn.Read(animID);
-			uint16_t numChars = 0;
-			bsIn.Read(numChars);
-			for(uint32_t i = 0; i != numChars; ++i)
-			{
-				char ch;
-				bsIn.Read(ch);
-				name += ch;
-			}
-			ci::RegisterAnimation(name, animID);*/
+			// Deprecated
 			break;
 		}
 		default:
@@ -2000,21 +2062,6 @@ class ClientLogic : public ci::IClientLogic
 
 		if (testUpd)
 			testUpd();
-
-		{
-			static bool wasDead = false;
-			bool isDead = localPlayer->GetAVData("health").percentage == 0;
-			if (isDead != wasDead)
-			{
-				wasDead = isDead;
-				if (isDead)
-				{
-					// Forget magic
-					//this->effects.clear();
-					//this->spells.clear();
-				}
-			}
-		}
 
 		try {
 			static bool was = false;
@@ -2304,7 +2351,7 @@ class ClientLogic : public ci::IClientLogic
 			RakNet::BitStream bsOut;
 			bsOut.Write(ID_HIT_PLAYER);
 			bsOut.Write(net.myID);
-			bsOut.Write(GetItemTypeID(localPlayer->GetEquippedWeapon()));
+			bsOut.Write(GetID(localPlayer->GetEquippedWeapon()));
 			bsOut.Write(false);
 			net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 		}
@@ -2583,22 +2630,6 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
-	uint32_t GetItemTypeID(const ci::ItemType *itemType)
-	{
-		for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
-			if (it->second == itemType)
-				return it->first;
-		return ~0;
-	}
-
-	uint32_t GetSpellID(const ci::Spell *spell)
-	{
-		for (auto it = spells.begin(); it != spells.end(); ++it)
-			if (it->second == spell)
-				return it->first;
-		return ~0;
-	}
-
 	void UpdateObjects()
 	{
 		const uint32_t sendingInterval = 50;
@@ -2760,7 +2791,7 @@ class ClientLogic : public ci::IClientLogic
 				{
 					RakNet::BitStream bsOut;
 					bsOut.Write(ID_EQUIP_ITEM);
-					bsOut.Write(GetItemTypeID(itemType));
+					bsOut.Write(GetID(itemType));
 					bsOut.Write(handID);
 					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 				}
@@ -2772,7 +2803,7 @@ class ClientLogic : public ci::IClientLogic
 				{
 					RakNet::BitStream bsOut;
 					bsOut.Write(ID_UNEQUIP_ITEM);
-					bsOut.Write(GetItemTypeID(itemType));
+					bsOut.Write(GetID(itemType));
 					bsOut.Write(handID);
 					net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 				}
@@ -2797,7 +2828,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_UNEQUIP_ITEM);
-				bsOut.Write(GetItemTypeID(weapWas));
+				bsOut.Write(GetID(weapWas));
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 			}
@@ -2806,7 +2837,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_EQUIP_ITEM);
-				bsOut.Write(GetItemTypeID(weap));
+				bsOut.Write(GetID(weap));
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 			}
@@ -2829,7 +2860,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_UNEQUIP_SPELL);
-				bsOut.Write(GetSpellID(spWas));
+				bsOut.Write(GetID(spWas));
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 			}
@@ -2838,7 +2869,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_EQUIP_SPELL);
-				bsOut.Write(GetSpellID(sp));
+				bsOut.Write(GetID(sp));
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 			}
@@ -2862,7 +2893,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_UNEQUIP_ITEM);
-				bsOut.Write(GetItemTypeID(ammoWas));
+				bsOut.Write(GetID(ammoWas));
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 			}
@@ -2871,7 +2902,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_EQUIP_ITEM);
-				bsOut.Write(GetItemTypeID(ammo));
+				bsOut.Write(GetID(ammo));
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE, NULL, net.remote, false);
 			}
