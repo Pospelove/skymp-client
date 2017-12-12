@@ -112,6 +112,7 @@ std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
 std::map<TESForm *, const ci::ItemType *> knownItems;
 std::map<TESForm *, const ci::Spell *> knownSpells;
+std::map<TESForm *, const ci::Enchantment *> knownEnch;
 
 const ci::ItemType *GetEquippedAmmo(TESForm **outTESForm = nullptr) 
 {
@@ -200,10 +201,78 @@ public:
 		}).detach();
 	}
 
+	static void OnEnch(const ci::ItemType *itemType, const ci::Enchantment *ench)
+	{
+		std::thread([=] {
+			auto logic = ci::IClientLogic::clientLogic;
+			if (logic != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+				logic->OnItemEnchanting(itemType, ench);
+			}
+		}).detach();
+	}
+
 	static ci::Mutex &GetMutex() {
 		return ci::IClientLogic::callbacksMutex;
 	}
 };
+
+void IgnoreItemRemove();
+
+void DetectEnchanting()
+{
+	const auto changes = g_thePlayer->extraData.GetExtraData<ExtraContainerChanges>();
+
+	if (changes->next != nullptr)
+	{
+		//ErrorHandling::SendError("WARN:LocalPlaer ExtraData - next found");
+	}
+
+	if (changes->changes->entryList == nullptr)
+	{
+		ErrorHandling::SendError("ERROR:LocalPlaer Unable to load ExtraData");
+		return;
+	}
+
+	const auto &entryList = *changes->changes->entryList;
+	for (auto &entry : entryList)
+	{
+		if (!entry->extraList)
+			continue;
+		auto &entryExtraList = *entry->extraList;
+		for (auto &extraList : entryExtraList)
+		{
+			auto extraEnch = extraList->GetExtraData<ExtraEnchantment>();
+			if (extraEnch != nullptr)
+			{
+				try {
+					auto itemType = knownItems.at(entry->baseForm);
+					for (auto &pair : knownEnch)
+					{
+						auto form = (EnchantmentItem *)pair.first;
+						auto &ciEnch = pair.second;
+
+						auto mgef = form->effectItemList.front()->mgef;
+						if (mgef == extraEnch->enchant->effectItemList.front()->mgef)
+						{
+							CIAccess::OnEnch(itemType, ciEnch);
+							const auto count = sd::GetItemCount(g_thePlayer, entry->baseForm);
+							for (int32_t i = 0; i != count; ++i)
+								IgnoreItemRemove();
+							sd::RemoveItem(g_thePlayer, entry->baseForm, -1, true, nullptr);
+							sd::AddItem(g_thePlayer, entry->baseForm, count, true);
+							break;
+						}
+					}
+				}
+				catch (...) {
+					ErrorHandling::SendError("ERROR:LocalPlayer DetectEnchanting() unknown form");
+				}
+			}
+		}
+	}
+}
 
 class ContainerChangedEventSink : public BSTEventSink<TESContainerChangedEvent>
 {
@@ -254,7 +323,7 @@ public:
 				auto count = evn->count;
 				auto form = LookupFormByID(evn->item);
 				const bool toRef = evn->toReference != 0;
-				SET_TIMER_LIGHT(0, [=] {
+				auto f = [=] {
 					if (sd::IsDead(g_thePlayer))
 						return;
 
@@ -268,7 +337,13 @@ public:
 							if (toRef)
 								CIAccess().OnItemDropped(itemType, count);
 							else if (MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"))
+							{
 								CIAccess().OnItemUsedInCraft(itemType);
+								if (itemType->GetClass() == ci::ItemType::Class::SoulGem)
+								{
+									SET_TIMER_LIGHT(200, DetectEnchanting);
+								}
+							}
 							else
 								CIAccess().OnItemUsed(itemType);
 
@@ -281,7 +356,8 @@ public:
 						catch (...) {
 						}
 					}
-				});
+				};
+				SET_TIMER_LIGHT(0,f);
 			}
 		return EventResult::kEvent_Continue;
 	}
@@ -294,6 +370,11 @@ private:
 	int32_t removesToIgnore = 0;
 	std::mutex removesToIgnoreMutex;
 };
+
+void IgnoreItemRemove()
+{
+	ContainerChangedEventSink::GetSingleton()->IgnoreItemRemove();
+}
 
 class PlayerBowShotEventSink : public BSTEventSink<TESPlayerBowShotEvent>
 {
@@ -552,7 +633,7 @@ void ci::LocalPlayer::EquipItem(const ItemType *item, bool silent, bool preventR
 {
 	if (!item)
 		return;
-	SET_TIMER(0, [=] {
+	SET_TIMER(200, [=] {
 		auto form = LookupFormByID(item->GetFormID());
 		if (form)
 		{
@@ -1140,7 +1221,7 @@ void ci::LocalPlayer::RecoverSpells()
 	});
 }
 
-class EscTabListener : public InputListener
+class LocalPlInputListener : public InputListener
 {
 public:
 
@@ -1151,8 +1232,16 @@ public:
 private:
 	virtual void OnPress(uint8_t code) override
 	{
-		if (code == 1 || code == 15)
+		if (code == 1 || code == 15) // esc, tab
 			lastEscOrTab = clock();
+
+		if (code == 18) // 'E'
+		{
+			if (MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"))
+			{
+				// ...
+			}
+		}
 	}
 
 	virtual void OnRelease(uint8_t code) override
@@ -1178,10 +1267,10 @@ bool UpdateLockpicking()
 {
 	bool result = false;
 
-	static auto listener = (EscTabListener *)nullptr;
+	static auto listener = (LocalPlInputListener *)nullptr;
 	if (!listener)
 	{
-		listener = new EscTabListener;
+		listener = new LocalPlInputListener;
 		TheIInputHook->AddListener(listener);
 	}
 
@@ -1204,6 +1293,23 @@ bool UpdateLockpicking()
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	using EventT = TESActiveEffectApplyRemoveEvent;
+
+	class Sink : public BSTEventSink<EventT>
+	{
+		virtual ~Sink() {}
+		virtual	EventResult	ReceiveEvent(EventT * evn, BSTEventSource<EventT> * source) {
+			return EventResult::kEvent_Continue;
+		}
+	};
+
+	static BSTEventSink<EventT> *activeEffectSink = nullptr;
+	if (!activeEffectSink)
+	{
+		activeEffectSink = new Sink;
+		g_activeEffectApplyRemoveEventSource.AddEventSink(activeEffectSink);
+	}
 
 	SAFE_CALL("LocalPlayer", [&] {
 		if (UpdateLockpicking())

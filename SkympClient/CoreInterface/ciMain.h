@@ -86,6 +86,13 @@ namespace ci
 		*/
 		virtual void OnPoisonAttack() = 0;
 
+		/**
+		* Вызывается, когда игрок накладывает зачарование на предмет
+		* @param itemType - тип предмета
+		* @param ench - зачарование
+		*/
+		virtual void OnItemEnchanting(const ci::ItemType *itemType, const ci::Enchantment *ench) = 0;
+
 	protected:
 		 static IClientLogic *clientLogic;
 		 static Mutex callbacksMutex;

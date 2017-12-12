@@ -1198,7 +1198,9 @@ class ClientLogic : public ci::IClientLogic
 				break;
 
 			using SpellList = std::set<ci::Spell *>;
+			using EnchList = std::set<ci::Enchantment *>;
 			SpellList spellList;
+			EnchList enchList;
 			while (true)
 			{
 				uint32_t spellID;
@@ -1207,14 +1209,22 @@ class ClientLogic : public ci::IClientLogic
 					break;
 				try {
 					spellList.insert(dynamic_cast<ci::Spell *>(magic.at(spellID)));
+					enchList.insert(dynamic_cast<ci::Enchantment *>(magic.at(spellID)));
 				}
 				catch (...) {
 					ci::Log("ERROR:ClientLogic Unknown spell in SpellList");
 				}
 			}
 			spellList.erase(nullptr);
+			enchList.erase(nullptr);
 
 			static std::map<uint16_t, SpellList> lastSpellList;
+			static std::map<uint16_t, EnchList> lastEnchList;
+
+			for (auto entry : lastEnchList[playerID])
+				entry->SetPlayerKnows(false);
+			for (auto entry : enchList)
+				entry->SetPlayerKnows(true);
 
 			{
 				std::vector<ci::Spell *> toRemove;
@@ -1236,6 +1246,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			lastSpellList[playerID] = spellList;
+			lastEnchList[playerID] = enchList;
 
 			break;
 		}
@@ -1460,6 +1471,7 @@ class ClientLogic : public ci::IClientLogic
 				float armorRating;
 				float damage;
 				uint32_t equipSlot;
+				int32_t soulSize, capacity;
 			} itemType;
 			bsIn.Read(itemType.id);
 			bsIn.Read(itemType.classID);
@@ -1536,6 +1548,11 @@ class ClientLogic : public ci::IClientLogic
 					ci::Log("ERROR:ClientLogic Magic not found");
 				}
 			}
+
+			bsIn.Read(itemType.soulSize);
+			bsIn.Read(itemType.capacity);
+			itemTypes[itemType.id]->SetSoulSize(itemType.soulSize);
+			itemTypes[itemType.id]->SetCapacity(itemType.capacity);
 			break;
 		}
 		case ID_WEATHER:
@@ -1638,10 +1655,12 @@ class ClientLogic : public ci::IClientLogic
 		case ID_SPELL:
 		{
 			uint8_t isEnch = false;
+			uint8_t isCustomEnch = false;
 			uint32_t id;
 			uint32_t formID;
 			uint32_t numEffects;
 			bsIn.Read(isEnch);
+			bsIn.Read(isCustomEnch);
 			bsIn.Read(id);
 			bsIn.Read(formID);
 			bsIn.Read(numEffects);
@@ -1649,7 +1668,7 @@ class ClientLogic : public ci::IClientLogic
 			if (magic[id] == nullptr)
 			{
 				if (isEnch)
-					magic[id] = new ci::Enchantment(formID);
+					magic[id] = new ci::Enchantment(formID, isCustomEnch);
 				else
 					magic[id] = new ci::Spell(formID);
 				for (uint32_t i = 0; i != numEffects; ++i)
@@ -2628,6 +2647,17 @@ class ClientLogic : public ci::IClientLogic
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_POISON_ATTACK);
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+
+	void OnItemEnchanting(const ci::ItemType *itemType, const ci::Enchantment *ench) override
+	{
+		const uint32_t itemTypeID = GetID(itemType);
+		const uint32_t enchID = GetID(ench);
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_ENCHANTING_ITEM);
+		bsOut.Write(itemTypeID);
+		bsOut.Write(enchID);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
 	void UpdateObjects()

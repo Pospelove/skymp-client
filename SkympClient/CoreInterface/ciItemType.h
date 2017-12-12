@@ -20,6 +20,7 @@ namespace ci
 			Ammo =					0x03,
 			Ingredient =			0x04,
 			Potion =				0x05,
+			SoulGem =				0x06,
 		};
 
 		enum class Subclass
@@ -61,6 +62,8 @@ namespace ci
 		void SetDamage(float damage);
 		void GenPotionName();
 		void SetEnchantment(const ci::Enchantment *ench);
+		void SetSoulSize(int32_t soulSize);
+		void SetCapacity(int32_t soulSize);
 
 	private:
 		uint32_t GetFormID() const;

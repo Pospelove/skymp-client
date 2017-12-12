@@ -7,7 +7,9 @@ namespace ci
 	{
 		friend class ItemType;
 	public:
-		Enchantment(uint32_t existingEnchID);
+		Enchantment(uint32_t existingEnchID, bool isCustomEnch = false);
+		void SetPlayerKnows(bool knows);
+		bool GetPlayerKnows() const;
 
 		uint32_t GetBase() const;
 

@@ -1304,18 +1304,20 @@ namespace ci
 
 		const bool der = this->IsDerived();
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
-
 			auto setAVsToDefault = [](Actor *actor) {
 				sd::SetActorValue(actor, "Confidence", 4.0);
 				sd::SetActorValue(actor, "Agression", 0.0);
 				sd::SetActorValue(actor, "attackdamagemult", 0.0);
 				sd::SetActorValue(actor, "Variable01", rand());
-				sd::SetActorValue(actor, "MagicResist", 100);
+				sd::SetActorValue(actor, "MagicResist", 99);
 			};
 
 			auto actor = (Actor *)LookupFormByID(ac.GetFormID());
 			if (actor != nullptr)
+			{
 				setAVsToDefault(actor);
+				sd::AddItem(actor, LookupFormByID(ID_TESSoulGem::SoulGemBlack), 100, true);
+			}
 			SET_TIMER_LIGHT(der ? 0 : 300, [=] {
 				const auto id = ac.GetFormID();
 				if (LookupFormByID(id) == nullptr)
@@ -1437,7 +1439,8 @@ namespace ci
 	{
 		return this->GetMovementData().isWeapDrawn 
 			&& pimpl->handsMagicProxy[i] != nullptr
-			&& (pimpl->handsMagicProxy[i]->GetDelivery() != Spell::Delivery::Self);
+			&& (pimpl->handsMagicProxy[i]->GetDelivery() != Spell::Delivery::Self)
+			&& (pimpl->handsMagicProxy[i]->GetDelivery() != Spell::Delivery::TargetActor);
 	}
 
 	uint32_t RemotePlayer::GetLocationID() const
@@ -1631,24 +1634,24 @@ namespace ci
 			catch (...) {
 				count = 0;
 			}
-			if (count > 0)
+			if (count == 0)
+				ErrorHandling::SendError("WARN:RemotePlayer EquipItem()");
+
+			if (item->GetClass() == ci::ItemType::Class::Armor)
 			{
-				if (item->GetClass() == ci::ItemType::Class::Armor)
-				{
-					pimpl->eq.armor.insert(item);
-					return;
-				}
-				if (item->GetClass() == ci::ItemType::Class::Weapon)
-				{
-					pimpl->eq.hands[leftHand] = item;
-					pimpl->handsMagicProxy[leftHand] = nullptr;
-					return;
-				}
-				if (item->GetClass() == ci::ItemType::Class::Ammo)
-				{
-					pimpl->eq.ammo = item;
-					return;
-				}
+				pimpl->eq.armor.insert(item);
+				return;
+			}
+			if (item->GetClass() == ci::ItemType::Class::Weapon)
+			{
+				pimpl->eq.hands[leftHand] = item;
+				pimpl->handsMagicProxy[leftHand] = nullptr;
+				return;
+			}
+			if (item->GetClass() == ci::ItemType::Class::Ammo)
+			{
+				pimpl->eq.ammo = item;
+				return;
 			}
 		}
 	}
@@ -2092,7 +2095,7 @@ namespace ci
 				InvisibleNPC = 0x00071E6B,
 			};
 			auto npc = (TESNPC *)LookupFormByID(InvisibleNPC);
-			npc->height = 0.1;
+			npc->height = 0.333;
 			npc->headparts = nullptr;
 			npc->numHeadParts = 0;
 			return npc;

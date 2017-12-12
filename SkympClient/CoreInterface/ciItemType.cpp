@@ -87,8 +87,6 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof IngredientItem);
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
-		if (this->GetMagicItem() != nullptr)
-			this->GetMagicItem()->effectItemList.clear();
 		break;
 	case Class::Potion:
 		pimpl->item = FormHeap_Allocate<AlchemyItem>();
@@ -99,7 +97,12 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Food;
 		if (subclass == Subclass::ALCH_Poison)
 			((AlchemyItem *)pimpl->item)->data.flags |= AlchemyItem::kFlag_Poison;*/
-
+		break;
+	case Class::SoulGem:
+		pimpl->item = FormHeap_Allocate<TESSoulGem>();
+		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof TESSoulGem);
+		pimpl->item->formID = 0;
+		pimpl->item->SetFormID(Utility::NewFormID(), true);
 		break;
 	}
 
@@ -193,6 +196,20 @@ void ItemType::SetEnchantment(const ci::Enchantment *ench)
 	const auto armor = (TESObjectARMO *)pimpl->item;
 	if (armor && armor->formType == FormType::Armor)
 		armor->enchantment = enchForm;
+}
+
+void ItemType::SetSoulSize(int32_t s)
+{
+	auto gem = (TESSoulGem *)pimpl->item;
+	if (gem->formType == FormType::SoulGem)
+		gem->soulSize = (uint8_t)s;
+}
+
+void ItemType::SetCapacity(int32_t s)
+{
+	auto gem = (TESSoulGem *)pimpl->item;
+	if (gem->formType == FormType::SoulGem)
+		gem->gemSize = (uint8_t)s;
 }
 
 uint32_t ItemType::GetFormID() const
