@@ -129,6 +129,7 @@
     <ClCompile Include="CoreInterface\ciMain.cpp" />
     <ClCompile Include="CoreInterface\ciObject.cpp" />
     <ClCompile Include="CoreInterface\ciOther.cpp" />
+    <ClCompile Include="CoreInterface\ciRecipe.cpp" />
     <ClCompile Include="CoreInterface\ciRemotePlayer.cpp" />
     <ClCompile Include="CoreInterface\ciSpell.cpp" />
     <ClCompile Include="CoreInterface\ciTypes.cpp" />
@@ -188,6 +189,7 @@
     <ClInclude Include="CoreInterface\ciMagic.h" />
     <ClInclude Include="CoreInterface\ciMagicEffect.h" />
     <ClInclude Include="CoreInterface\ciObject.h" />
+    <ClInclude Include="CoreInterface\ciRecipe.h" />
     <ClInclude Include="CoreInterface\ciSpell.h" />
     <ClInclude Include="CoreInterface\ciTypes.h" />
     <ClInclude Include="CoreInterface\ciMain.h" />

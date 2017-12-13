@@ -17,6 +17,7 @@
 #include "ciSpell.h"
 #include "ciEnchantment.h"
 #include "ciItemType.h"
+#include "ciRecipe.h"
 #include "ciIActor.h"
 #include "ciLocalPlayer.h"
 #include "ciRemotePlayer.h"

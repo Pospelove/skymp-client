@@ -10,6 +10,7 @@ namespace Utility
 	NiPoint3 GetNodeWorldPosition(TESObjectREFR *obj, BSFixedString nodeName, bool firstPerson);
 	void MuteItemsSound();
 	TESObjectSTAT *GetCastingArt(EffectSetting *effect);
+	BGSKeyword *FindKeyword(std::string keywordText);
 
 	void RemoveAllKeywords(BGSKeywordForm *form);
 

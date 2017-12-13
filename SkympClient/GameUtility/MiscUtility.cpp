@@ -191,6 +191,11 @@ namespace Utility
 		return pKeyword;
 	}
 
+	BGSKeyword *FindKeyword(std::string keywordText)
+	{
+		return GetKeyword(nullptr, keywordText.data());
+	}
+
 	void RemoveAllKeywords(BGSKeywordForm *form)
 	{
 		std::lock_guard<dlf_mutex> l(kdLock);

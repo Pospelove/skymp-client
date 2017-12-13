@@ -209,7 +209,10 @@ void ItemType::SetCapacity(int32_t s)
 {
 	auto gem = (TESSoulGem *)pimpl->item;
 	if (gem->formType == FormType::SoulGem)
+	{
 		gem->gemSize = (uint8_t)s;
+		gem->gemSize = NULL;
+	}
 }
 
 uint32_t ItemType::GetFormID() const
