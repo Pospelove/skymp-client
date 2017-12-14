@@ -68,13 +68,17 @@ namespace ci
 		/**
 		* Вызывается, когда игрок использует предмет как ингредиент при крафте (алхимия, зачарование и т.д.)
 		* @param itemType - тип предмета
+		* @param count - количество
 		*/
-		virtual void OnItemUsedInCraft(const ci::ItemType *itemType) = 0;
+		virtual void OnItemUsedInCraft(const ci::ItemType *itemType, uint32_t coutn) = 0;
 
 		/**
 		* Вызывается, когда игрок создал предмет
+		* @param isPoison - является ли созданный предмет ядом
+		* @param itemType - тип предмета, nullptr при зельеварении
+		* @param numCraftedItems - количество созданных предметов (всегда 1 при зельеварении)
 		*/
-		virtual void OnCraftFinish(bool isPoison) = 0;
+		virtual void OnCraftFinish(bool isPoison, const ci::ItemType *itemType, uint32_t numCraftedItems) = 0;
 
 		/**
 		* Вызывается, когда игрок взломал замок

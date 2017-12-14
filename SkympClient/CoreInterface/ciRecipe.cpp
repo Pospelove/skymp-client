@@ -59,16 +59,35 @@ namespace ci
 			throw ~0;
 		}
 
-		auto srcRecipe = deleter->GetDeletedRecipes().front();
+		LABEL_TRY_AGAIN:
+		static int32_t offset = 0;
+		TESForm *srcRecipe;
+		try {
+			srcRecipe = deleter->GetDeletedRecipes().at(offset++);
+		}
+		catch (...) {
+			srcRecipe = nullptr;
+		}
 
-		pimpl->recipe = FormHeap_Allocate<BGSConstructibleObject>();
+		if (!srcRecipe)
+		{
+			ErrorHandling::SendError("ERROR:Recipe Source recipes overflow");
+			offset = 0;
+			goto LABEL_TRY_AGAIN;
+		}
+
+		/*pimpl->recipe = FormHeap_Allocate<BGSConstructibleObject>();
 		memcpy(pimpl->recipe, srcRecipe, sizeof BGSConstructibleObject);
 		pimpl->recipe->formID = 0;
-		pimpl->recipe->SetFormID(Utility::NewFormID(), true);
+		pimpl->recipe->SetFormID(Utility::NewFormID(), true);*/
+		pimpl->recipe = (BGSConstructibleObject *)srcRecipe;
 
-		pimpl->recipe->createdObject = LookupFormByID(createdItemType->GetFormID());
+		if (createdItemType != nullptr)
+			pimpl->recipe->createdObject = LookupFormByID(createdItemType->GetFormID());
 		pimpl->recipe->quantity = createdItemCount;
-		pimpl->recipe->wbKeyword = Utility::FindKeyword(workbenchKeyword);
+		if (nullptr == (pimpl->recipe->wbKeyword = Utility::FindKeyword(workbenchKeyword)))
+			if ("VI" != workbenchKeyword)
+				ErrorHandling::SendError("ERROR:Recipe Bad keyword %s", workbenchKeyword.data());
 		pimpl->recipe->unk20 = (int32_t)nullptr; // conditions ?
 
 		pimpl->recipe->container.entries = nullptr;
@@ -78,6 +97,11 @@ namespace ci
 	Recipe::~Recipe()
 	{
 		std::lock_guard<dlf_mutex> l(recipeM);
+
+		static auto invalidKeyword = Utility::FindKeyword("MQKillDragonKeyword");
+		pimpl->recipe->wbKeyword = invalidKeyword;
+
+		this->RemoveAllRecipeComponents();
 
 		delete pimpl;
 	}
@@ -116,5 +140,43 @@ namespace ci
 		newEntry->data = nullptr;
 		++num;
 
+	}
+
+	void Recipe::RemoveAllRecipeComponents()
+	{
+		std::lock_guard<dlf_mutex> l(recipeM);
+		if (pimpl->recipe->container.entries != nullptr)
+		{
+			delete[] pimpl->recipe->container.entries;
+			pimpl->recipe->container.entries = nullptr;
+			pimpl->recipe->container.numEntries = 0;
+		}
+	}
+
+	void Recipe::SetPlayerKnows(bool knows)
+	{
+		std::lock_guard<dlf_mutex> l(recipeM);
+
+		static std::map<Recipe *, BGSKeyword *> keywordBackup;
+		static std::set<Recipe *> unknownRecipes;
+
+		const bool knowsWas = unknownRecipes.count(this) == 0;
+
+		if (knowsWas != knows)
+		{
+			if (knows)
+			{
+				pimpl->recipe->wbKeyword = keywordBackup[this];
+				keywordBackup.erase(this);
+				unknownRecipes.erase(this);
+			}
+			else
+			{
+				keywordBackup.insert({ this, pimpl->recipe->wbKeyword });
+				unknownRecipes.insert(this);
+				static auto invalidKeyword = Utility::FindKeyword("MQKillDragonKeyword");
+				pimpl->recipe->wbKeyword = invalidKeyword;
+			}
+		}
 	}
 }

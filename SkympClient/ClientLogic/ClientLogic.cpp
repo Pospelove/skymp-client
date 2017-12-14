@@ -37,6 +37,7 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Magic *> magic;
 	std::map<uint32_t, ci::Text3D *> text3Ds;
 	std::map<uint32_t, std::string> keywords;
+	std::map<uint32_t, ci::Recipe *> recipes;
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
@@ -1553,6 +1554,8 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(itemType.capacity);
 			itemTypes[itemType.id]->SetSoulSize(itemType.soulSize);
 			itemTypes[itemType.id]->SetCapacity(itemType.capacity);
+
+			localPlayer->AddItem(itemTypes[itemType.id], 0, true); // register 
 			break;
 		}
 		case ID_WEATHER:
@@ -1870,8 +1873,61 @@ class ClientLogic : public ci::IClientLogic
 			break;
 		}
 		case ID_REGISTER_ANIMATION:
+		case ID_REGISTER_KEYWORD:
 		{
 			// Deprecated
+			break;
+		}
+		case ID_RECIPE:
+		{
+			uint32_t id;
+			uint32_t prodID;
+			uint32_t numProd;
+			uint32_t kwrdID;
+
+			bsIn.Read(id);
+			bsIn.Read(prodID);
+			bsIn.Read(numProd);
+			bsIn.Read(kwrdID);
+
+			try {
+				auto kwrdTxt = keywords.at(kwrdID);
+				try {
+					auto prod = itemTypes.at(prodID);
+
+					if (recipes[id] == nullptr)
+						recipes[id] = new ci::Recipe(kwrdTxt, prod, numProd);
+
+					//recipes[id]->SetPlayerKnows(true);
+					recipes[id]->RemoveAllRecipeComponents();
+
+					try {
+						uint32_t contsize;
+						bsIn.Read(contsize);
+						for (uint32_t i = 0; i != contsize; ++i)
+						{
+							uint32_t itemTypeID;
+							uint32_t count;
+							bsIn.Read(itemTypeID);
+							const bool read = bsIn.Read(count);
+							if (!read)
+								break;
+							auto type = itemTypes.at(itemTypeID);
+							recipes[id]->AddRecipeComponent(itemTypes[itemTypeID], count);
+						}
+					}
+					catch (...) {
+						ci::Log("ERROR:ClientLogic Bad recipe container");
+					}
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic Bad recipe produce " + std::to_string((int32_t &)prodID));
+				}
+			}
+			catch (...) {
+				ci::Log("ERROR:ClientLogic Bad recipe keyword " + std::to_string((int32_t &)kwrdID));
+			}
+
 			break;
 		}
 		default:
@@ -2034,6 +2090,8 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnWorldInit() override
 	{
+		delete new ci::Recipe("VI", nullptr, 0);
+
 		static bool firstInit = true;
 
 		if (firstInit)
@@ -2618,20 +2676,34 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
-	void OnItemUsedInCraft(const ci::ItemType *itemType) override
+	void OnItemUsedInCraft(const ci::ItemType *itemType, uint32_t count) override
 	{
 		const uint32_t itemTypeID = GetID(itemType);
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_CRAFT_INGREDIENT);
 		bsOut.Write(itemTypeID);
+		bsOut.Write(count);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
-	void OnCraftFinish(bool isPoison) override
+	void OnCraftFinish(bool isPoison, const ci::ItemType *itemType, uint32_t numCraftedItems) override
 	{
 		RakNet::BitStream bsOut;
-		bsOut.Write(ID_CRAFT_FINISH);
-		bsOut.Write(isPoison);
+
+		bool isAlchemy = itemType == nullptr;
+		if (isAlchemy)
+		{
+			bsOut.Write(ID_CRAFT_FINISH_ALCHEMY);
+			bsOut.Write((uint64_t)isPoison);
+		}
+		else
+		{
+			const uint32_t itemTypeID = GetID(itemType);
+			bsOut.Write(ID_CRAFT_FINISH);
+			bsOut.Write(itemTypeID);
+			bsOut.Write(numCraftedItems);
+		}
+
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 

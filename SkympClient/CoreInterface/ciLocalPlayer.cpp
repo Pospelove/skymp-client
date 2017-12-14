@@ -138,6 +138,21 @@ const ci::ItemType *GetEquippedAmmo(TESForm **outTESForm = nullptr)
 	return nullptr;
 }
 
+void RegisterAddItem(const ci::ItemType *itemType, uint32_t count)
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	inventory[itemType] += count;
+}
+
+void RegisterRemoveItem(const ci::ItemType *itemType, uint32_t count)
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	if (inventory[itemType] > count)
+		inventory[itemType] -= count;
+	else
+		inventory.erase(itemType);
+}
+
 class CIAccess
 {
 public:
@@ -150,6 +165,7 @@ public:
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 				logic->OnItemDropped(itemType, count);
 			}
+			RegisterRemoveItem(itemType, count);
 		}).detach();
 	}
 
@@ -162,30 +178,33 @@ public:
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
 				logic->OnItemUsed(itemType);
 			}
+			RegisterRemoveItem(itemType, 1);
 		}).detach();
 	}
 
-	static void OnItemUsedInCraft(const ci::ItemType *itemType)
+	static void OnItemUsedInCraft(const ci::ItemType *itemType, uint32_t count)
 	{
 		std::thread([=] {
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnItemUsedInCraft(itemType);
+				logic->OnItemUsedInCraft(itemType, count);
 			}
+			RegisterRemoveItem(itemType, count);
 		}).detach();
 	}
 
-	static void OnCraftFinish(bool isPoison)
+	static void OnCraftFinish(bool isPoison, const ci::ItemType *itemType, uint32_t craftedItemsCount)
 	{
 		std::thread([=] {
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
 				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnCraftFinish(isPoison);
+				logic->OnCraftFinish(isPoison, itemType, craftedItemsCount);
 			}
+			RegisterAddItem(itemType, craftedItemsCount);
 		}).detach();
 	}
 
@@ -293,23 +312,104 @@ public:
 		this->removesToIgnore++;
 	}
 
+	void IgnoreItemAdd()
+	{
+		std::lock_guard<std::mutex> l(this->removesToIgnoreMutex);
+		this->addsToIgnore++;
+	}
+
 	virtual	EventResult	ReceiveEvent(TESContainerChangedEvent *evn, BSTEventSource<TESContainerChangedEvent> * source) override
 	{
+		{
+			if (evn->to == g_thePlayer->formID)
+				if (evn->from == 0)
+				{
+					auto count = evn->count;
+					auto form = LookupFormByID(evn->item);
+
+					bool ignore = 0;
+					{
+						std::lock_guard<std::mutex> l(this->removesToIgnoreMutex);
+						if (addsToIgnore)
+						{
+							ignore = true;
+							addsToIgnore--;
+						}
+					}
+					if (!ignore)
+					{
+						if (MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"))
+						{
+							const bool isIllegal = knownItems.find(form) == knownItems.end();
+							if (!isIllegal)
+							{
+								SET_TIMER_LIGHT(228, [=] {
+									//ci::Chat::AddMessage(L"fucking craft");
+									CIAccess().OnCraftFinish(false, knownItems.at(form), count);
+									//for (int32_t i = 0; i != count; ++i)
+										//IgnoreItemRemove();
+									//sd::RemoveItem(g_thePlayer, form, count, true, nullptr);
+								});
+							}
+							else
+							{
+								std::wstringstream ss;
+								ss << std::hex << L"illegal" << form->formID << L" " << (int)form->formType;
+								//ci::Chat::AddMessage(ss.str());
+							}
+						}
+						else
+							//ci::Chat::AddMessage(L"Not craft menu")
+							;
+					}
+					else
+						//ci::Chat::AddMessage(L"AddsToIgnore " + std::to_wstring(addsToIgnore))
+						;
+				}
+		}
+
 		if(evn->to == g_thePlayer->formID)
 			if (evn->from == 0)
 			{
 				auto count = evn->count;
 				auto form = LookupFormByID(evn->item);
-				if (count == 1)
+				//if (count == 1)
 				{
-					SET_TIMER_LIGHT(25, [=] {
-						const bool isIllegal = knownItems.find(form) == knownItems.end();
-						const bool isPotion = form->formType == FormType::Potion;
+					const bool isIllegal = knownItems.find(form) == knownItems.end();
+					const bool isPotion = form->formType == FormType::Potion;
+					SET_TIMER_LIGHT(isPotion ? 25 : 250, [=] {
+						bool isIllgalCount = false;
+						if (isIllegal == false)
+						{
+							try {
+								isIllgalCount =
+									(inventory[knownItems.at(form)] != sd::GetItemCount(g_thePlayer, form));
+							}
+							catch (...) {
+								ErrorHandling::SendError("WARN:LocalPlayer knownItems.at()");
+								isIllgalCount = false;
+							}
+						}
 						if (isIllegal && isPotion)
 						{
 							const bool isPoison = ((AlchemyItem *)form)->IsPoison();
-							CIAccess().OnCraftFinish(isPoison);
+							CIAccess().OnCraftFinish(isPoison, nullptr, 1);
 							sd::RemoveItem(g_thePlayer, form, -1, true, nullptr);
+						}
+						else if (0 && !isIllegal)//if (isIllgalCount)
+						{
+							auto itemType = knownItems[form];
+							if (itemType != nullptr)
+							{
+								SET_TIMER(228228228, [=] {
+									CIAccess().OnCraftFinish(false, itemType, count);
+								});
+							}
+							else
+							{
+								ErrorHandling::SendError("WARN:LocalPlayer knownItems.at() 2");
+								knownItems.erase(form);
+							}
 						}
 					});
 				}
@@ -338,7 +438,7 @@ public:
 								CIAccess().OnItemDropped(itemType, count);
 							else if (MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"))
 							{
-								CIAccess().OnItemUsedInCraft(itemType);
+								CIAccess().OnItemUsedInCraft(itemType, count);
 								if (itemType->GetClass() == ci::ItemType::Class::SoulGem)
 								{
 									SET_TIMER_LIGHT(200, DetectEnchanting);
@@ -367,13 +467,18 @@ private:
 	{
 	}
 
-	int32_t removesToIgnore = 0;
+	int32_t removesToIgnore = 0, addsToIgnore = 0;
 	std::mutex removesToIgnoreMutex;
 };
 
 void IgnoreItemRemove()
 {
 	ContainerChangedEventSink::GetSingleton()->IgnoreItemRemove();
+}
+
+void IgnoreItemAdd()
+{
+	ContainerChangedEventSink::GetSingleton()->IgnoreItemAdd();
 }
 
 class PlayerBowShotEventSink : public BSTEventSink<TESPlayerBowShotEvent>
@@ -587,21 +692,25 @@ void ci::LocalPlayer::UseFurniture(const Object *target, bool anim)
 void ci::LocalPlayer::AddItem(const ItemType *item, uint32_t count, bool silent)
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
-	if (item && count)
+	if (item)
 	{
-		inventory[item] += count;
-
 		auto form = LookupFormByID(item->GetFormID());
 
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(1, [=] {
 			knownItems[form] = item;
 		});
 
-		if (form && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
+		if (count > 0)
 		{
-			SET_TIMER(0, [=] {
-				sd::AddItem(g_thePlayer, form, count, silent || MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"));
-			});
+			inventory[item] += count;
+
+			if (form && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
+			{
+				SET_TIMER(0, [=] {
+					ContainerChangedEventSink::GetSingleton()->IgnoreItemAdd();
+					sd::AddItem(g_thePlayer, form, count, silent || MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"));
+				});
+			}
 		}
 	}
 }
@@ -1538,11 +1647,12 @@ void ci::LocalPlayer::Update()
 	// Практически бесполезная система. Только ширину шеи исправляет. Убрать в будущем.
 	// UPD: Если слабый ПК, то внешность отображается неправильно, а эта штука всё исправляет.
 	// UPD2: Добавлен вызов при переключении camera mode для исправления некорректной внешности
+	// UPD3: Попробую раскомментить, а то какая-то х*йня творится с внешнностью иногда
 	static int32_t fixes = 0;
 	if (fixes < 0)
 		fixes = 0;
 	SAFE_CALL("LocalPlayer", [&] { 
-		/*const bool fp = PlayerCamera::GetSingleton()->IsFirstPerson();
+		const bool fp = PlayerCamera::GetSingleton()->IsFirstPerson();
 		static bool fpWas = true;
 
 		if (fpWas != fp)
@@ -1551,12 +1661,11 @@ void ci::LocalPlayer::Update()
 				timer = 0, --fixes;
 			fpWas = fp;
 		}
-		}
 		if (timer < clock())
 		{
 			timer = clock() + 5000;
 			auto ld = lastAppliedLook;
-			auto ld2 = LookData_::GetFromPlayer(true);
+			auto ld2 = lookSync->GetFromPlayer(true);
 			ld.tintmasks = ld2.tintmasks = {};
 			if (ld != ld2 && ld.isEmpty() == false)
 			{
@@ -1565,11 +1674,11 @@ void ci::LocalPlayer::Update()
 				{
 					++fixes;
 					SET_TIMER(0, [] {
-						LookData_::Apply(lastAppliedLook, g_thePlayer);
+						lookSync->Apply(lastAppliedLook, g_thePlayer);
 					});
 				}
 			}
-		}*/
+		}
 	});
 
 	SAFE_CALL("LocalPlayer", [&] {
