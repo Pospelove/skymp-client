@@ -340,6 +340,9 @@ namespace ci
 
 	void RemoveAllKeywords(uint32_t baseID)
 	{
+		if (baseID == 0x6e9c2)
+			return;
+
 		const auto form = LookupFormByID(baseID);
 		const auto kForm = DYNAMIC_CAST<BGSKeywordForm *, TESForm *>(form);
 		if (kForm != nullptr)
@@ -350,6 +353,9 @@ namespace ci
 
 	void AddKeyword(uint32_t baseID, std::string keywordString)
 	{
+		if (baseID == 0x6e9c2)
+			return;
+
 		const auto form = LookupFormByID(baseID);
 		const auto kForm = DYNAMIC_CAST<BGSKeywordForm *, TESForm *>(form);
 		if (kForm != nullptr)

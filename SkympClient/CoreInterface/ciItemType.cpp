@@ -23,6 +23,9 @@ namespace Helper
 	{
 		SET_TIMER_LIGHT(300, UpdateItemsSmith);
 
+		if (MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"))
+			return;
+
 		std::lock_guard<dlf_mutex> l(smith.M);
 
 		static auto SKSESetItemHealthPercent = [](TESForm * baseForm, BaseExtraList* extraData, float value)

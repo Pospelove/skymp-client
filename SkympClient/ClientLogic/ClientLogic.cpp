@@ -558,13 +558,16 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(playerid);
 			ci::MovementData movData;
 			Deserialize(bsIn, movData);
+			uint8_t enabled;
 			uint32_t locationID;
+			bsIn.Read(enabled);
 			bsIn.Read(locationID);
 			try {
 				auto &player = this->players.at(playerid);
 				if (player->GetName() == localPlayer->GetName())
 					movData.pos += NiPoint3{ 128, 128, 0 };
-				player->ApplyMovementData(movData);
+				if (enabled)
+					player->ApplyMovementData(movData);
 				player->SetCell(localPlayer->GetCell());
 				player->SetWorldSpace(localPlayer->GetWorldSpace());
 
@@ -1638,6 +1641,9 @@ class ClientLogic : public ci::IClientLogic
 					uint32_t ms;
 					bsIn.Read(playerID);
 					bsIn.Read(ms);
+
+					if (message.empty())
+						message = L" ";
 
 					playerBubbles[playerID].reset(new ci::Text3D(message, { 0,0,0 }));
 					playerBubbles[playerID]->SetFontHeight(25);

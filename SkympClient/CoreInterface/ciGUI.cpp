@@ -81,9 +81,10 @@ ci::Text3D::Text3D(const std::wstring &str, NiPoint3 pos) :
 	std::lock_guard<dlf_mutex> l1(pimpl->label.m);
 	pimpl->label.is2D = false;
 	pimpl->label.pos = pos;
-	pimpl->label.text2d.str = str;
 	pimpl->label.text2d.color = -1;
 	pimpl->label.text2d.font = Text3DCreateFont("futuralightc", pimpl->h, FW_MEDIUM, "MyGUI\\futuralightc1.otf");
+
+	this->SetText(str);
 
 	texts.insert(this);
 }
@@ -95,9 +96,25 @@ ci::Text3D::~Text3D()
 	delete pimpl;
 }
 
-void ci::Text3D::SetText(const std::wstring &str)
+void ci::Text3D::SetText(std::wstring str)
 {
 	std::lock_guard<dlf_mutex> l(pimpl->label.m);
+
+	pimpl->label.text2d.color = -1;
+	if (str[0] == L'#')
+	{
+		std::wstring colorStr;
+		for (int32_t i = 1; i <= 6; ++i)
+			colorStr += str[i];
+
+		for (int32_t i = 0; i != 7; ++i)
+			str.erase(str.begin());
+
+		const auto hexStr = "0x" + WstringToString(colorStr);
+		const uint32_t color = std::strtoul(hexStr.data(), 0, 16);
+		pimpl->label.text2d.color = color + 0xFF000000;
+	}
+
 	pimpl->label.text2d.str = str;
 }
 

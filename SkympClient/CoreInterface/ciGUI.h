@@ -38,7 +38,7 @@ namespace ci
 		Text3D(const std::wstring &str, NiPoint3 pos);
 		~Text3D();
 
-		void SetText(const std::wstring &str);
+		void SetText(std::wstring str);
 		void SetPos(const NiPoint3 &pos);
 		void SetPosSource(std::function<NiPoint3()> fn);
 		void SetFontHeight(uint32_t height);
