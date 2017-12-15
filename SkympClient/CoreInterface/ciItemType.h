@@ -22,6 +22,7 @@ namespace ci
 			Ingredient =			0x04,
 			Potion =				0x05,
 			SoulGem =				0x06,
+			Key =					0x07,
 		};
 
 		enum class Subclass

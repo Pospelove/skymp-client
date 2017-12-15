@@ -180,6 +180,12 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		pimpl->item->formID = 0;
 		pimpl->item->SetFormID(Utility::NewFormID(), true);
 		break;
+	case Class::Key:
+		pimpl->item = FormHeap_Allocate<TESKey>();
+		memcpy(pimpl->item, LookupFormByID(existingItemID), sizeof TESKey);
+		pimpl->item->formID = 0;
+		pimpl->item->SetFormID(Utility::NewFormID(), true);
+		break;
 	}
 
 	if (this->GetMagicItem() != nullptr)
