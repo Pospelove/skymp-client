@@ -1473,6 +1473,7 @@ class ClientLogic : public ci::IClientLogic
 				float damage;
 				uint32_t equipSlot;
 				int32_t soulSize, capacity;
+				float health;
 			} itemType;
 			bsIn.Read(itemType.id);
 			bsIn.Read(itemType.classID);
@@ -1552,8 +1553,10 @@ class ClientLogic : public ci::IClientLogic
 
 			bsIn.Read(itemType.soulSize);
 			bsIn.Read(itemType.capacity);
+			bsIn.Read(itemType.health);
 			itemTypes[itemType.id]->SetSoulSize(itemType.soulSize);
 			itemTypes[itemType.id]->SetCapacity(itemType.capacity);
+			itemTypes[itemType.id]->SetItemHealth(itemType.health);
 
 			localPlayer->AddItem(itemTypes[itemType.id], 0, true); // register 
 			break;

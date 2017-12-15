@@ -2,6 +2,79 @@
 #include "CoreInterface.h"
 #include "../Overlay/Chat.h"
 
+namespace Helper
+{
+	struct {
+		dlf_mutex M;
+		std::map<TESForm *, float> smithLevel;
+	} smith;
+
+	void SetSmithLevel(TESForm *form, float level)
+	{
+		std::lock_guard<dlf_mutex> l(smith.M);
+
+		if (level <= 1)
+			smith.smithLevel.erase(form);
+		else
+			smith.smithLevel[form] = level;
+	}
+
+	void UpdateItemsSmith()
+	{
+		SET_TIMER_LIGHT(300, UpdateItemsSmith);
+
+		std::lock_guard<dlf_mutex> l(smith.M);
+
+		static auto SKSESetItemHealthPercent = [](TESForm * baseForm, BaseExtraList* extraData, float value)
+		{
+			// Object must be a weapon, or armor
+			if (baseForm) {
+				if ((int32_t)baseForm->formType == TESObjectWEAP::kTypeID || (int32_t)baseForm->formType == TESObjectARMO::kTypeID) {
+					ExtraHealth* xHealth = static_cast<ExtraHealth*>(extraData->GetExtraData<ExtraHealth>());
+					if (xHealth) {
+						xHealth->health = value;
+					}
+					else {
+						ExtraHealth* newHealth = ExtraHealth::Create();
+						newHealth->health = value;
+						extraData->Add(ExtraDataType::Health, newHealth);
+					}
+				}
+			}
+		};
+
+
+		const auto changes = g_thePlayer->extraData.GetExtraData<ExtraContainerChanges>();
+
+		if (changes->changes->entryList == nullptr)
+		{
+			ErrorHandling::SendError("ERROR:LocalPlayer UpdateItemsSmith() Unable to load ExtraData");
+			return;
+		}
+
+		const auto &entryList = *changes->changes->entryList;
+		for (auto &entry : entryList)
+		{
+			if (!entry->extraList)
+				continue;
+			auto &entryExtraList = *entry->extraList;
+			for (auto &extraList : entryExtraList)
+			{
+				float lvl;
+				try {
+					lvl = smith.smithLevel.at(entry->baseForm);
+				}
+				catch (...) {
+					lvl = 0;
+				}
+
+				float val = 1.0f + (lvl / 10.0f);
+				SKSESetItemHealthPercent(entry->baseForm, extraList, val);
+			}
+		}
+	}
+}
+
 using ci::ItemType;
 
 struct ItemType::Impl
@@ -212,6 +285,18 @@ void ItemType::SetCapacity(int32_t s)
 	{
 		gem->gemSize = (uint8_t)s;
 		gem->gemSize = NULL;
+	}
+}
+
+void ItemType::SetItemHealth(float h)
+{
+	Helper::SetSmithLevel(pimpl->item, h);
+
+	static bool started = false;
+	if (started == false)
+	{
+		started = true;
+		SET_TIMER_LIGHT(1, Helper::UpdateItemsSmith);
 	}
 }
 

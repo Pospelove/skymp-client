@@ -65,6 +65,7 @@ namespace ci
 		void SetEnchantment(const ci::Enchantment *ench);
 		void SetSoulSize(int32_t soulSize);
 		void SetCapacity(int32_t soulSize);
+		void SetItemHealth(float health);
 
 	private:
 		uint32_t GetFormID() const;
