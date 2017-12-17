@@ -343,28 +343,17 @@ public:
 							const bool isIllegal = knownItems.find(form) == knownItems.end();
 							if (!isIllegal)
 							{
-								SET_TIMER_LIGHT(228, [=] {
-									//ci::Chat::AddMessage(L"fucking craft");
-									CIAccess().OnCraftFinish(false, knownItems.at(form), count);
-									//for (int32_t i = 0; i != count; ++i)
-										//IgnoreItemRemove();
-									//sd::RemoveItem(g_thePlayer, form, count, true, nullptr);
+								SET_TIMER_LIGHT(230, [=] {
+									try {
+										CIAccess().OnCraftFinish(false, knownItems.at(form), count);
+									}
+									catch (...) {
+										ErrorHandling::SendError("ERROR:LocalPlayer OnCraftFinish()");
+									}
 								});
 							}
-							else
-							{
-								std::wstringstream ss;
-								ss << std::hex << L"illegal" << form->formID << L" " << (int)form->formType;
-								//ci::Chat::AddMessage(ss.str());
-							}
 						}
-						else
-							//ci::Chat::AddMessage(L"Not craft menu")
-							;
 					}
-					else
-						//ci::Chat::AddMessage(L"AddsToIgnore " + std::to_wstring(addsToIgnore))
-						;
 				}
 		}
 
@@ -373,7 +362,7 @@ public:
 			{
 				auto count = evn->count;
 				auto form = LookupFormByID(evn->item);
-				//if (count == 1)
+				if (count == 1)
 				{
 					const bool isIllegal = knownItems.find(form) == knownItems.end();
 					const bool isPotion = form->formType == FormType::Potion;
@@ -395,21 +384,6 @@ public:
 							const bool isPoison = ((AlchemyItem *)form)->IsPoison();
 							CIAccess().OnCraftFinish(isPoison, nullptr, 1);
 							sd::RemoveItem(g_thePlayer, form, -1, true, nullptr);
-						}
-						else if (0 && !isIllegal)//if (isIllgalCount)
-						{
-							auto itemType = knownItems[form];
-							if (itemType != nullptr)
-							{
-								SET_TIMER(228228228, [=] {
-									CIAccess().OnCraftFinish(false, itemType, count);
-								});
-							}
-							else
-							{
-								ErrorHandling::SendError("WARN:LocalPlayer knownItems.at() 2");
-								knownItems.erase(form);
-							}
 						}
 					});
 				}

@@ -569,6 +569,8 @@ class ClientLogic : public ci::IClientLogic
 				auto &player = this->players.at(playerid);
 				if (player->GetName() == localPlayer->GetName())
 					movData.pos += NiPoint3{ 128, 128, 0 };
+				if (movData.jumpStage == ci::MovementData::JumpStage::Jumping)
+					lastFurniture[playerid] = 0;
 				if (lastFurniture[playerid] != 0)
 					movData.runMode = ci::MovementData::RunMode::Standing;
 				if (enabled)
@@ -679,6 +681,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
+			lastFurniture[id] = 0;
 
 			uint32_t animID = ~0;
 			bsIn.Read(animID);
