@@ -19,7 +19,7 @@ namespace ErrorHandling
 		if (wasOpen && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 		{
 			SET_TIMER_LIGHT(0, [=] {
-				sd::PrintNote((char *)str.data());
+				//sd::PrintNote((char *)str.data());
 			});
 		}
 		try {

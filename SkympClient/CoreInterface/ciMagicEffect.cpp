@@ -1,6 +1,8 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
 
+#define IS_011_TEST
+
 namespace ci
 {
 	struct MagicEffect::Impl
@@ -51,6 +53,13 @@ namespace ci
 		pimpl->archetype = archetype;
 		if ((uint32_t)archetype != pimpl->effect->properties.archetype)
 			ErrorHandling::SendError("ERROR:MagicEffect Wrong archetype");
+
+#ifdef IS_011_TEST
+		if (0x0004605C == existingEffectID)
+		{
+			pimpl->effect->description = "Уничтожает замок при ударе по запертому объекту";
+		}
+#endif
 	}
 
 	MagicEffect::Archetype MagicEffect::GetArchetype() const

@@ -71,6 +71,9 @@ namespace ci
 		bool IsBroken() const;
 		void TestMakeBroken();
 
+		NiPoint3 GetNicknamePos() const;
+		float GetNicknameDrawDistance() const;
+
 	private:
 
 		static void UpdateAll();

@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.9";
+auto version = "0.11";
 
 #include "Agent.h"
 
@@ -43,6 +43,7 @@ class ClientLogic : public ci::IClientLogic
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
 	bool record = false;
 	clock_t recordStart = 0;
+	std::map<uint16_t, uint32_t> lastFurniture;
 
 	class Bot : public SkympAgent
 	{
@@ -255,6 +256,8 @@ class ClientLogic : public ci::IClientLogic
 
 		bool fullyConnected = false;
 		uint16_t myID = ~0;
+
+		bool sendDoors = false;
 
 	} net;
 
@@ -566,6 +569,8 @@ class ClientLogic : public ci::IClientLogic
 				auto &player = this->players.at(playerid);
 				if (player->GetName() == localPlayer->GetName())
 					movData.pos += NiPoint3{ 128, 128, 0 };
+				if (lastFurniture[playerid] != 0)
+					movData.runMode = ci::MovementData::RunMode::Standing;
 				if (enabled)
 					player->ApplyMovementData(movData);
 				player->SetCell(localPlayer->GetCell());
@@ -736,6 +741,8 @@ class ClientLogic : public ci::IClientLogic
 
 			bsIn.Read(playerID);
 			bsIn.Read(furnitureID);
+
+			lastFurniture[playerID] = furnitureID;
 			try {
 
 				auto pl = players.at(playerID);
@@ -1223,10 +1230,13 @@ class ClientLogic : public ci::IClientLogic
 			enchList.erase(nullptr);
 
 			static std::map<uint16_t, SpellList> lastSpellList;
-			static std::map<uint16_t, EnchList> lastEnchList;
 
-			for (auto entry : lastEnchList[playerID])
-				entry->SetPlayerKnows(false);
+			for (auto &pair : this->magic)
+			{
+				auto ench = dynamic_cast<ci::Enchantment *>(pair.second);
+				if (ench != nullptr)
+					ench->SetPlayerKnows(false);
+			}
 			for (auto entry : enchList)
 				entry->SetPlayerKnows(true);
 
@@ -1250,7 +1260,6 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			lastSpellList[playerID] = spellList;
-			lastEnchList[playerID] = enchList;
 
 			break;
 		}
@@ -1645,8 +1654,10 @@ class ClientLogic : public ci::IClientLogic
 					if (message.empty())
 						message = L" ";
 
+
 					playerBubbles[playerID].reset(new ci::Text3D(message, { 0,0,0 }));
 					playerBubbles[playerID]->SetFontHeight(25);
+					playerBubbles[playerID]->SetDrawDistance(512.6667f);
 					playerBubbles[playerID]->SetPosSource([=] {
 						try {
 							return players.at(playerID)->GetPos() += {0, 0, 166};
@@ -1680,7 +1691,11 @@ class ClientLogic : public ci::IClientLogic
 			if (magic[id] == nullptr)
 			{
 				if (isEnch)
-					magic[id] = new ci::Enchantment(formID, isCustomEnch);
+				{
+					auto newEnch = new ci::Enchantment(formID, isCustomEnch);
+					newEnch->SetPlayerKnows(false);
+					magic[id] = newEnch;
+				}
 				else
 					magic[id] = new ci::Spell(formID);
 				for (uint32_t i = 0; i != numEffects; ++i)
@@ -1839,7 +1854,8 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.x);
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
-					//net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					if (net.sendDoors)
+						net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 			}
@@ -2454,6 +2470,11 @@ class ClientLogic : public ci::IClientLogic
 			else
 				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
 		}
+		else if (cmdText == L"//d")
+		{
+			net.sendDoors = !net.sendDoors;
+			ci::Chat::AddMessage(net.sendDoors ? L"#BEBEBE" L"DataSearch door loading started" : L"#BEBEBE" L"DataSearch door loading stopped");
+		}
 		else if (cmdText == L"//sit")
 		{
 			localPlayer->PlayAnimation(21);
@@ -2576,6 +2597,9 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//bot")
 		{
+			if (!dataSearchEnabled)
+				ci::Chat::AddMessage(L"#BEBEBE" L"You don't have permission");
+
 			if (arguments.empty())
 			{
 				ci::Chat::AddMessage(L"#BEBEBE" L"//bot <connect/disconnect> <name>");
@@ -2596,6 +2620,9 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//bots")
 		{
+			if (!dataSearchEnabled)
+				ci::Chat::AddMessage(L"#BEBEBE" L"You don't have permission");
+
 			if (arguments.empty())
 			{
 				ci::Chat::AddMessage(L"#BEBEBE" L"//bots <count>");
@@ -2612,13 +2639,6 @@ class ClientLogic : public ci::IClientLogic
 						layner->Tick();
 					}
 				}).detach();
-				/*static int i1 = 1;
-				auto nm = L"layner" + std::to_wstring(i1++);
-				auto layner = new Bot(nm);
-				botss.push_back(layner);
-				fns.push_back([=] {
-					layner->Tick();
-				});*/
 
 			}
 		}

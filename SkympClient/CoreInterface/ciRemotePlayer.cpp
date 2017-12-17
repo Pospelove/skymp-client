@@ -788,7 +788,7 @@ namespace ci
 					pimpl->nicknameLabel->SetPos(nicknamePos);
 					if (pimpl->nicknameLabel->GetText() != this->GetName())
 						pimpl->nicknameLabel->SetText(this->GetName());
-					pimpl->nicknameLabel->SetDrawDistance(SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE"));
+					pimpl->nicknameLabel->SetDrawDistance(this->GetNicknameDrawDistance());
 				}
 			}
 		});
@@ -1995,6 +1995,17 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->broken = true;
+	}
+
+	NiPoint3 RemotePlayer::GetNicknamePos() const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return pimpl->nicknameLabel ? pimpl->nicknameLabel->GetPos() : (this->GetPos() += {0, 0, 133});
+	}
+
+	float RemotePlayer::GetNicknameDrawDistance() const
+	{
+		return SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE");
 	}
 
 	void RemotePlayer::SetHeight(float h)
