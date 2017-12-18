@@ -45,6 +45,8 @@ namespace ci
 		void UnequipSpell(const Spell *spell, bool leftHand) override;
 		void PlayAnimation(uint32_t animID) override;
 		void UpdateAVData(const std::string &avName, const AVData &data) override;
+		void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) override;
+		void RemoveActiveEffect(const ci::MagicEffect *effect) override;
 
 		std::wstring GetName() const override;
 		NiPoint3 GetPos() const  override;

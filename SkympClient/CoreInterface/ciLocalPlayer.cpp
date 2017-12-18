@@ -112,7 +112,20 @@ std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
 std::map<TESForm *, const ci::ItemType *> knownItems;
 std::map<TESForm *, const ci::Spell *> knownSpells;
+std::map<TESForm *, const ci::MagicEffect *> knownEffects;
 std::map<TESForm *, const ci::Enchantment *> knownEnch;
+
+struct ActiveEffectInfo
+{
+	float uiDisplayDuration;
+	float uiDisplayMagnitude;
+
+	friend bool operator==(const ActiveEffectInfo &l, const ActiveEffectInfo &r) {
+		return l.uiDisplayDuration == r.uiDisplayDuration && l.uiDisplayMagnitude == r.uiDisplayMagnitude;
+	}
+};
+
+std::map<const ci::MagicEffect *, ActiveEffectInfo> localPlActiveEffects;
 
 const ci::ItemType *GetEquippedAmmo(TESForm **outTESForm = nullptr) 
 {
@@ -871,6 +884,23 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	data[avName] = { base, modifier, percentage };
 }
 
+void ci::LocalPlayer::AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude)
+{
+	if (nullptr == effect)
+		return;
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	localPlActiveEffects[effect] = { uiDisplayDuration, uiDisplayMagnitude };
+	knownEffects[LookupFormByID(effect->GetFormID())] = effect;
+}
+
+void ci::LocalPlayer::RemoveActiveEffect(const ci::MagicEffect *effect)
+{
+	if (nullptr == effect)
+		return;
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	localPlActiveEffects.erase(effect);
+}
+
 void ci::LocalPlayer::SetCell(uint32_t cellID)
 {
 	if (cellID == 0)
@@ -1259,6 +1289,126 @@ void UpdateSpellsCost()
 	}
 }
 
+struct ActiveEffectLocal
+{
+	const ci::MagicEffect *mgef;
+	ActiveEffectInfo info;
+
+	friend bool operator<(const ActiveEffectLocal &l, const ActiveEffectLocal &r) {
+		return std::make_tuple(l.mgef, l.info.uiDisplayDuration, l.info.uiDisplayMagnitude) < std::make_tuple(r.mgef, r.info.uiDisplayDuration, r.info.uiDisplayMagnitude);
+	}
+};
+
+void dispell() 
+{
+	SET_TIMER_LIGHT(1, [] {
+		sd::DispelAllSpells(g_thePlayer);
+
+		auto activeEffects = g_thePlayer->GetActiveEffects();
+		std::set<ActiveEffect *> toDisp;
+		for (auto it = activeEffects->begin(); it != activeEffects->end(); ++it)
+		{
+			auto activeEffect = (*it);
+			auto mgef = activeEffect->GetBaseObject();
+			if (knownEffects.count(mgef) == 0)
+			{
+				toDisp.insert(activeEffect);
+				continue;
+			}
+			auto ciEffect = knownEffects[mgef];
+			if (localPlActiveEffects.count(ciEffect) == 0)
+			{
+				toDisp.insert(activeEffect);
+			}
+		}
+		for (auto actEf : toDisp)
+			sd::Dispel(actEf);
+	});
+};
+
+void ci::LocalPlayer::UpdateActiveEffects()
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	static std::map<ActiveEffectLocal, ::SpellItem *> fakeSpells;
+
+	using NativeEI = ::EffectItem;
+
+	static auto convert = [](const ActiveEffectLocal &activeEffect)->NativeEI *{
+		auto res = new NativeEI;
+		res->area = 0;
+		res->magnitude = activeEffect.info.uiDisplayMagnitude;
+		res->duration = activeEffect.info.uiDisplayDuration * 1;
+		res->cost = 0;
+		res->mgef = (EffectSetting *)LookupFormByID(activeEffect.mgef->GetFormID());
+		return res;
+	};
+
+	static auto findBaseFor = [](const ActiveEffectLocal &activeEffect)->SpellItem * {
+		auto argMgef = (EffectSetting *)LookupFormByID(activeEffect.mgef->GetFormID());
+
+		static auto defaultBase = (SpellItem *)LookupFormByID(ID_SpellItem::ShieldLesser);
+		for (auto &p : knownSpells)
+		{
+			auto spell = (SpellItem *)p.first;
+			std::set<EffectSetting *> spellEffects;
+			for (auto it = spell->effectItemList.begin(); it != spell->effectItemList.end(); ++it)
+			{
+				auto mgef = (*it)->mgef;
+				spellEffects.insert(mgef);
+			}
+			if (spellEffects.count(argMgef) != 0)
+				return spell;
+
+		}
+		return defaultBase;
+	};
+
+	static auto newFakeSpell = [](const ActiveEffectLocal &activeEffect)->SpellItem * {
+
+		auto base = findBaseFor(activeEffect);
+
+		auto result = FormHeap_Allocate<SpellItem>();
+		memcpy(result, base, sizeof SpellItem);
+
+		result->formID = 0;
+		result->SetFormID(Utility::NewFormID(), 1);
+
+		auto &el = result->effectItemList;
+		auto newArr = new BSTArray<NativeEI *>();
+		memcpy(&el, newArr, sizeof(*newArr));
+		el.clear();
+
+		el.push_back(convert(activeEffect));
+
+		return result;
+	};
+
+	auto fn = [&] {
+		static decltype(localPlActiveEffects) last;
+		//if (last != localPlActiveEffects)
+		{
+			for (auto p : localPlActiveEffects)
+			{
+				const ActiveEffectLocal key = { p.first, p.second };
+				if (fakeSpells[key] == nullptr)
+				{
+					fakeSpells[key] = newFakeSpell(key);
+				}
+				for (auto it = fakeSpells[key]->effectItemList.begin(); it != fakeSpells[key]->effectItemList.end(); ++it)
+				{
+					(*it)->duration = key.info.uiDisplayDuration;
+					(*it)->magnitude = key.info.uiDisplayMagnitude;
+				}
+				//sd::Spell::RemoteCast(fakeSpells[key], g_thePlayer, g_thePlayer, g_thePlayer);
+				sd::Spell::Cast(fakeSpells[key], nullptr, g_thePlayer);
+			}
+		}
+		last = localPlActiveEffects;
+	};
+	SAFE_CALL("LocalPlayer", fn);
+}
+
 void ci::LocalPlayer::RecoverAVs()
 {
 	static uint8_t numIgnores = 1; // PVS
@@ -1421,7 +1571,7 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fPowerAttackDefaultBonus", 0.0f);
 				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
 				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
-				sd::SetActorValue(g_thePlayer, "MagicResist", 100);
+				sd::SetActorValue(g_thePlayer, "MagicResist", 99);
 			});
 			set = true;
 
@@ -1440,12 +1590,17 @@ void ci::LocalPlayer::Update()
 
 	UpdateSpellsCost();
 
-	auto spell0 = this->GetEquippedSpell(0), spell1 = this->GetEquippedSpell(1);
+	const auto spell0 = this->GetEquippedSpell(0), 
+		spell1 = this->GetEquippedSpell(1);
 	SendMagicReleaseEvent<0>(spell0, spell0 ? (SpellItem *)LookupFormByID(spell0->GetFormID()) : nullptr);
 	SendMagicReleaseEvent<1>(spell1, spell1 ? (SpellItem *)LookupFormByID(spell1->GetFormID()) : nullptr);
 
+	SAFE_CALL("LocalPlayer", [&] {
+		this->UpdateActiveEffects();
+	});
+
 	// Update Display Gold
-	SAFE_CALL("RemotePlayer", [&] {
+	SAFE_CALL("LocalPlayer", [&] {
 		static clock_t tmr = 0;
 		if (clock() - tmr > 1000)
 		{
@@ -1463,7 +1618,7 @@ void ci::LocalPlayer::Update()
 		}
 	});
 	
-	SAFE_CALL("RemotePlayer", [&] {
+	SAFE_CALL("LocalPlayer", [&] {
 		static TESRace *oldrace = nullptr;
 		TESRace *newrace = (TESRace *)sd::GetRace(g_thePlayer);
 		if (oldrace != newrace)
@@ -1802,6 +1957,7 @@ void ci::LocalPlayer::Update_OT()
 
 		if (!open)
 		{
+			dispell();
 			this->RecoverAVs();
 			this->RecoverInventory();
 			this->RecoverSpells();

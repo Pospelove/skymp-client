@@ -1472,6 +1472,75 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_ACTIVE_EFFECTS:
 		{
+			static std::set<ci::MagicEffect *> knownEffects;
+
+			struct ActiveEffectData
+			{
+				float duration;
+				float magnitude;
+				ci::IActor *caster;
+			};
+			using ActiveEffectList = std::map<ci::MagicEffect *, ActiveEffectData>;
+			ActiveEffectList activeEffects;
+			
+			uint16_t playerID;
+			bsIn.Read(playerID);
+
+			ci::IActor *player;
+			try {
+				player = players.at(playerID);
+			}
+			catch (...) {
+				player = nullptr;
+			}
+			if (player == nullptr)
+			{
+				ci::Log(L"ERROR:ClientLogic Magic target not found");
+				break;
+			}
+
+			uint32_t numEffects;
+			bsIn.Read(numEffects);
+			for (uint32_t i = 0; i != numEffects; ++i)
+			{
+				uint32_t effectID;
+				uint16_t casterID;
+				float magnitude;
+				int64_t durationMs;
+				bsIn.Read(effectID);
+				bsIn.Read(casterID);
+				bsIn.Read(magnitude);
+				bsIn.Read(durationMs);
+
+				try {
+					const auto effect = effects.at(effectID);
+					const auto caster = players.at(casterID);
+
+					activeEffects.insert({
+						effect, { durationMs / 1000.f, magnitude, caster }
+					});
+					knownEffects.insert(effect);
+				}
+				catch (...) {
+					ci::Log(L"ERROR:ClientLogic Bad active effect");
+				}
+			}
+
+			for (auto mgef : knownEffects)
+			{
+				try {
+					auto activeEffectData = activeEffects.at(mgef);
+				}
+				catch (...) {
+					player->RemoveActiveEffect(mgef);
+				}
+			}
+			for (const auto &pair : activeEffects)
+			{
+				auto mgef = pair.first;
+				auto &effectData = pair.second;
+				player->AddActiveEffect(mgef, effectData.duration, effectData.magnitude);
+			}
 			break;
 		}
 		case ID_ITEMTYPES:

@@ -1723,6 +1723,14 @@ namespace ci
 		pimpl->avData[avName] = data;
 	}
 
+	void RemotePlayer::AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude)
+	{
+	}
+
+	void RemotePlayer::RemoveActiveEffect(const ci::MagicEffect *effect)
+	{
+	}
+
 	std::wstring RemotePlayer::GetName() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);

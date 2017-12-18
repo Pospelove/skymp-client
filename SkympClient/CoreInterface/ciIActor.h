@@ -40,6 +40,8 @@ namespace ci
 		virtual void UnequipSpell(const Spell *spell, bool leftHand) = 0;
 		virtual void PlayAnimation(uint32_t animID) = 0;
 		virtual void UpdateAVData(const std::string &avName, const AVData &data) = 0;
+		virtual void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) = 0;
+		virtual void RemoveActiveEffect(const ci::MagicEffect *effect) = 0;
 
 		virtual std::wstring GetName() const = 0;
 		virtual NiPoint3 GetPos() const = 0;

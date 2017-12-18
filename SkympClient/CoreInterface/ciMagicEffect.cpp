@@ -44,6 +44,9 @@ namespace ci
 		pimpl->effect->formID = 0;
 		pimpl->effect->SetFormID(Utility::NewFormID(), 1);
 
+		pimpl->effect->properties.primaryValue = 162;
+		pimpl->effect->properties.secondaryValue = 162;
+
 		pimpl->existingEffectID = existingEffectID;
 
 		this->SetCastingType(castingType);

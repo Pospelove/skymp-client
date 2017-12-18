@@ -139,7 +139,7 @@ public:
 	UInt16									pad5E;				// 5E
 	UInt32									unk60;				// 60 - init'd 4
 
-private:
+//private:
 	DEFINE_MEMBER_FN(ctor, ActiveEffect *, 0x00655A10, Actor *caster, MagicItem *pItem, EffectItem *pEffect);
 };
 STATIC_ASSERT(sizeof(ActiveEffect) == 0x64);
