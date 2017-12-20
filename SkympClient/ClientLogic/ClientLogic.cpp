@@ -342,6 +342,12 @@ class ClientLogic : public ci::IClientLogic
 		}
 	} av;
 
+	void PrintStartupInfo()
+	{
+		ci::Log(L"-- LocalPlayer Name is " + localPlayer->GetName());
+		ci::Log(L"-- Current Date is " + ci::GetDateString());
+	}
+
 	void ConnectToServer(const std::string &host,
 		uint16_t port,
 		const std::string &hardcodedPassword,
@@ -2107,6 +2113,7 @@ class ClientLogic : public ci::IClientLogic
 				g_config[CONFIG_SERVER_PASSWORD],
 				name);
 			localPlayer->SetName(name);
+			PrintStartupInfo();
 		}
 		else
 		{
@@ -2345,6 +2352,7 @@ class ClientLogic : public ci::IClientLogic
 				g_config[CONFIG_SERVER_PASSWORD],
 				text);
 			localPlayer->SetName(text);
+			PrintStartupInfo();
 			return;
 		}
 

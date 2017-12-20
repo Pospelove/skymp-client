@@ -23,6 +23,20 @@ public:
 
 namespace ci
 {
+	std::wstring GetDateString()
+	{
+		SYSTEMTIME st;
+		GetSystemTime(&st);
+		std::stringstream ss;
+		ss << std::to_string(st.wMinute) + "-"
+			+ std::to_string(st.wHour) + "."
+			+ std::to_string(st.wDay) + "."
+			+ std::to_string(st.wMonth) + "."
+			+ std::to_string(st.wYear);
+		ss.flush();
+		return StringToWstring(ss.str());
+	}
+
 	void ExecuteConsoleCommandImpl(std::string cmd)
 	{
 		if (!closeCursorMenuLock.TryLock(ExecuteConsoleCommandImpl))

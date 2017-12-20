@@ -6,6 +6,8 @@
 
 namespace ci
 {
+	std::wstring GetDateString();
+
 	enum class CommandType : uint8_t
 	{
 		Console = 0,

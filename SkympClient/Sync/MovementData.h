@@ -68,5 +68,6 @@ namespace MovementData_
 
 
 	ci::MovementData GetFromPlayer();
+	ci::MovementData Get(Actor *actor);
 	void Apply(ci::MovementData movementData, Actor *actor, SyncState *syncState, uint32_t ghostAxeID);
 }

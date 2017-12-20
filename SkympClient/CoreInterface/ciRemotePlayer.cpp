@@ -94,7 +94,7 @@ namespace ci
 		clock_t unsafeSyncTimer = 0;
 		clock_t lastOutOfPos = 0;
 		bool greyFaceFixed = false;
-		MovementData movementData;
+		MovementData movementData, movementDataOut;
 		MovementData_::SyncState syncState;
 		clock_t lastDespawn = 0;
 		UInt32 rating = 0;
@@ -111,6 +111,7 @@ namespace ci
 		const void *visualMagicEffect = nullptr;
 		std::map<int32_t, std::unique_ptr<SimpleRef>> gnomes;
 		bool broken = false;
+		std::function<void(Actor *)> posTask, angleTask;
 
 		struct Equipment
 		{
@@ -403,6 +404,8 @@ namespace ci
 			}
 		}
 
+		virtual void ApplyMovementDataImpl() = 0;
+
 	protected:
 		RemotePlayer *GetParent() const {
 			return this->parent;
@@ -492,12 +495,115 @@ namespace ci
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 			return pimpl->handsMagicProxy[isLeftHand];
 		}
+
+		void ApplyMovementDataImpl() override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			auto actor = (Actor *)LookupFormByID(pimpl->formID);
+			if (!actor)
+				return;
+
+			SAFE_CALL("RemotePlayer", [&] {
+				if (clock() - localPlCrosshairRefUpdateMoment > SyncOptions::GetSingleton()->GetInt("MAX_CD_LAG") || clock() - pimpl->lastOutOfPos < 1000)
+					pimpl->unsafeSyncTimer = clock() + SyncOptions::GetSingleton()->GetInt("CD_LAG_RECOVER_TIME");
+				pimpl->syncState.fullyUnsafeSync = RemotePlayer::GetNumInstances() > SyncOptions::GetSingleton()->GetInt("MAX_PLAYERS_SYNCED_SAFE") || pimpl->unsafeSyncTimer > clock();
+			});
+
+			bool success = false;
+			SAFE_CALL("RemotePlayer", [&] {
+				if (pimpl->rating < SyncOptions::GetSingleton()->GetInt("MAX_HARDSYNCED_PLAYERS")
+					&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
+					pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
+				{
+					MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
+
+					if (pimpl->afk)
+						sd::EnableAI(actor, false);
+					else
+						sd::EnableAI(actor, true);
+				}
+				success = true;
+			});
+
+			SAFE_CALL("RemotePlayer", [&] {
+				if (!success)
+					MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
+			});
+		}
 	};
 
-	class RPEngineIO : public RPEngineInput
+	class RPEngineIO : public IRemotePlayerEngine
 	{
 	public:
-		RPEngineIO(RemotePlayer *argParent) : RPEngineInput(argParent)
+		RPEngineIO(RemotePlayer *argParent) : IRemotePlayerEngine(argParent)
+		{
+		}
+
+		void SetPos(NiPoint3 pos) override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->posTask = [pos](Actor *actor) {
+				sd::SetPosition(actor, pos.x, pos.y, pos.z);
+			};
+			pimpl->movementData.pos = pos;
+		}
+
+		void SetAngleZ(float angle) override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->angleTask = [angle](Actor *actor) {
+				sd::SetAngle(actor, 0, 0, angle);
+			};
+			pimpl->movementData.angleZ = angle;
+		}
+
+		void ApplyMovementData(const MovementData &movementData) override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			this->GetParent()->SetPos(movementData.pos);
+			this->GetParent()->SetAngleZ(movementData.angleZ);
+			pimpl->movementData = movementData;
+		}
+
+		void EquipSpell(const Spell *spell, bool leftHand) override
+		{
+		}
+
+		void UnequipSpell(const Spell *spell, bool leftHand) override
+		{
+		}
+
+		NiPoint3 GetPos() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementDataOut.pos;
+		}
+
+		float GetAngleZ() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementDataOut.angleZ;
+		}
+
+		MovementData GetMovementData() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementDataOut;
+		}
+
+		const Spell *GetEquippedSpell(bool isLeftHand = false) const override
+		{
+			return nullptr;
+		}
+
+		void ApplyMovementDataImpl()
 		{
 		}
 	};
@@ -1575,6 +1681,8 @@ namespace ci
 			return;
 		}
 
+		pimpl->movementDataOut = MovementData_::Get(actor);
+
 		this->UpdateNickname(actor);
 
 		if (pimpl->greyFaceFixed)
@@ -1756,6 +1864,8 @@ namespace ci
 			WorldCleaner::GetSingleton()->SetFormProtected(pimpl->formID, false);
 			pimpl->formID = 0;
 			pimpl->spawnStage = SpawnStage::NonSpawned;
+			pimpl->angleTask = nullptr;
+			pimpl->posTask = nullptr;
 			if (currentSpawning == this)
 				currentSpawning = nullptr;
 			if (currentFixingGreyFace == this)
@@ -1812,6 +1922,16 @@ namespace ci
 		const uint32_t locationID =
 			pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : pimpl->worldSpaceID;
 		return locationID;
+	}
+
+	size_t RemotePlayer::GetNumInstances()
+	{
+		return allRemotePlayers.size();
+	}
+
+	uint32_t RemotePlayer::GetGhostAxeFormID()
+	{
+		return ghostAxe ? ghostAxe->pimpl->formID : 0;
 	}
 
 	void RemotePlayer::UpdateAll()
@@ -1873,16 +1993,21 @@ namespace ci
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			if (ghostAxe == nullptr)
+			if (ghostAxe == nullptr && allRemotePlayers.size() > 0)
+			{
 				ghostAxe = CreateGhostAxe();
-			auto movData = MovementData_::GetFromPlayer();
-			movData.pos.z += SyncOptions::GetSingleton()->GetFloat("GHOST_AXE_OFFSET_Z");
-			movData.pos.x += GetRespawnRadius(false) * 0.85;
-			ghostAxe->ApplyMovementData(movData);
-			static auto localPl = ci::LocalPlayer::GetSingleton();
-			ghostAxe->SetCell(localPl->GetCell());
-			ghostAxe->SetWorldSpace(localPl->GetWorldSpace());
-			ghostAxe->Update();
+			}
+			if (ghostAxe != nullptr)
+			{
+				auto movData = MovementData_::GetFromPlayer();
+				movData.pos.z += SyncOptions::GetSingleton()->GetFloat("GHOST_AXE_OFFSET_Z");
+				movData.pos.x += GetRespawnRadius(false) * 0.85;
+				ghostAxe->ApplyMovementData(movData);
+				static auto localPl = ci::LocalPlayer::GetSingleton();
+				ghostAxe->SetCell(localPl->GetCell());
+				ghostAxe->SetWorldSpace(localPl->GetWorldSpace());
+				ghostAxe->Update();
+			}
 		});
 	}
 
@@ -2026,6 +2151,18 @@ namespace ci
 
 	ci::AVData RemotePlayer::GetAVData(const std::string &avName_) const {
 		return pimpl->engine->GetAVData(avName_);
+	}
+
+	void RemotePlayer::SetEngine(const std::string &engineName)
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+
+		if (engineName == "RPEngineInput")
+			return pimpl->engine.reset(new RPEngineInput(this));
+		if (engineName == "RPEngineIO")
+			return pimpl->engine.reset(new RPEngineIO(this));
+
+		ErrorHandling::SendError("ERROR:RemotePlayer Unknown engine");
 	}
 
 	void RemotePlayer::SetInAFK(bool val)
@@ -2250,39 +2387,8 @@ namespace ci
 		return result;
 	}
 
-	void RemotePlayer::ApplyMovementDataImpl()
-	{
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		auto actor = (Actor *)LookupFormByID(pimpl->formID);
-		if (!actor)
-			return;
-
-		SAFE_CALL("RemotePlayer", [&] {
-			if (clock() - localPlCrosshairRefUpdateMoment > SyncOptions::GetSingleton()->GetInt("MAX_CD_LAG") || clock() - pimpl->lastOutOfPos < 1000)
-				pimpl->unsafeSyncTimer = clock() + SyncOptions::GetSingleton()->GetInt("CD_LAG_RECOVER_TIME");
-			pimpl->syncState.fullyUnsafeSync = allRemotePlayers.size() > SyncOptions::GetSingleton()->GetInt("MAX_PLAYERS_SYNCED_SAFE") || pimpl->unsafeSyncTimer > clock();
-		});
-
-		bool success = false;
-		SAFE_CALL("RemotePlayer", [&] {
-			if (pimpl->rating < SyncOptions::GetSingleton()->GetInt("MAX_HARDSYNCED_PLAYERS")
-				&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
-				pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
-			{
-				MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxe ? ghostAxe->pimpl->formID : 0);
-
-				if (pimpl->afk)
-					sd::EnableAI(actor, false);
-				else
-					sd::EnableAI(actor, true);
-			}
-			success = true;
-		});
-
-		SAFE_CALL("RemotePlayer", [&] {
-			if (!success)
-				MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, ghostAxe ? ghostAxe->pimpl->formID : 0);
-		});
+	void RemotePlayer::ApplyMovementDataImpl() {
+		return pimpl->engine->ApplyMovementDataImpl();
 	}
 
 	class GhostAxe : public RemotePlayer

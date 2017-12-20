@@ -10,6 +10,8 @@ namespace ci
 	{
 		friend class ::SkympClientDll;
 		friend class IRemotePlayerEngine;
+		friend class RPEngineInput;
+		friend class RPEngineIO;
 	public:
 
 		using OnHit = std::function<void(const HitEventData &)>;
@@ -58,6 +60,8 @@ namespace ci
 		const Spell *GetEquippedSpell(bool isLeftHand = false) const override;
 		const Spell *GetEquippedShout() const override;
 		AVData GetAVData(const std::string &avName) const override;
+
+		void SetEngine(const std::string &engineName);
 
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);
@@ -122,6 +126,9 @@ namespace ci
 		bool IsSpellEquipped() const; 
 		bool NeedsGnome(int32_t handID) const;
 		uint32_t GetLocationID() const;
+
+		static size_t GetNumInstances();
+		static uint32_t GetGhostAxeFormID();
 
 	protected:
 		virtual TESNPC *AllocateNPC() const;
