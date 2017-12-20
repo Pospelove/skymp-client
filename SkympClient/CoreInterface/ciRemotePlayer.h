@@ -9,6 +9,7 @@ namespace ci
 	class RemotePlayer : public IActor
 	{
 		friend class ::SkympClientDll;
+		friend class IRemotePlayerEngine;
 	public:
 
 		using OnHit = std::function<void(const HitEventData &)>;
@@ -20,10 +21,6 @@ namespace ci
 			uint32_t cellID,
 			uint32_t worldSpaceID,
 			OnHit onHit = nullptr);
-
-		RemotePlayer(const IActor &);
-
-		RemotePlayer(const RemotePlayer &src) : RemotePlayer((IActor &)src) {}
 
 		virtual ~RemotePlayer() override;
 
@@ -72,11 +69,14 @@ namespace ci
 		void SetVisualMagicEffect(const ci::Spell *source);
 		bool IsBroken() const;
 		void TestMakeBroken();
-
 		NiPoint3 GetNicknamePos() const;
 		float GetNicknameDrawDistance() const;
 
 	private:
+
+		RemotePlayer(const IActor &); // Deprecated
+
+		RemotePlayer(const RemotePlayer &src) : RemotePlayer((IActor &)src) {} // Deprecated
 
 		static void UpdateAll();
 		static void UpdateAll_OT();

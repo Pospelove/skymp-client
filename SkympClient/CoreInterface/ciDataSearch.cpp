@@ -109,7 +109,7 @@ namespace ci
 
 			void Update()
 			{
-				SET_TIMER_LIGHT(1, Update);
+				//SET_TIMER_LIGHT(1, Update);
 			}
 
 			void StartUpdating()
@@ -117,7 +117,7 @@ namespace ci
 				static bool started = false;
 				if (!started)
 				{
-					SET_TIMER_LIGHT(1, Update);
+					//SET_TIMER_LIGHT(1, Update);
 					started = true;
 					new HitEventSinkGlobal;
 				}

@@ -20,10 +20,11 @@ public:
 		return this->Task(f, false);
 	}
 
+	static void UpdateAll();
+
 private:
 	void Update();
 	void Task(std::function<void(TESObjectREFR *)> f, bool persist);
-	static void UpdateAll();
 
 	struct Impl;
 	std::unique_ptr<Impl> pimpl;

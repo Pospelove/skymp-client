@@ -171,6 +171,15 @@ public:
 					}
 				});
 
+				auto cSimpleRef = callAndGetTime([&] {
+					try {
+						SimpleRef::UpdateAll();
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERROR:SimpleRef");
+					}
+				});
+
 				if (sd::GetKeyPressed(0x31))
 				{
 					std::wstringstream ss;
@@ -179,7 +188,8 @@ public:
 					ss << L"WC:"		<< cWorldCleaner << L' ';
 					ss << L"RemotePl:"	<< cRemotePlayer << L' ';
 					ss << L"LocalPl:"	<< cLocalPlayer << L' ';
-					ss << L"Object:"	<< cObject;
+					ss << L"Object:"	<< cObject << L' ';
+					ss << L"SimpleRef:" << cSimpleRef;
 					//ci::Chat::AddMessage(ss.str());
 				}
 
@@ -247,7 +257,7 @@ public:
 				if (ci::IsInPause() || !Utility::IsForegroundProcess())
 					this->lastUpdateMT = NULL;
 
-				if (this->lastUpdateMT != NULL && this->lastUpdateMT + 5000 < clock())
+				if (this->lastUpdateMT != NULL && this->lastUpdateMT + 15000 < clock())
 				{
 					if (GameSettings::IsFullScreen())
 					{

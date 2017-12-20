@@ -20,19 +20,10 @@ struct SimpleRef::Impl
 	NiPoint3 rot = NiPoint3{ 0,0,0 };
 	cd::Value<TESObjectREFR> spawner = nullptr;
 	std::vector<std::function<void(TESObjectREFR *)>> tasks, tasksPersist;
-
-	static bool updates;
 };
-
-bool SimpleRef::Impl::updates = false;
 
 SimpleRef::SimpleRef(TESForm *base, NiPoint3 pos, float drawDistance, cd::Value<TESObjectREFR> spawner) : pimpl(new Impl)
 {
-	if (!Impl::updates)
-	{
-		Impl::updates = true;
-		SET_TIMER_LIGHT(1, SimpleRef::UpdateAll);
-	}
 
 	pimpl->base = base;
 	pimpl->drawDistance = drawDistance;
@@ -59,8 +50,7 @@ SimpleRef::~SimpleRef()
 
 void SimpleRef::UpdateAll()
 {
-	SET_TIMER_LIGHT(1, UpdateAll);
-
+	std::lock_guard<dlf_mutex> l(gMutex);
 	SAFE_CALL("SimpleRef", [&] {
 		for (auto ref : allSimpleRefs)
 		{

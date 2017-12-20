@@ -195,6 +195,8 @@ ItemType::ItemType(Class class_, Subclass subclass, uint32_t existingItemID) :
 		memcpy(&el, newArr, sizeof(*newArr));
 		el.clear();
 	}
+
+	ci::LocalPlayer::GetSingleton()->AddItem(this, 0, true); // register 
 }
 
 ItemType::Class ItemType::GetClass() const {

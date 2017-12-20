@@ -1641,8 +1641,6 @@ class ClientLogic : public ci::IClientLogic
 			itemTypes[itemType.id]->SetSoulSize(itemType.soulSize);
 			itemTypes[itemType.id]->SetCapacity(itemType.capacity);
 			itemTypes[itemType.id]->SetItemHealth(itemType.health);
-
-			localPlayer->AddItem(itemTypes[itemType.id], 0, true); // register 
 			break;
 		}
 		case ID_WEATHER:

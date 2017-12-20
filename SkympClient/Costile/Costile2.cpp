@@ -5,6 +5,8 @@
 
 #include <queue>
 
+#define COSTILE2DEBUG FALSE
+
 namespace Costile2
 {
 	Signal<void(TESObjectREFR *, std::string)> OnAnimationEvent;
@@ -39,6 +41,7 @@ namespace Costile2
 
 	void Update()
 	{
+#if COSTILE2DEBUG == TRUE
 		SAFE_CALL("Costile", [] {
 			static bool combWasPressed = false;
 			static bool active = false;
@@ -73,7 +76,8 @@ namespace Costile2
 				t->SetText(ss.str());
 			}
 		});
-		SET_TIMER_LIGHT(0, Update);
+		SET_TIMER_LIGHT(1, Update);
+#endif
 	}
 
 	void SetSessionCallback(SInt32 session, BSScript::IStackCallbackFunctorPtr callback)
