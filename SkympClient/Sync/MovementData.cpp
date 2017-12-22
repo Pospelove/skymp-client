@@ -6,7 +6,7 @@
 #include "Skyrim\NetImmerse\NiCamera.h"
 #include "SyncOptions.h"
 
-void HitData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName);
+void AnimData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName);
 
 namespace MovementData_
 {
@@ -26,7 +26,7 @@ namespace MovementData_
 		enum {
 			Bow = 7,
 		};
-		return sd::GetEquippedItemType(actor, 0) == Bow 
+		return sd::GetEquippedItemType(actor, 0) == Bow
 			|| sd::GetEquippedItemType(actor, 1) == Bow;
 	}
 
@@ -53,8 +53,8 @@ namespace MovementData_
 	void EvaluatePackage(cd::Value<Actor> actor, bool unsafe) {
 		if (unsafe)
 		{
-			if(actor.operator Actor *() != nullptr)
-			sd::EvaluatePackage(actor);
+			if (actor.operator Actor *() != nullptr)
+				sd::EvaluatePackage(actor);
 		}
 		else
 		{
@@ -182,7 +182,7 @@ namespace MovementData_
 		else if (animEventName == "weaponleftswing")
 			lastAnySwing = clock();
 
-		HitData_OnAnimationEvent(src, animEventName);
+		AnimData_OnAnimationEvent(src, animEventName);
 
 		if (lastAE != animEventName)
 		{
@@ -196,7 +196,7 @@ namespace MovementData_
 				while (*actionEnd != slotStr[0] && actionEnd - actionBegin <= 2)
 					++actionEnd;
 				const int32_t actionID = atoi(std::string{ actionBegin, actionEnd }.data());
-				
+
 				auto slotBegin = actionEnd + strlen(slotStr);
 				auto slotEnd = animEventName.end();
 				const int32_t slotID = atoi(std::string{ slotBegin, slotEnd }.data());
@@ -764,7 +764,7 @@ namespace MovementData_
 			}
 		}
 
-		if(md.castStage != syncStatus.last.castStage)
+		if (md.castStage != syncStatus.last.castStage)
 		{
 			auto syncForHand = [&](int32_t i) {
 				auto castStage = md.castStage[i];
@@ -801,6 +801,25 @@ namespace MovementData_
 				syncForHand(1);
 			else
 				syncForHand(0);
+		}
+	}
+
+	void StopIdles(Actor *ac, SyncState &syncStatus)
+	{
+		auto raceID = ((TESNPC *)ac->baseForm)->GetRace()->GetFormID();
+
+		enum
+		{
+			ArgonianRace = 0x00013740,
+		};
+
+		if (raceID < ArgonianRace || raceID > ArgonianRace + 9)
+		{
+			if(clock() - syncStatus.lastIdleStop > 2000)
+			{
+				syncStatus.lastIdleStop = clock();
+				SendAnimationEvent(ac, "IdleStop", syncStatus.fullyUnsafeSync);
+			}
 		}
 	}
 
@@ -865,6 +884,7 @@ namespace MovementData_
 				ApplyBlocking(md, ac, syncStatus, config);
 				ApplyJumping(md, ac, syncStatus, config);
 				ApplyCasting(md, ac, syncStatus);
+				StopIdles(ac, syncStatus);
 
 				if (syncStatus.forceFixAfterHitAnim
 					&& syncStatus.syncMode == SyncMode::Hard)

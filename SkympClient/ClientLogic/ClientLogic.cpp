@@ -2213,6 +2213,10 @@ class ClientLogic : public ci::IClientLogic
 				bsOut.Write(handID);
 				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 			});
+
+			localPlayer->onHit.Add([=](ci::HitEventData evn) {
+				ci::Chat::AddMessage(L"Hit by" + StringToWstring(evn.hitSrcMark));
+			});
 		}
 
 		firstInit = false;
@@ -2443,6 +2447,20 @@ class ClientLogic : public ci::IClientLogic
 			ci::Chat::AddMessage(L"testld_spawn");
 			ci::Chat::AddMessage(L"[Test] TintMasks count = " + std::to_wstring(testLookData.tintmasks.size()));
 		}
+		else if (cmdText == L"//enginei")
+		{
+			for (auto p : ps)
+			{
+				p->SetEngine("RPEngineInput");
+			}
+		}
+		else if (cmdText == L"//engineio")
+		{
+			for (auto p : ps)
+			{
+				p->SetEngine("RPEngineIO");
+			}
+		}
 		else if (cmdText == L"//eq")
 		{
 			for(auto p : ps)
@@ -2507,7 +2525,11 @@ class ClientLogic : public ci::IClientLogic
 
 				auto m = localPlayer->GetMovementData();
 				m.pos += offsets[p];
-				p->ApplyMovementData(m);
+				if (p->GetEngine() == "RPEngineInput")
+					p->ApplyMovementData(m);
+				else
+					//p->PathTo(m.pos, false)
+					;
 
 				int32_t clearVisualEffect = 0;
 				for(int32_t i = 1; i >= 0; --i)
@@ -2560,12 +2582,14 @@ class ClientLogic : public ci::IClientLogic
 		else if (cmdText == L"//clone")
 		{
 			auto onHit = [](const ci::HitEventData &eventData) {
+				std::wstring msg;
 				if (eventData.spell != nullptr)
-					ci::Chat::AddMessage(L"Magic Hit");
+					msg = (L"Magic Hit");
 				else if (eventData.weapon != nullptr)
-					ci::Chat::AddMessage(L"Weap Hit");
+					msg = (L"Weap Hit");
 				else
-					ci::Chat::AddMessage(L"H2H Hit");
+					msg = (L"H2H Hit");
+				ci::Chat::AddMessage(msg + L" " + StringToWstring(eventData.hitSrcMark));
 			};
 
 			auto p = new ci::RemotePlayer(
@@ -2576,7 +2600,16 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->GetWorldSpace(), 
 				onHit);
 
-			p->ApplyMovementData(localPlayer->GetMovementData());
+			p->SetEngine("RPEngineIO");
+
+			p->SetMark("LocalBotMark");
+
+			//auto ld = p->GetLookData();
+			//ld.raceID = 0x000131E9;
+			//p->ApplyLookData(ld);
+			p->SetBaseNPC(0x9B2AB);
+
+			//p->ApplyMovementData(localPlayer->GetMovementData());
 
 			auto armor = localPlayer->GetEquippedArmor();
 			for (auto item : armor)
@@ -2608,7 +2641,6 @@ class ClientLogic : public ci::IClientLogic
 
 			ps.push_back(p);
 			offsets[p] = NiPoint3{ 128.f * ps.size(), 128.f * ps.size(), 0 };
-
 
 			testUpd = [=] {
 				this->OnChatCommand(L"//eq", {});
@@ -2654,6 +2686,23 @@ class ClientLogic : public ci::IClientLogic
 				FoodCabbadge->AddEffect(AlchResistPoison, 90.0, 60.0);
 			}
 			localPlayer->AddItem(FoodCabbadge, 1, false);
+		}
+		else if (cmdText == L"//combat")
+		{
+			int32_t i = 0;
+			static std::array<ci::RemotePlayer *, 2> acs = { nullptr, nullptr };
+			for (auto p : ps)
+			{
+				i = !i;
+				acs[i] = p;
+			}
+
+			if (acs.front() != nullptr && acs.back() != nullptr)
+			{
+				acs.front()->StartCombat(acs.back());
+				acs.front()->SetMark("Test1Mark");
+				acs.back()->SetMark("Test2Mark");
+			}
 		}
 		else if (cmdText == L"//cddbg" || cmdText == L"//cdtrace")
 		{

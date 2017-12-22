@@ -2,7 +2,7 @@
 #include "CoreInterface.h"
 #include "../Sync/LookData.h"
 #include "../Sync/MovementData.h"
-#include "../Sync/HitData.h"
+#include "../Sync/AnimData.h"
 #include "../Sync/SyncOptions.h"
 #include "Skyrim/Events/ScriptEvent.h"
 #include "Skyrim/Camera/PlayerCamera.h"
@@ -829,7 +829,7 @@ void ci::LocalPlayer::PlayAnimation(uint32_t hitAnimID)
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 	SET_TIMER_LIGHT(0, [=] {
-		HitData_::Apply(g_thePlayer, hitAnimID, true);
+		AnimData_::Apply(g_thePlayer, hitAnimID, true);
 	});
 }
 
@@ -1051,9 +1051,9 @@ ci::AVData ci::LocalPlayer::GetAVData(const std::string &avName_) const
 	}
 }
 
-std::queue<std::shared_ptr<HitData_::AnimID>> pcAttacks;
+std::queue<std::shared_ptr<AnimData_::AnimID>> pcAttacks;
 
-std::shared_ptr<HitData_::AnimID> ci::LocalPlayer::GetNextHitAnim()
+std::shared_ptr<AnimData_::AnimID> ci::LocalPlayer::GetNextHitAnim()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 	if (pcAttacks.empty())
@@ -1669,7 +1669,7 @@ void ci::LocalPlayer::Update()
 	});
 
 	SAFE_CALL("LocalPlayer", [&] {
-		auto result = HitData_::UpdatePlayer();
+		auto result = AnimData_::UpdatePlayer();
 		if (result != nullptr)
 			pcAttacks.push(result);
 	});
@@ -1777,6 +1777,7 @@ void ci::LocalPlayer::Update()
 	// UPD: Если слабый ПК, то внешность отображается неправильно, а эта штука всё исправляет.
 	// UPD2: Добавлен вызов при переключении camera mode для исправления некорректной внешности
 	// UPD3: Попробую раскомментить, а то какая-то х*йня творится с внешнностью иногда
+	// UPD4: Сделаю, чтобы во время прыжка он это не выполнял
 	static int32_t fixes = 0;
 	if (fixes < 0)
 		fixes = 0;
@@ -1790,7 +1791,7 @@ void ci::LocalPlayer::Update()
 				timer = 0, --fixes;
 			fpWas = fp;
 		}
-		if (timer < clock())
+		if (timer < clock() && this->GetMovementData().jumpStage == ci::MovementData::JumpStage::Landed)
 		{
 			timer = clock() + 5000;
 			auto ld = lastAppliedLook;
@@ -1891,7 +1892,7 @@ void ci::LocalPlayer::Update()
 	SAFE_CALL("LocalPlayer", [&] {
 		if (!registered)
 		{
-			HitData_::Register();
+			AnimData_::Register();
 			registered = true;
 		}
 	});
@@ -1995,4 +1996,9 @@ void ci::LocalPlayer::Update_OT()
 			g_thePlayer->GetActorBase()->race = (TESRace *)LookupFormByID(KhajiitRace);
 		}
 	}
+}
+
+uint32_t ci::LocalPlayer::GetRefID() const
+{
+	return g_thePlayer->GetFormID();
 }

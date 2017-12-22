@@ -17,6 +17,7 @@ namespace ci
 		bool powerAttack = false;
 		const ci::ItemType *weapon = nullptr;
 		const ci::Spell *spell = nullptr;
+		std::string hitSrcMark = "";
 	};
 
 	class Object
@@ -27,6 +28,7 @@ namespace ci
 
 		friend class RemotePlayer;
 		friend class LocalPlayer;
+		friend class ObjectAccess;
 
 	public:
 

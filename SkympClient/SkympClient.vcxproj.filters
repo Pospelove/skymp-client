@@ -124,9 +124,6 @@
     <ClCompile Include="Sync\Equipment.cpp">
       <Filter>core\Sync</Filter>
     </ClCompile>
-    <ClCompile Include="Sync\HitData.cpp">
-      <Filter>core\Sync</Filter>
-    </ClCompile>
     <ClCompile Include="GameUtility\GameSettings.cpp">
       <Filter>core\GameUtility</Filter>
     </ClCompile>
@@ -165,6 +162,9 @@
     </ClCompile>
     <ClCompile Include="CoreInterface\ciRecipe.cpp">
       <Filter>core_interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\AnimData.cpp">
+      <Filter>core\Sync</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -377,9 +377,6 @@
     <ClInclude Include="Sync\Equipment.h">
       <Filter>core\Sync</Filter>
     </ClInclude>
-    <ClInclude Include="Sync\HitData.h">
-      <Filter>core\Sync</Filter>
-    </ClInclude>
     <ClInclude Include="GameUtility\GameSettings.h">
       <Filter>core\GameUtility</Filter>
     </ClInclude>
@@ -424,6 +421,9 @@
     </ClInclude>
     <ClInclude Include="CoreInterface\ciRecipe.h">
       <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\AnimData.h">
+      <Filter>core\Sync</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

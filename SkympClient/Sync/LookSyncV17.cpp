@@ -5,7 +5,7 @@
 #include "LookData.h"
 #include "../CoreInterface/CoreInterface.h"
 
-#include "HitData.h"
+#include "AnimData.h"
 
 class CIAccess
 {
@@ -803,7 +803,7 @@ namespace LookData_
 						SET_TIMER(0, [=] {
 							ApplyImpl(playerBackup, npc, g_thePlayer);
 							SET_TIMER(300, [] {
-								HitData_::Register();
+								AnimData_::Register();
 							});
 						});
 					}).detach();
@@ -1017,7 +1017,7 @@ namespace LookData_
 				playerBackup = localPlLookData;
 				CIAccess::OnRaceMenuExit();
 				ci::LocalPlayer::GetSingleton()->SetName(name);
-				HitData_::Register();
+				AnimData_::Register();
 				SET_TIMER(100, [] {
 					sd::Resurrect(g_thePlayer);
 				});

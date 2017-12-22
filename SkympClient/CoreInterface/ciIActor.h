@@ -21,6 +21,7 @@ namespace ci
 
 	class IActor
 	{
+		friend class IActorAccess;
 	public:
 		virtual void SetName(const std::wstring &name) = 0;
 		virtual void SetPos(NiPoint3 pos) = 0;
@@ -58,5 +59,8 @@ namespace ci
 		virtual AVData GetAVData(const std::string &avName) const = 0;
 
 		virtual ~IActor() {}
+
+	protected:
+		virtual uint32_t GetRefID() const = 0;
 	};
 }

@@ -59,6 +59,9 @@ namespace ci
 		using _HandID = int32_t;
 		ci::Signal<void(_HandID)> onPlayerMagicRelease;
 
+		using _HitData = ci::HitEventData;
+		ci::Signal<void(_HitData)> onHit;
+
 		virtual ~LocalPlayer() {}
 
 	private:
@@ -70,5 +73,6 @@ namespace ci
 		void RecoverInventory();
 		void RecoverSpells();
 		LocalPlayer();
+		uint32_t GetRefID() const override;
 	};
 }

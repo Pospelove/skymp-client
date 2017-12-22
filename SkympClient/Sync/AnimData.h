@@ -2,7 +2,7 @@
 #include "../CoreInterface/CoreInterface.h"
 #include <memory>
 
-namespace HitData_
+namespace AnimData_
 {
 	using AnimID = uint32_t;
 

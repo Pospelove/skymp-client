@@ -1,11 +1,11 @@
 #include "../stdafx.h"
-#include "HitData.h"
+#include "AnimData.h"
 #include "MovementData.h"
 #include "../ScriptDragon/obscript.h"
 #include "Skyrim/Events/ScriptEvent.h"
 #include <queue>
 
-using AnimID = HitData_::AnimID;
+using AnimID = AnimData_::AnimID;
 
 enum class Direction : uint8_t
 {
@@ -164,7 +164,7 @@ const char *GetAEName(const EquipData &equipData, Direction dir, bool isLeftHand
 	return "AttackStartH2HLeft";
 }
 
-bool HitData_::Apply(Actor *actor, AnimID hitAnimID, bool unsafe)
+bool AnimData_::Apply(Actor *actor, AnimID hitAnimID, bool unsafe)
 {
 	try {
 		if (!actor)
@@ -182,7 +182,7 @@ bool HitData_::Apply(Actor *actor, AnimID hitAnimID, bool unsafe)
 	}
 }
 
-void HitData_::RegisterAnimation(const std::string &animationEvent, AnimID animID)
+void AnimData_::RegisterAnimation(const std::string &animationEvent, AnimID animID)
 {
 	const size_t chars = animationEvent.size();
 	auto str = new std::string(animationEvent);
@@ -257,7 +257,7 @@ void OnWeapSwing(bool isLeftHand, bool calledFrom_OnAnimationEvent = false, bool
 
 clock_t lastLRButtonsPressed = 0;
 
-void HitData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName)
+void AnimData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName)
 {
 	enum {
 		CalledFromOnAnimationEvent = TRUE
@@ -295,7 +295,7 @@ void HitData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName)
 }
 
 
-std::shared_ptr<AnimID> HitData_::UpdatePlayer()
+std::shared_ptr<AnimID> AnimData_::UpdatePlayer()
 {
 	auto pc = g_thePlayer;
 	static bool isBashingWas = false;
@@ -364,13 +364,13 @@ std::shared_ptr<AnimID> HitData_::UpdatePlayer()
 	return result;
 }
 
-bool HitData_::IsPowerAttack(AnimID hitAnimID)
+bool AnimData_::IsPowerAttack(AnimID hitAnimID)
 {
 	const std::string name = GetAnimName(hitAnimID);
 	return name.find("Power") != name.npos || name.find("Bash") != name.npos;
 }
 
-void HitData_::Register()
+void AnimData_::Register()
 {
 	// Legacy (< 0.10)
 	cd::SendAnimationEvent(g_thePlayer, "Skymp_Register"); 

@@ -22,7 +22,8 @@ namespace ci
 			NiPoint3 spawnPoint,
 			uint32_t cellID,
 			uint32_t worldSpaceID,
-			OnHit onHit = nullptr);
+			OnHit onHit = nullptr,
+			const std::string &engineName = "RPEngineInput");
 
 		virtual ~RemotePlayer() override;
 
@@ -62,6 +63,14 @@ namespace ci
 		AVData GetAVData(const std::string &avName) const override;
 
 		void SetEngine(const std::string &engineName);
+		std::string GetEngine() const;
+		void PathTo(const NiPoint3 &pos, bool walk);
+		void StopPathing();
+		void SetBaseNPC(uint32_t npcID);
+		void SetMark(const std::string &mark);
+		std::string GetMark() const;
+		bool StartCombat(const IActor *target);
+		void StopCombat();
 
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);
@@ -116,12 +125,12 @@ namespace ci
 		void Update();
 		void Update_OT();
 
-		void ForceSpawn(uint32_t npcID);
+		void ForceSpawn(TESNPC *npc);
 		void ForceDespawn(const wchar_t *reason = L"");
 
 		int32_t GetSyncMode() const;
 		int32_t GetSpawnStage() const;
-		uint32_t GetRefID() const;
+		uint32_t GetRefID() const override;
 		bool IsBowEquipped() const;
 		bool IsSpellEquipped() const; 
 		bool NeedsGnome(int32_t handID) const;

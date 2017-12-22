@@ -9,7 +9,7 @@
 #include "../ScriptDragon/enums.h"
 #include "../Costile/CDScript.h"
 
-#include "../Sync/HitData.h"
+#include "../Sync/AnimData.h"
 
 extern LockTimer closeCursorMenuLock;
 
@@ -87,7 +87,7 @@ namespace ci
 	void RegisterAnimation(std::string animationName, uint32_t animationID)
 	{
 		SET_TIMER_LIGHT(1, [=] {
-			HitData_::RegisterAnimation(animationName, animationID);
+			AnimData_::RegisterAnimation(animationName, animationID);
 		});
 	}
 
@@ -121,7 +121,7 @@ namespace ci
 				SET_TIMER(0, [] {
 					sd::ForceFirstPerson();
 					SET_TIMER(300, [] {
-						HitData_::Register();
+						AnimData_::Register();
 					});
 				});
 			});
