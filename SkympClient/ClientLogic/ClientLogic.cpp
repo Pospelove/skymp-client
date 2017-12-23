@@ -2222,7 +2222,8 @@ class ClientLogic : public ci::IClientLogic
 		firstInit = false;
 	}
 
-	std::function<void()> testUpd;
+	//std::function<void()> testUpd;
+	ci::Signal<void()> testUpd;
 	std::list<std::function<void()>> fns;
 
 	void OnUpdate() override
@@ -2465,6 +2466,15 @@ class ClientLogic : public ci::IClientLogic
 		{
 			for(auto p : ps)
 			{
+				while (true)
+				{
+					auto anim = p->GetNextHitAnim();
+					if (anim == nullptr)
+						break;
+					ci::Chat::AddMessage(L"Anim " + StringToWstring(p->GetMark()) + L' ' + std::to_wstring(*anim));
+					localPlayer->PlayAnimation(*anim);
+				}
+
 				{
 					auto handR = localPlayer->GetEquippedWeapon(),
 						handL = localPlayer->GetEquippedWeapon(true);
@@ -2579,6 +2589,84 @@ class ClientLogic : public ci::IClientLogic
 		{
 			localPlayer->PlayAnimation(21);
 		}
+		else if (cmdText == L"//clonenpc")
+		{
+			auto localBear = new ci::RemotePlayer(
+				localPlayer->GetName(),
+				localPlayer->GetLookData(),
+				localPlayer->GetPos(),
+				localPlayer->GetCell(),
+				localPlayer->GetWorldSpace(),
+				nullptr);
+
+			auto remoteBear = new ci::RemotePlayer(
+				localPlayer->GetName(),
+				localPlayer->GetLookData(),
+				localPlayer->GetPos(),
+				localPlayer->GetCell(),
+				localPlayer->GetWorldSpace(),
+				nullptr);
+
+			localBear->SetEngine("RPEngineIO");
+			localBear->SetMark("LocalBearMark");
+			localBear->SetNicknameVisible(true);
+			localBear->SetName(L"LocalBear");
+			//localBear->SetBaseNPC(0x9B2AB);
+
+			remoteBear->SetEngine("RPEngineInput");
+			remoteBear->SetMark("RemoteBear");
+			remoteBear->SetNicknameVisible(true);
+			remoteBear->SetName(L"RemoteBear");
+			//remoteBear->SetBaseNPC(0x9B2AB);
+
+			auto upd = [=] {
+				auto md = localBear->GetMovementData();
+				md.pos += {128, 128, 0};
+				remoteBear->ApplyMovementData(md);
+				localBear->StartCombat(localPlayer);
+				//localBear->PathTo(localPlayer->GetPos(), true);
+
+				auto hitAnim = localBear->GetNextHitAnim();
+				if (hitAnim != nullptr)
+				{
+					if (md.isBlocking == false)
+						remoteBear->PlayAnimation(*hitAnim);
+					else
+					{
+						enum {
+							BlockStartIDInternal = (uint32_t(-1)) - 1010
+						};
+						ci::RegisterAnimation("BlockStart", BlockStartIDInternal);
+						remoteBear->PlayAnimation(BlockStartIDInternal);
+					}
+				}
+
+				for (auto p : { remoteBear, localBear })
+				{
+					auto armor = localPlayer->GetEquippedArmor();
+					for (auto item : armor)
+					{
+						p->AddItem(item, 1, true);
+						p->EquipItem(item, true, false, false);
+					}
+
+					auto handR = localPlayer->GetEquippedWeapon(),
+						handL = localPlayer->GetEquippedWeapon(true);
+					if (handR)
+					{
+						p->AddItem(handR, 1, true);
+						p->EquipItem(handR, true, false, false);
+					}
+					if (handL)
+					{
+						p->AddItem(handL, 1, true);
+						p->EquipItem(handL, true, false, true);
+					}
+				}
+			};
+
+			testUpd.Add(upd);
+		}
 		else if (cmdText == L"//clone")
 		{
 			auto onHit = [](const ci::HitEventData &eventData) {
@@ -2600,14 +2688,14 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->GetWorldSpace(), 
 				onHit);
 
-			p->SetEngine("RPEngineIO");
-
-			p->SetMark("LocalBotMark");
+			//p->SetEngine("RPEngineIO");
+			//p->SetMark("LocalBotMark");
+			//p->SetNicknameVisible(false);
 
 			//auto ld = p->GetLookData();
 			//ld.raceID = 0x000131E9;
 			//p->ApplyLookData(ld);
-			p->SetBaseNPC(0x9B2AB);
+			//p->SetBaseNPC(0x23A8A);
 
 			//p->ApplyMovementData(localPlayer->GetMovementData());
 
@@ -2642,9 +2730,14 @@ class ClientLogic : public ci::IClientLogic
 			ps.push_back(p);
 			offsets[p] = NiPoint3{ 128.f * ps.size(), 128.f * ps.size(), 0 };
 
-			testUpd = [=] {
-				this->OnChatCommand(L"//eq", {});
-			};
+			static bool added = false;
+			if (!added)
+			{
+				added = true;
+				testUpd.Add([=] {
+					this->OnChatCommand(L"//eq", {});
+				});
+			}
 		}
 		else if (cmdText == L"//testalch")
 		{

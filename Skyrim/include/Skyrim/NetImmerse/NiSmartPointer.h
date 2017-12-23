@@ -57,7 +57,7 @@ public:
 	NiPointer& operator=(const NiPointer &rhs) {
 		if (m_pObject)
 			m_pObject->DecRefCount();
-		m_pObject = rhs.pObject;
+		m_pObject = rhs.m_pObject;
 		if (m_pObject)
 			m_pObject->IncRefCount();
 		return *this;
@@ -76,10 +76,10 @@ public:
 		return (m_pObject != pObject);
 	}
 	bool operator==(const NiPointer &rhs) const {
-		return (m_pObject == rhs.pObject);
+		return (m_pObject == rhs.m_pObject);
 	}
 	bool operator!=(const NiPointer &rhs) const {
-		return (m_pObject != rhs.pObject);
+		return (m_pObject != rhs.m_pObject);
 	}
 
 protected:

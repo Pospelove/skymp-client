@@ -71,6 +71,7 @@ namespace ci
 		std::string GetMark() const;
 		bool StartCombat(const IActor *target);
 		void StopCombat();
+		std::shared_ptr<uint32_t> GetNextHitAnim();
 
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);

@@ -22,12 +22,29 @@ namespace MovementData_
 }
 using MovementData_::SendAnimationEvent;
 
+bool IsRaceFlagSet(TESRace *thisRace, uint32_t flag) {
+	return (thisRace) ? (thisRace->data.raceFlags & flag) == flag : false;
+}
+
+bool IsPlayable(TESRace *race) {
+	return IsRaceFlagSet(race, TESRace::kRace_Playable);
+}
+
+std::string GetRaceRandomAnim(TESRace *race);
+
 struct EquipData {
 	bool leftHand;
 	bool rightHand;
 };
 
-std::queue<uint8_t> pcAttacks;
+struct NPCAttacks 
+{
+	std::list<AnimID> aeIDs;
+	clock_t lastPush = 0;
+};
+
+std::queue<AnimID> pcAttacks;
+std::map<uint32_t, NPCAttacks> npcAttacks;
 
 const char *combatAnims[] = {
 	"BashStart",
@@ -91,8 +108,11 @@ AnimID GetAnimID(const std::string &name)
 	return NULL;
 }
 
-const char *GetAEName(const EquipData &equipData, Direction dir, bool isLeftHand, bool isPowerAttack, bool isBashing, bool isDualAttack)
+const char *GetAEName(bool isRacePlayable, const EquipData &equipData, Direction dir, bool isLeftHand, bool isPowerAttack, bool isBashing, bool isDualAttack)
 {
+	if (!isRacePlayable)
+		return "AttackStart";
+
 	if (isBashing)
 		return "BashStart";
 
@@ -164,17 +184,23 @@ const char *GetAEName(const EquipData &equipData, Direction dir, bool isLeftHand
 	return "AttackStartH2HLeft";
 }
 
-bool AnimData_::Apply(Actor *actor, AnimID hitAnimID, bool unsafe)
+bool AnimData_::Apply(Actor *actor, AnimID animID, bool unsafe)
 {
 	try {
 		if (!actor)
 			return false;
 		actor->race->data.unarmedDamage = 0;
 
-		auto anim = GetAnimName(hitAnimID);
+		auto anim = GetAnimName(animID);
 		if (!anim || strlen(anim) == 0)
 			return false;
-		SendAnimationEvent(actor, anim, unsafe);
+		if (animID == 8 && IsPlayable(actor->GetRace()) == false)
+		{
+			const auto str = GetRaceRandomAnim(actor->GetRace());
+			SendAnimationEvent(actor, str.data(), unsafe);
+		}
+		else
+			SendAnimationEvent(actor, anim, unsafe);
 		return true;
 	}
 	catch (...) {
@@ -192,104 +218,198 @@ void AnimData_::RegisterAnimation(const std::string &animationEvent, AnimID anim
 int32_t numSwings = 0;
 clock_t lastMovementChange = NULL, lastWeapDrawnChange = NULL;
 
-uint32_t GetDelay()
+uint32_t GetDelayFor(Actor *actor)
 {
+	if (sd::GetActorValue(actor, "Stamina") == 0)
+		return 0;
+
 	if (lastWeapDrawnChange + 1000 >= clock())
 	{
 		float speed;
-		g_thePlayer->GetAnimationVariableFloat(BSFixedString("speedsampled"), speed);
+		static auto fsSpeedMult = BSFixedString("speedsampled");
+		actor->GetAnimationVariableFloat(fsSpeedMult, speed);
 		if (speed <= 0.1f)
 			return 0;
 	}
 	return 133;
 }
 
-bool IsRightHandOnly()
-{
-	return sd::GetEquippedWeapon(g_thePlayer, false) && !sd::GetEquippedWeapon(g_thePlayer, true);
+bool IsRightHandOnly() {
+	return sd::GetEquippedWeapon(g_thePlayer, false) 
+		&& !sd::GetEquippedWeapon(g_thePlayer, true);
 }
 
-bool IsDualWield()
-{
-	return sd::GetEquippedWeapon(g_thePlayer, false) && sd::GetEquippedWeapon(g_thePlayer, true);
+bool IsDualWield() {
+	return sd::GetEquippedWeapon(g_thePlayer, false) 
+		&& sd::GetEquippedWeapon(g_thePlayer, true);
 }
 
-void OnWeapSwing(bool isLeftHand, bool calledFrom_OnAnimationEvent = false, bool isDualAttack = false)
+void PushAttackAnim(Actor *actor, AnimID animID)
 {
-	auto pc = g_thePlayer;
-	EquipData equipData{ sd::GetEquippedWeapon(pc, true) != 0, sd::GetEquippedWeapon(pc, false) != 0};
+	if (actor == nullptr)
+		return;
+	if (actor == g_thePlayer)
+	{
+		//ci::Chat::AddMessage(L"Push attack anim player");
+		return pcAttacks.push(animID);
+	}
+
+	if (clock() - npcAttacks[actor->formID].lastPush > 300)
+	{
+		npcAttacks[actor->formID].lastPush = clock();
+		if (npcAttacks[actor->formID].aeIDs.back() != animID)
+		{
+			//ci::Chat::AddMessage(L"Push attack anim");
+			return npcAttacks[actor->formID].aeIDs.push_back(animID);
+		}
+	}
+}
+
+void OnWeapSwing(Actor *actor, bool isLeftHand, bool calledFrom_OnAnimationEvent = false, bool isDualAttack = false)
+{
+	if (actor == nullptr)
+		return;
+
+	EquipData equipData{ sd::GetEquippedWeapon(actor, true) != 0, sd::GetEquippedWeapon(actor, false) != 0};
 
 	bool isBashing;
-	pc->GetAnimationVariableBool(BSFixedString("IsBashing"), isBashing);
+	static auto fsIsBashing = BSFixedString("IsBashing");
+	actor->GetAnimationVariableBool(fsIsBashing, isBashing);
 
-	int32_t ms = GetDelay();
-	if (sd::GetActorValue(pc, "Stamina") == 0
-		|| calledFrom_OnAnimationEvent)
-		ms = 0;
+	const int32_t ms = calledFrom_OnAnimationEvent ? 0 : GetDelayFor(actor);
 
 	float speed;
-	pc->GetAnimationVariableFloat(BSFixedString("speedsampled"), speed);
+	static auto fsSpeedSampled = BSFixedString("speedsampled");
+	actor->GetAnimationVariableFloat(fsSpeedSampled, speed);
 
+	const uint32_t refID = actor->formID;
 	auto f = [=] {
+		auto actor = (Actor *)LookupFormByID(refID);
+		if (actor == nullptr)
+			return;
 
 		float speed2;
-		pc->GetAnimationVariableFloat(BSFixedString("speedsampled"), speed2);
+		actor->GetAnimationVariableFloat(fsSpeedSampled, speed2);
 
 		auto IsPowerAttacking = [&] {
-			const bool powerAttack = sd::Obscript::IsPowerAttacking(pc) != 0.0
-				|| (speed2 != speed && abs(speed - speed2) < 20 && lastMovementChange + 300 < clock());
+			const bool powerAttack = sd::Obscript::IsPowerAttacking(actor) != 0.0
+				|| (g_thePlayer == actor && speed2 != speed && abs(speed - speed2) < 20 && lastMovementChange + 300 < clock());
 			return powerAttack;
 		};
 		const bool isPowerAttack = IsPowerAttacking() || isBashing;
 
 		const auto direction = (Direction)(uint32_t)sd::Obscript::GetMovementDirection(g_thePlayer);
 
-		auto ae = GetAEName(equipData, direction, isLeftHand, isPowerAttack, isBashing, isDualAttack);
-		//ci::Chat::AddMessage(L"out >> " + StringToWstring(ae));
-
-		pcAttacks.push(GetAnimID(ae));
+		const auto ae = GetAEName(IsPlayable(actor->GetRace()), equipData, direction, isLeftHand, isPowerAttack, isBashing, isDualAttack);
+		const auto aeID = GetAnimID(ae);
+		PushAttackAnim(actor, aeID);
 	};
 	if (ms > 0)
 		SET_TIMER(ms, f);
 	else
-		f();
+		SET_TIMER_LIGHT(1, f);
 }
 
 clock_t lastLRButtonsPressed = 0;
 
+std::string GetRaceRandomAnim(TESRace *race)
+{
+	static bool sranded = false;
+	if (!sranded)
+	{
+		sranded = true;
+		srand(time(0));
+	}
+
+	if (race != nullptr)
+	{
+		auto mapBgs = dynamic_cast<BGSAttackDataForm *>(race);
+		if (mapBgs != nullptr)
+		{
+			auto &map = mapBgs->attackDataMap->map;
+			auto pairIter = map.begin();
+			const float n = rand() % map.size();
+			for (size_t i = 0; i != n; ++i)
+				pairIter++;
+			return pairIter->key.c_str();
+		}
+	}
+	return "";
+}
+
 void AnimData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName)
 {
-	enum {
-		CalledFromOnAnimationEvent = TRUE
-	};
-	SET_TIMER(0, [=] {
+	SAFE_CALL("AnimData", [&] {
+		enum {
+			CalledFromOnAnimationEvent = TRUE
+		};
+
 		if (source == g_thePlayer)
 		{
-			if (animEventName == "weaponswing")
-			{
-				if (numSwings > 0)
+			SET_TIMER(0, [=] {
+				if (animEventName == "weaponswing")
 				{
-					numSwings--;
-					if (!IsRightHandOnly())
-						OnWeapSwing(false, CalledFromOnAnimationEvent);
-				}
-			}
-			else if (animEventName == "weaponleftswing")
-			{
-				if (numSwings > 0)
-				{
-					numSwings--;
-					if (!IsRightHandOnly())
+					if (numSwings > 0)
 					{
-						const bool dualAttack = IsDualWield() && lastLRButtonsPressed + 500 > clock();
-						OnWeapSwing(true, CalledFromOnAnimationEvent, dualAttack);
+						numSwings--;
+						if (!IsRightHandOnly())
+							OnWeapSwing(g_thePlayer, false, CalledFromOnAnimationEvent);
 					}
 				}
-			}
-			else if (animEventName == "idlechairenterstart")
-			{
-				ci::Chat::AddMessage(L"Hey! Detected");
-			}
+				else if (animEventName == "weaponleftswing")
+				{
+					if (numSwings > 0)
+					{
+						numSwings--;
+						if (!IsRightHandOnly())
+						{
+							const bool dualAttack = IsDualWield() && lastLRButtonsPressed + 500 > clock();
+							OnWeapSwing(g_thePlayer, true, CalledFromOnAnimationEvent, dualAttack);
+						}
+					}
+				}
+			});
+		}
+		else
+		{
+			const auto refID = source->formID;
+			SET_TIMER_LIGHT(1, [refID, animEventName] {
+				auto actor = (Actor *)LookupFormByID(refID);
+				if (actor->baseForm->formType == FormType::NPC)
+				{
+					static dlf_mutex m;
+					std::lock_guard<dlf_mutex> l(m);
+					static std::map<uint32_t, clock_t> last;
+
+					auto gc = [] {
+						if (last.size() > 1000)
+							last.clear();
+					};
+					if (rand() % 10 == 0)
+						gc();
+
+					auto race = actor->GetRace();
+					if (IsPlayable(race))
+					{
+						const bool isLeft = animEventName == "weaponleftswing";
+						if (clock() - last[actor->formID] > 400)
+						{
+							last[actor->formID] = clock();
+							OnWeapSwing(actor, isLeft, true, false);
+						}
+					}
+					else
+					{
+						if (animEventName != "weaponswing")
+							return;
+						if (clock() - last[actor->formID] > 400)
+						{
+							last[actor->formID] = clock();
+							OnWeapSwing(actor, false, true, false);
+						}
+					}
+				}
+			});
 		}
 	});
 }
@@ -305,7 +425,7 @@ std::shared_ptr<AnimID> AnimData_::UpdatePlayer()
 	{
 		isBashingWas = isBashing;
 		if(isBashing)
-			OnWeapSwing(true);
+			OnWeapSwing(g_thePlayer, true);
 	}
 
 	std::shared_ptr<AnimID> result;
@@ -334,8 +454,8 @@ std::shared_ptr<AnimID> AnimData_::UpdatePlayer()
 				numSwings++;
 				SET_TIMER(0, [=] {
 					bool isLeft = !!sd::GetEquippedWeapon(g_thePlayer, true);
-					SET_TIMER(min(5, GetDelay()), [=] {
-						OnWeapSwing(isLeft, false, dualAttack);
+					SET_TIMER(min(5, GetDelayFor(g_thePlayer)), [=] {
+						OnWeapSwing(g_thePlayer, isLeft, false, dualAttack);
 					});
 				});
 			}
@@ -364,18 +484,62 @@ std::shared_ptr<AnimID> AnimData_::UpdatePlayer()
 	return result;
 }
 
+std::shared_ptr<AnimID> AnimData_::UpdateActor(uint32_t actorID)
+{
+	std::shared_ptr<AnimID> result;
+	try {
+		auto &aeIDs = npcAttacks[actorID].aeIDs;
+		if (aeIDs.empty())
+			throw std::logic_error("empty aeIDs");
+		const auto aeID = aeIDs.front();
+		aeIDs.pop_front();
+		result.reset(new AnimID(aeID));
+	}
+	catch (...) {
+		result = nullptr;
+	}
+	return result;
+}
+
+void CollectGarbage()
+{
+	SET_TIMER_LIGHT(1, [] {
+		std::vector<uint32_t> keysToErase;
+		for (auto &pair : npcAttacks)
+		{
+			if (LookupFormByID(pair.first) == nullptr)
+				keysToErase.push_back(pair.first);
+		}
+		for (auto key : keysToErase)
+			npcAttacks.erase(key);
+	});
+}
+
 bool AnimData_::IsPowerAttack(AnimID hitAnimID)
 {
 	const std::string name = GetAnimName(hitAnimID);
 	return name.find("Power") != name.npos || name.find("Bash") != name.npos;
 }
 
-void AnimData_::Register()
+AnimData_::AnimSource AnimData_::GetAnimSource(AnimID animID)
 {
-	// Legacy (< 0.10)
-	cd::SendAnimationEvent(g_thePlayer, "Skymp_Register"); 
-	// Calls RegisterForAnimationEvent() for combat animation events and RegisterForActorAction(1..4)
-	// Implemented in Costile.psc
+	enum {
+		MaxPlayable = 21,
+	};
+	if (animID <= MaxPlayable)
+		return AnimSource::PlayableRace;
+	return AnimSource::Server;
+}
 
-	sd::RegisterForAnimationEvent(g_thePlayer, g_thePlayer, "IdleChairEnterStart");
+void AnimData_::Register(Actor *actor)
+{
+	CollectGarbage(); // should be called sometimes
+
+	if (actor)
+	{
+		// Legacy (< 0.10)
+		cd::SendAnimationEvent(actor, "Skymp_Register");
+		// Calls RegisterForAnimationEvent() for combat animation events and RegisterForActorAction(1..4)
+		// Implemented in Costile.psc
+	}
 }

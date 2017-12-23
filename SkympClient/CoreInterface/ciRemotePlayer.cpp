@@ -122,7 +122,7 @@ namespace ci
 		bool afk = false;
 		bool stopProcessing = false;
 		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::queue<uint32_t> hitAnimsToApply;
+		std::queue<uint32_t> hitAnimsToApply, hitAnimsOut;
 		OnHit onHit = nullptr;
 		std::map<std::string, ci::AVData> avData;
 		Object *myPseudoFox = nullptr;
@@ -604,6 +604,23 @@ namespace ci
 
 		void EngineUpdateSpawned(Actor *actor) override
 		{
+			if (sd::IsInCombat(actor))
+			{
+				auto target = sd::GetCombatTarget(actor);
+				if (target != nullptr)
+				{
+					auto ghostAxeRef = (Actor *)LookupFormByID(RemotePlayer::GetGhostAxeFormID());
+					if (ghostAxeRef != nullptr && target != ghostAxeRef)
+					{
+						sd::StopCombat(actor);
+						sd::StartCombat(actor, ghostAxeRef);
+						this->GetParent()->ApplyMovementDataImpl();
+					}
+				}
+			}
+
+			sd::SetActorValue(actor, "Confidence", 0.0);
+			sd::ForceActorValue(actor, "Confidence", 0.0);
 		}
 	};
 
@@ -721,18 +738,37 @@ namespace ci
 			static bool timerStarted = false;
 			auto ghostAxeRef = (Actor *)LookupFormByID(RemotePlayer::GetGhostAxeFormID());
 
+			const float stamina = sd::GetActorValue(actor, "Stamina");
+			if (this->lastStamina != stamina)
+			{
+				if (this->lastStamina >= 0)
+				{
+					const float change = stamina - this->lastStamina;
+					if (change < 0)
+					{
+						// ...
+					}
+				}
+				this->lastStamina = stamina;
+			}
+
 			if (timerStarted == false && sd::IsInCombat(actor) && sd::GetCombatTarget(actor) != ghostAxeRef && clock() - pimpl->lastConsoleCommand > 3000)
 			{
 				pimpl->lastConsoleCommand = clock();
 				timerStarted = true;
-				sd::ExecuteConsoleCommand("toggledetection", nullptr);
-				ci::Chat::AddMessage(L"tdt");
+				//sd::ExecuteConsoleCommand("toggledetection", nullptr);
 				sd::SetActorValue(actor, "Confidence", 4.0);
 				sd::ForceActorValue(actor, "Confidence", 4.0);
-				SET_TIMER_LIGHT(500, [] {
-					sd::ExecuteConsoleCommand("toggledetection", nullptr);
+				SET_TIMER_LIGHT(5000, [] {
+					//sd::ExecuteConsoleCommand("toggledetection", nullptr);
 					timerStarted = false;
 				});
+			}
+
+			auto animPtr = AnimData_::UpdateActor(pimpl->formID);
+			if (animPtr != nullptr)
+			{
+				pimpl->hitAnimsOut.push(*animPtr);
 			}
 
 			if (clock() - this->lastCombatUpdate > 2000)
@@ -756,7 +792,7 @@ namespace ci
 						sd::StopCombat(actor);
 				}
 			}
-
+			
 			TESObjectREFR *target = pimpl->pathToTarget ? (TESObjectREFR *)LookupFormByID(ObjectAccess::GetObjectRefID(pimpl->pathToTarget.get())) : nullptr;
 			if (target)
 			{
@@ -765,9 +801,17 @@ namespace ci
 			}
 			else
 				sd::ForceActorValue(actor, "speedmult", 100);
+
+			if (clock() - this->lastRegister > 1000 * RemotePlayer::GetNumInstances())
+			{
+				this->lastRegister = clock();
+				AnimData_::Register(actor);
+			}
 		}
 
 		clock_t lastCombatUpdate = 0;
+		clock_t lastRegister = 0;
+		float lastStamina = -1;
 	};
 }
 
@@ -1515,18 +1559,20 @@ namespace ci
 	{
 		SAFE_CALL("RemotePlayer", [&] {
 			auto applyAV = [&](char *avNameLowerCase) {
-				enum {
-					InternalMult = 10000,
-				};
-				const auto full = (pimpl->avData[avNameLowerCase].base + pimpl->avData[avNameLowerCase].modifier) * InternalMult;
-				const auto dest = full * pimpl->avData[avNameLowerCase].percentage;
-				sd::SetActorValue(actor, avNameLowerCase, full);
-				auto current = sd::GetActorValue(actor, avNameLowerCase);
-				auto change = dest - current;
-				if (change > 0)
-					sd::RestoreActorValue(actor, avNameLowerCase, change);
-				else
-					sd::DamageActorValue(actor, avNameLowerCase, -change);
+				SAFE_CALL("RemotePlayer", [&] {
+					enum {
+						InternalMult = 10000,
+					};
+					const auto full = (pimpl->avData[avNameLowerCase].base + pimpl->avData[avNameLowerCase].modifier) * InternalMult;
+					const auto dest = full * pimpl->avData[avNameLowerCase].percentage;
+					sd::SetActorValue(actor, avNameLowerCase, full);
+					auto current = sd::GetActorValue(actor, avNameLowerCase);
+					auto change = dest - current;
+					if (change > 0)
+						sd::RestoreActorValue(actor, avNameLowerCase, change);
+					else
+						sd::DamageActorValue(actor, avNameLowerCase, -change);
+				});
 			};
 			applyAV("health");
 			applyAV("stamina");
@@ -1812,7 +1858,7 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			const NiPoint3 localPlPos = cd::GetPosition(g_thePlayer);
 			const bool isInterior = sd::GetParentCell(g_thePlayer) ? sd::IsInterior(sd::GetParentCell(g_thePlayer)) : false;
-			if (NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() >= GetRespawnRadius(isInterior))
+			if (NiPoint3{ this->GetMovementData().pos - localPlPos }.Length() >= GetRespawnRadius(isInterior))
 				this->ForceDespawn(L"Despawned: Player is too far");
 		});
 
@@ -1990,7 +2036,8 @@ namespace ci
 		const bool der = this->IsDerived();
 		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
 			auto setAVsToDefault = [](Actor *actor) {
-				sd::SetActorValue(actor, "Confidence", 4.0);
+				sd::SetActorValue(actor, "Confidence", 0.0);
+				sd::ForceActorValue(actor, "Confidence", 0.0);
 				sd::SetActorValue(actor, "Agression", 0.0);
 				sd::SetActorValue(actor, "attackdamagemult", 0.0);
 				sd::SetActorValue(actor, "Variable01", rand());
@@ -2085,6 +2132,7 @@ namespace ci
 				currentSpawning = nullptr;
 			if (currentFixingGreyFace == this)
 				currentFixingGreyFace = nullptr;
+			pimpl->hitAnimsOut = {};
 		}
 	}
 
@@ -2426,9 +2474,9 @@ namespace ci
 				newNpc->voiceType = (BGSVoiceType *)LookupFormByID(0x0002F7C3);
 				//newNpc->formID = 0;
 				//newNpc->SetFormID(Utility::NewFormID(), false);
-				newNpc->TESAIForm::flags = ((TESNPC *)g_thePlayer->baseForm)->TESAIForm::flags;
-				newNpc->TESAIForm::unk10.unk0 = 0;
-				newNpc->TESAIForm::unk10.next = nullptr;
+				//newNpc->TESAIForm::flags = ((TESNPC *)LookupFormByID(ID_TESNPC::BalgruuftheGreater))->TESAIForm::flags;
+				//newNpc->TESAIForm::unk10.unk0 = 0;
+				//newNpc->TESAIForm::unk10.next = nullptr;
 				newNpc->TESContainer::entries = nullptr;
 				newNpc->TESContainer::numEntries = 0;
 				newNpc->TESSpellList::unk04 = nullptr;
@@ -2436,7 +2484,30 @@ namespace ci
 				newNpc->nextTemplate = nullptr;
 				newNpc->TESActorBaseData::flags.pcLevelMult = false;
 				newNpc->TESActorBaseData::flags.unique = true;
-				newNpc->TESActorBaseData::flags.simpleActor = true;
+
+				static std::set<TESRace *> cleaned;
+				auto race = newNpc->GetRace();
+				auto bgsmap = dynamic_cast<BGSAttackDataMap *>(race);
+				if (0 && cleaned.insert(race).second)
+				{
+					if (bgsmap != nullptr)
+					{
+						auto &map = bgsmap->map;
+						BSFixedString noErase = "";
+						BGSAttackDataPtr noEraseVal;
+						for (auto &pair : map)
+						{
+							if (strlen(noErase.c_str()) == 0)
+							{
+								noErase = pair.key;
+								noEraseVal = pair.value;
+							}
+						}
+						map.clear();
+						map.insert(noErase, noEraseVal);
+					}
+				}
+				//newNpc->TESActorBaseData::flags.simpleActor = true;
 			}
 			pimpl->baseNpc = npc;
 		}
@@ -2473,6 +2544,18 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		pimpl->combatTarget = 0;
+	}
+
+	std::shared_ptr<uint32_t> RemotePlayer::GetNextHitAnim()
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		if (pimpl->spawnStage != SpawnStage::Spawned)
+			return nullptr;
+		if (pimpl->hitAnimsOut.empty())
+			return nullptr;
+		auto r = pimpl->hitAnimsOut.front();
+		pimpl->hitAnimsOut.pop();
+		return std::shared_ptr<uint32_t>(new uint32_t(r));
 	}
 
 	void RemotePlayer::SetInAFK(bool val)

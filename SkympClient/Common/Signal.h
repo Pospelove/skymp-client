@@ -23,8 +23,13 @@ public:
 		std::lock_guard<std::mutex> l(mutex);
 		for (auto itor : mFunctions)
 		{
-			if (itor != nullptr)
-				itor(args...);
+			try {
+				if (itor != nullptr)
+					itor(args...);
+			}
+			catch (...) {
+				ErrorHandling::SendError("ERROR:Signal Bad signal");
+			}
 		}
 	}
 

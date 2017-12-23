@@ -912,7 +912,7 @@ namespace MovementData_
 		static bool tdt = true;
 		if (tdt)
 		{
-			sd::ExecuteConsoleCommand("toggledetection", nullptr);
+			//sd::ExecuteConsoleCommand("toggledetection", nullptr);
 			tdt = false;
 		}
 
