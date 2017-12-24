@@ -115,7 +115,7 @@ namespace ci
 		clock_t unsafeSyncTimer = 0;
 		clock_t lastOutOfPos = 0;
 		bool greyFaceFixed = false;
-		MovementData movementData;
+		MovementData movementData, movementDataOut;
 		MovementData_::SyncState syncState;
 		clock_t lastDespawn = 0;
 		UInt32 rating = 0;
@@ -221,27 +221,6 @@ namespace ci
 			auto &pimpl = this->GetImpl();
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 			pimpl->worldSpaceID = worldSpaceID;
-		}
-
-		NiPoint3 GetPos() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementData.pos;
-		}
-
-		float GetAngleZ() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementData.angleZ;
-		}
-
-		MovementData GetMovementData() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementData;
 		}
 
 		void ApplyLookData(const LookData &lookData) override
@@ -565,6 +544,27 @@ namespace ci
 				pimpl->handsMagicProxy[leftHand] = nullptr;
 		}
 
+		NiPoint3 GetPos() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementData.pos;
+		}
+
+		float GetAngleZ() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementData.angleZ;
+		}
+
+		MovementData GetMovementData() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementData;
+		}
+
 		const Spell *GetEquippedSpell(bool isLeftHand = false) const override
 		{
 			auto &pimpl = this->GetImpl();
@@ -704,6 +704,27 @@ namespace ci
 		{
 		}
 
+		NiPoint3 GetPos() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementDataOut.pos;
+		}
+
+		float GetAngleZ() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementDataOut.angleZ;
+		}
+
+		MovementData GetMovementData() const override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			return pimpl->movementDataOut;
+		}
+
 		const Spell *GetEquippedSpell(bool isLeftHand = false) const override
 		{
 			return nullptr;
@@ -724,6 +745,7 @@ namespace ci
 			auto &pimpl = this->GetImpl();
 
 			sd::ClearKeepOffsetFromActor(actor);
+			sd::SetHeadTracking(actor, false);
 
 			auto animPtr = AnimData_::UpdateActor(pimpl->formID);
 			if (animPtr != nullptr)
@@ -1910,7 +1932,7 @@ namespace ci
 			return;
 
 		SAFE_CALL("RemotePlayer", [&] {
-			pimpl->movementData = MovementData_::Get(actor);
+			pimpl->movementDataOut = MovementData_::Get(actor);
 			if (pimpl->angleTask)
 			{
 				pimpl->angleTask(actor);
@@ -1924,7 +1946,7 @@ namespace ci
 		});
 
 
-		if (pimpl->engineTask && pimpl->spawnMoment + 1000 < clock())
+		if (pimpl->engineTask)
 		{
 			pimpl->engineTask();
 			pimpl->engineTask = nullptr;

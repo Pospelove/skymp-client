@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.1";
+auto version = "0.14.2";
 
 #include "Agent.h"
 
@@ -2143,6 +2143,8 @@ class ClientLogic : public ci::IClientLogic
 							auto asRemote = dynamic_cast<ci::RemotePlayer *>(hostedPl);
 							if (asRemote != nullptr)
 							{
+								asRemote->SetCombatTarget(localPlayer);
+
 								const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
 								if (hitAnimIDPtr != nullptr)
 									this->SendAnimation(*hitAnimIDPtr, hosted);
@@ -2745,6 +2747,10 @@ class ClientLogic : public ci::IClientLogic
 				added = true;
 				testUpd.Add([=] {
 					this->OnChatCommand(L"//eq", {});
+					if (p->GetEngine() != "RPEngineInput")
+					{
+						ci::Log("ERROR:ClientLogic Bad engine (test)");
+					}
 				});
 			}
 		}
