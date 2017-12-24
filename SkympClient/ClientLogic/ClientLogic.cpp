@@ -681,10 +681,14 @@ class ClientLogic : public ci::IClientLogic
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
 				try {
 					auto source = players.at((uint16_t)atoi(eventData.hitSrcMark.data()));
-					if (tracehost)
+					if (eventData.hitSrcMark.empty())
 					{
-						ci::Chat::AddMessage(L"#BEBEBEHit Mark = " + StringToWstring(eventData.hitSrcMark));
+						source = players.at(net.myID);
+						if (tracehost)
+							ci::Chat::AddMessage(L"#BEBEBEEmpty Hit Mark. Probably LocalPlayer.");
 					}
+					if (tracehost)
+						ci::Chat::AddMessage(L"#BEBEBEHit Mark = " + StringToWstring(eventData.hitSrcMark));
 					this->OnHit(players.at(id), source, eventData);
 				}
 				catch (...) {
