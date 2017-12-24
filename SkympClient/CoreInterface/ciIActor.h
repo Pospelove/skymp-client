@@ -6,9 +6,17 @@ namespace ci
 {
 	struct AVData
 	{
-		float base = 100.0f; 
-		float modifier = 0.0f;  
+		float base = 100.0f;
+		float modifier = 0.0f;
 		float percentage = 1.0f;
+
+		AVData()
+		{
+		}
+
+		AVData(float base, float mod, float percentage) : base(base), modifier(mod), percentage(percentage)
+		{
+		}
 
 		friend bool operator==(const AVData &lhs, const AVData &rhs) {
 			return lhs.base == rhs.base && lhs.modifier == rhs.modifier && lhs.percentage == rhs.percentage;

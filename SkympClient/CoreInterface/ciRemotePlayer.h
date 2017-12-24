@@ -69,8 +69,7 @@ namespace ci
 		void SetBaseNPC(uint32_t npcID);
 		void SetMark(const std::string &mark);
 		std::string GetMark() const;
-		bool StartCombat(const IActor *target);
-		void StopCombat();
+		void SetCombatTarget(const IActor *target);
 		std::shared_ptr<uint32_t> GetNextHitAnim();
 
 		void SetInAFK(bool val);
@@ -126,7 +125,7 @@ namespace ci
 		void Update();
 		void Update_OT();
 
-		int32_t ForceSpawn(TESNPC *npc);
+		void ForceSpawn(TESNPC *npc);
 		void ForceDespawn(const wchar_t *reason = L"");
 
 		int32_t GetSyncMode() const;

@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14";
+auto version = "0.14.1";
 
 #include "Agent.h"
 
@@ -46,6 +46,7 @@ class ClientLogic : public ci::IClientLogic
 	bool record = false;
 	clock_t recordStart = 0;
 	std::map<uint16_t, uint32_t> lastFurniture;
+	bool tracehost = false;
 
 	class Bot : public SkympAgent
 	{
@@ -565,11 +566,6 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_MOVEMENT:
 		{
-			if (rand() % 15 == 0)
-			{
-				FixNPCs();
-			}
-
 			uint16_t playerid = ~0;
 			bsIn.Read(playerid);
 			ci::MovementData movData;
@@ -729,6 +725,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				delete it->second;
 				players.erase(it);
+				hostedPlayers.erase(id);
 			}
 			break;
 		}
@@ -1298,9 +1295,9 @@ class ClientLogic : public ci::IClientLogic
 		case ID_PLAYER_ANIM:
 		{
 			uint16_t playerID;
-			uint32_t hitAnimID;
+			uint32_t animID;
 			bsIn.Read(playerID);
-			bsIn.Read(hitAnimID);
+			bsIn.Read(animID);
 
 			static bool reged = false;
 			if (!reged)
@@ -1309,8 +1306,11 @@ class ClientLogic : public ci::IClientLogic
 				ci::RegisterAnimation("IdleStopInstant", ~0);
 			}
 
+			if (hostedPlayers.count(playerID) != 0 && ci::IsCombatAnimID(animID)) // Prevent doubling attack animations
+				break;
+
 			try {
-				players.at(playerID)->PlayAnimation(hitAnimID);
+				players.at(playerID)->PlayAnimation(animID);
 			}
 			catch (...) {
 			}
@@ -2077,11 +2077,19 @@ class ClientLogic : public ci::IClientLogic
 				{
 					engine = ("RPEngineIO");
 					hostedPlayers.insert(playerID);
+					if (tracehost)
+					{
+						ci::Chat::AddMessage(L"#BEBEBEHost start " + remPl->GetName() + L'[' + std::to_wstring(playerID) + L']');
+					}
 				}
 				else
 				{
 					engine = ("RPEngineInput");
 					hostedPlayers.erase(playerID);
+					if (tracehost)
+					{
+						ci::Chat::AddMessage(L"#BEBEBEHost stop " + remPl->GetName() + L'[' + std::to_wstring(playerID) + L']');
+					}
 				}
 
 				if (remPl->GetEngine() != engine)
@@ -2134,16 +2142,10 @@ class ClientLogic : public ci::IClientLogic
 
 							auto asRemote = dynamic_cast<ci::RemotePlayer *>(hostedPl);
 							if (asRemote != nullptr)
-								asRemote->StartCombat(localPlayer);
-
-							const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
-							if (hitAnimIDPtr != nullptr)
 							{
-								RakNet::BitStream bsOut;
-								bsOut.Write(ID_ANIMATION_EVENT_HIT);
-								bsOut.Write(*hitAnimIDPtr);
-								bsOut.Write(hosted);
-								net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+								const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
+								if (hitAnimIDPtr != nullptr)
+									this->SendAnimation(*hitAnimIDPtr, hosted);
 							}
 
 						}
@@ -2179,7 +2181,7 @@ class ClientLogic : public ci::IClientLogic
 			this->lastUpdateByServer[i] = NULL;
 
 		ci::Chat::Init();
-		ci::Chat::AddMessage(L"#eeeeeeSkyMP Client Started");
+		ci::Chat::AddMessage(L"#eeeeeeSkyMP " + StringToWstring(version) + L" Client Started");
 		ci::LocalPlayer::GetSingleton()->SetName(L"Player");
 		
 		ci::SetUpdateRate(1);
@@ -2281,32 +2283,8 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
-	void FixNPCs()
-	{
-		for (auto &pair : baseNPCs)
-		{
-			try {
-				auto pl = players.at(pair.first);
-				if (pl)
-				{
-					auto rPl = dynamic_cast<ci::RemotePlayer *>(pl);
-					if (rPl)
-					{
-						rPl->SetBaseNPC(pair.second);
-					}
-				}
-			}
-			catch (...) {
-			}
-		}
-	}
-
 	void OnWorldInit() override
 	{
-		ci::Chat::AddMessage(L"Fix NPC");
-
-		FixNPCs();
-
 		delete new ci::Recipe("VI", nullptr, 0);
 
 		static bool firstInit = true;
@@ -2682,9 +2660,6 @@ class ClientLogic : public ci::IClientLogic
 			
 			}
 		}
-		else if (cmdText == L"//hit")
-		{
-		}
 		else if (cmdText == L"//tpd")
 		{
 			if (dataSearchEnabled)
@@ -2703,98 +2678,25 @@ class ClientLogic : public ci::IClientLogic
 			net.sendDoors = !net.sendDoors;
 			ci::Chat::AddMessage(net.sendDoors ? L"#BEBEBE" L"DataSearch door loading started" : L"#BEBEBE" L"DataSearch door loading stopped");
 		}
-		else if (cmdText == L"//sit")
+		else if (cmdText == L"//clonenpc" || cmdText == L"//combat" || cmdText == L"//testalch" || cmdText == L"//hit" || cmdText == L"//sit")
 		{
-			localPlayer->PlayAnimation(21);
+			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.1");
 		}
-		else if (cmdText == L"//clonenpc")
+		else if (cmdText == L"//tracehost")
 		{
-			auto localBear = new ci::RemotePlayer(
-				localPlayer->GetName(),
-				localPlayer->GetLookData(),
-				localPlayer->GetPos(),
-				localPlayer->GetCell(),
-				localPlayer->GetWorldSpace(),
-				nullptr);
-
-			auto remoteBear = new ci::RemotePlayer(
-				localPlayer->GetName(),
-				localPlayer->GetLookData(),
-				localPlayer->GetPos(),
-				localPlayer->GetCell(),
-				localPlayer->GetWorldSpace(),
-				nullptr);
-
-			localBear->SetEngine("RPEngineIO");
-			localBear->SetMark("LocalBearMark");
-			localBear->SetNicknameVisible(true);
-			localBear->SetName(L"LocalBear");
-			//localBear->SetBaseNPC(0x9B2AB);
-
-			remoteBear->SetEngine("RPEngineInput");
-			remoteBear->SetMark("RemoteBear");
-			remoteBear->SetNicknameVisible(true);
-			remoteBear->SetName(L"RemoteBear");
-			//remoteBear->SetBaseNPC(0x9B2AB);
-
-			auto upd = [=] {
-				auto md = localBear->GetMovementData();
-				md.pos += {128, 128, 0};
-				remoteBear->ApplyMovementData(md);
-				localBear->StartCombat(localPlayer);
-				//localBear->PathTo(localPlayer->GetPos(), true);
-
-				auto hitAnim = localBear->GetNextHitAnim();
-				if (hitAnim != nullptr)
-				{
-					if (md.isBlocking == false)
-						remoteBear->PlayAnimation(*hitAnim);
-					else
-					{
-						enum {
-							BlockStartIDInternal = (uint32_t(-1)) - 1010
-						};
-						ci::RegisterAnimation("BlockStart", BlockStartIDInternal);
-						remoteBear->PlayAnimation(BlockStartIDInternal);
-					}
-				}
-
-				for (auto p : { remoteBear, localBear })
-				{
-					auto armor = localPlayer->GetEquippedArmor();
-					for (auto item : armor)
-					{
-						p->AddItem(item, 1, true);
-						p->EquipItem(item, true, false, false);
-					}
-
-					auto handR = localPlayer->GetEquippedWeapon(),
-						handL = localPlayer->GetEquippedWeapon(true);
-					if (handR)
-					{
-						p->AddItem(handR, 1, true);
-						p->EquipItem(handR, true, false, false);
-					}
-					if (handL)
-					{
-						p->AddItem(handL, 1, true);
-						p->EquipItem(handL, true, false, true);
-					}
-				}
-			};
-
-			testUpd.Add(upd);
+			ci::Chat::AddMessage(L"#BEBEBE" L">> tracehost");
+			tracehost = !tracehost;
 		}
 		else if (cmdText == L"//clone")
 		{
 			auto onHit = [](const ci::HitEventData &eventData) {
 				std::wstring msg;
 				if (eventData.spell != nullptr)
-					msg = (L"Magic Hit");
+					msg = (L"#BEBEBE" L"Debug: Magic Hit");
 				else if (eventData.weapon != nullptr)
-					msg = (L"Weap Hit");
+					msg = (L"#BEBEBE" L"Debug: Weap Hit");
 				else
-					msg = (L"H2H Hit");
+					msg = (L"#BEBEBE" L"Debug: H2H Hit");
 				ci::Chat::AddMessage(msg + L" " + StringToWstring(eventData.hitSrcMark));
 			};
 
@@ -2805,17 +2707,6 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->GetCell(), 
 				localPlayer->GetWorldSpace(), 
 				onHit);
-
-			//p->SetEngine("RPEngineIO");
-			//p->SetMark("LocalBotMark");
-			//p->SetNicknameVisible(false);
-
-			//auto ld = p->GetLookData();
-			//ld.raceID = 0x000131E9;
-			//p->ApplyLookData(ld);
-			//p->SetBaseNPC(0x23A8A);
-
-			//p->ApplyMovementData(localPlayer->GetMovementData());
 
 			auto armor = localPlayer->GetEquippedArmor();
 			for (auto item : armor)
@@ -2855,64 +2746,6 @@ class ClientLogic : public ci::IClientLogic
 				testUpd.Add([=] {
 					this->OnChatCommand(L"//eq", {});
 				});
-			}
-		}
-		else if (cmdText == L"//testalch")
-		{
-			static auto FalmerEar = new ci::ItemType(
-				ci::ItemType::Class::Ingredient,
-				ci::ItemType::Subclass(NULL),
-				0x0003AD5D
-			);
-			static auto AlchDamageHealth = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::ValueMod,
-				0x0003EB42,
-				ci::MagicEffect::CastingType::FireAndForget,
-				ci::MagicEffect::Delivery::Self
-			);
-			static auto AlchResistPoison = new ci::MagicEffect(
-				ci::MagicEffect::Archetype::PeakValueMod,
-				0x00090041,
-				ci::MagicEffect::CastingType::FireAndForget,
-				ci::MagicEffect::Delivery::Self
-			);
-			if (FalmerEar->GetNumEffects() == 0)
-			{
-				FalmerEar->AddEffect(AlchDamageHealth, 2.0, 1.0);
-				FalmerEar->AddEffect(AlchResistPoison, 1.0, 60.0);
-			}
-			FalmerEar->SetGoldValue(25);
-			FalmerEar->SetNthEffectKnown(0, false);
-			FalmerEar->SetNthEffectKnown(1, false);
-			localPlayer->AddItem(FalmerEar, 1, false);
-
-			static auto FoodCabbadge = new ci::ItemType(
-				ci::ItemType::Class::Potion,
-				ci::ItemType::Subclass::ALCH_Food,
-				0x00064B3F
-			);
-			if (FoodCabbadge->GetNumEffects() == 0)
-			{
-				FoodCabbadge->AddEffect(AlchDamageHealth, 30.0, 1.0);
-				FoodCabbadge->AddEffect(AlchResistPoison, 90.0, 60.0);
-			}
-			localPlayer->AddItem(FoodCabbadge, 1, false);
-		}
-		else if (cmdText == L"//combat")
-		{
-			int32_t i = 0;
-			static std::array<ci::RemotePlayer *, 2> acs = { nullptr, nullptr };
-			for (auto p : ps)
-			{
-				i = !i;
-				acs[i] = p;
-			}
-
-			if (acs.front() != nullptr && acs.back() != nullptr)
-			{
-				acs.front()->StartCombat(acs.back());
-				acs.front()->SetMark("Test1Mark");
-				acs.back()->SetMark("Test2Mark");
 			}
 		}
 		else if (cmdText == L"//cddbg" || cmdText == L"//cdtrace")
@@ -3196,17 +3029,20 @@ class ClientLogic : public ci::IClientLogic
 		}
 	}
 
+	void SendAnimation(uint32_t animID, uint16_t source)
+	{
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_ANIMATION_EVENT_HIT);
+		bsOut.Write(animID);
+		bsOut.Write(source);
+		net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+	}
+
 	void UpdateCombat()
 	{
 		const auto hitAnimIDPtr = dynamic_cast<ci::LocalPlayer *>(localPlayer)->GetNextHitAnim();
 		if (hitAnimIDPtr != nullptr)
-		{
-			RakNet::BitStream bsOut;
-			bsOut.Write(ID_ANIMATION_EVENT_HIT);
-			bsOut.Write(*hitAnimIDPtr);
-			bsOut.Write(net.myID);
-			net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
-		}
+			this->SendAnimation(*hitAnimIDPtr, net.myID);
 	}
 
 	void UpdateActorValues()
