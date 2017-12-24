@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.2";
+auto version = "0.14.3";
 
 #include "Agent.h"
 
@@ -681,6 +681,10 @@ class ClientLogic : public ci::IClientLogic
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
 				try {
 					auto source = players.at((uint16_t)atoi(eventData.hitSrcMark.data()));
+					if (tracehost)
+					{
+						ci::Chat::AddMessage(L"#BEBEBEHit Mark = " + StringToWstring(eventData.hitSrcMark));
+					}
 					this->OnHit(players.at(id), source, eventData);
 				}
 				catch (...) {
@@ -2268,6 +2272,13 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(spellID);
 		bsOut.Write(sourceID);
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
+		if (tracehost)
+		{
+			std::wstringstream ss;
+			ss << L"#BEBEBE" << L"OnHit Source = " << sourceID << L"OnHit Target = " << playerID;
+			ci::Chat::AddMessage(ss.str());
+		}
 	}
 
 	void OnHit(ci::Object *hitTarget, const ci::HitEventData &eventData)
