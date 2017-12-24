@@ -137,8 +137,10 @@ namespace ci
 		float pathingSpeedmult = 100;
 		clock_t lastConsoleCommand = 0;
 		TESNPC *baseNpc = nullptr;
+		uint32_t baseNpcID = 0;
 		std::string mark;
 		uint32_t combatTarget = 0;
+		std::function<void()> engineTask = nullptr;
 
 		struct Equipment
 		{
@@ -232,7 +234,8 @@ namespace ci
 			{
 				pimpl->lookData = lookData;
 				if (pimpl->spawnStage == SpawnStage::Spawned)
-					this->GetParent()->ForceDespawn(L"Despawned: LookData updated");
+					if (this->GetParent()->IsDerived() == false)
+						this->GetParent()->ForceDespawn(L"Despawned: LookData updated");
 			}
 		}
 
@@ -619,8 +622,8 @@ namespace ci
 				}
 			}
 
-			sd::SetActorValue(actor, "Confidence", 0.0);
-			sd::ForceActorValue(actor, "Confidence", 0.0);
+			sd::SetActorValue(actor, "Confidence", 4.0);
+			sd::ForceActorValue(actor, "Confidence", 4.0);
 		}
 	};
 
@@ -1361,8 +1364,10 @@ namespace ci
 
 	void RemotePlayer::UpdateNonSpawned()
 	{
-		pimpl->nicknameLabel = nullptr;
-		pimpl->visualMagicEffect = nullptr;
+		SAFE_CALL("RemotePlayer", [&] {
+			pimpl->nicknameLabel = nullptr;
+			pimpl->visualMagicEffect = nullptr;
+		});
 
 		if (Utility::IsForegroundProcess())
 		{
@@ -1371,26 +1376,62 @@ namespace ci
 			const bool isInterior = localPlCell ? sd::IsInterior(localPlCell) : false;
 			const FormID worldSpaceID = sd::GetWorldSpace(g_thePlayer) ? sd::GetWorldSpace(g_thePlayer)->formID : NULL;
 
-			static clock_t *firstSpawnAttempt = nullptr;
-			if (firstSpawnAttempt == nullptr)
-				firstSpawnAttempt = new clock_t{ clock() };
-			if (*firstSpawnAttempt + 2333 < clock()
-				&& markerFormID
-				&& NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() < GetRespawnRadius(isInterior)
-				&& (pimpl->currentNonExteriorCell == CellUtil::GetParentNonExteriorCell(g_thePlayer) || pimpl->currentNonExteriorCell == nullptr)
-				&& pimpl->worldSpaceID == worldSpaceID
-				)
-			{
-				if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
+			//SAFE_CALL("RemotePlayer", [&] {
+
+				static clock_t *firstSpawnAttempt = nullptr;
+				if (firstSpawnAttempt == nullptr)
+					firstSpawnAttempt = new clock_t{ clock() };
+
+
+				bool part1, part2, part3, part4 = false;
+
+				part1 = *firstSpawnAttempt + 2333 < clock();
+
+				part2 = NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() < GetRespawnRadius(isInterior);
+
+				part3 = (pimpl->currentNonExteriorCell == CellUtil::GetParentNonExteriorCell(g_thePlayer) || pimpl->currentNonExteriorCell == nullptr);
+
+				part4 = pimpl->worldSpaceID == worldSpaceID;
+
+				if (part1
+					&& part2
+					&& part3
+					&& part4
+					&& markerFormID)
 				{
-					currentSpawning = this;
-					lastForceSpawn = clock();
-					auto npc = pimpl->baseNpc ? pimpl->baseNpc : this->AllocateNPC();
-					currentSpawningBaseID = npc->GetFormID();
-					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
-					return this->ForceSpawn(npc);
+					//SAFE_CALL("RemotePlayer", [&] {
+						if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
+						{
+							SAFE_CALL("RemotePlayer", [&] {
+								currentSpawning = this;
+							});
+							SAFE_CALL("RemotePlayer", [&] {
+								lastForceSpawn = clock();
+							});
+							auto npc = pimpl->baseNpc ? pimpl->baseNpc : this->AllocateNPC();
+							SAFE_CALL("RemotePlayer", [&] {
+								currentSpawningBaseID = npc->GetFormID();
+							});
+							SAFE_CALL("RemotePlayer", [&] {
+								WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
+							});
+							SAFE_CALL("RemotePlayer", [&] {
+
+								if (pimpl->baseNpc != LookupFormByID(pimpl->baseNpcID))
+								{
+									pimpl->baseNpc = (TESNPC *)LookupFormByID(pimpl->baseNpcID);
+									ErrorHandling::SendError("WARN:RemotePlayer Bad NPC");
+								}
+
+								auto code = this->ForceSpawn(npc);
+								if (code != 6)
+									ErrorHandling::SendError("ERROR:RemotePlayer ForceSpawn %d", code);
+							});
+							return;
+						}
+					//});
 				}
-			}
+			//});
 		}
 	}
 
@@ -1828,7 +1869,7 @@ namespace ci
 	void RemotePlayer::DespawnIfNeed(Actor *actor)
 	{
 		SAFE_CALL("RemotePlayer", [&] {
-			if (pimpl->baseNpc == nullptr && pimpl->height != ((TESNPC *)actor->baseForm)->height)
+			if (this->IsDerived() == false && pimpl->baseNpc == nullptr && pimpl->height != ((TESNPC *)actor->baseForm)->height)
 				this->ForceDespawn(L"Despawned: Height changed");
 		});
 
@@ -1915,32 +1956,57 @@ namespace ci
 		if (!actor)
 			return this->ForceDespawn(L"Despawned: Unloaded by the game");
 
-		if (pimpl->baseNpc == nullptr)
-		{
-			if (pimpl->spawnMoment + 1000 < clock()
-				&& (sd::GetRace(actor)->formID != this->pimpl->lookData.raceID || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
-				&& this->pimpl->lookData.isEmpty() == false)
+		bool brk = false;
+		SAFE_CALL("RemotePlayer", [&] {
+			if (pimpl->baseNpc == nullptr)
 			{
-				auto lookData = this->pimpl->lookData;
-				this->pimpl->lookData = {};
-				this->ApplyLookData(lookData);
-				return;
+				if (pimpl->spawnMoment + 1000 < clock()
+					&& (sd::GetRace(actor)->formID != this->pimpl->lookData.raceID || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
+					&& this->pimpl->lookData.isEmpty() == false)
+				{
+					auto lookData = this->pimpl->lookData;
+					this->pimpl->lookData = {};
+					this->ApplyLookData(lookData);
+					brk = true;
+				}
+			}
+		});
+		if (brk)
+			return;
+
+		SAFE_CALL("RemotePlayer", [&] {
+			pimpl->movementDataOut = MovementData_::Get(actor);
+			if (pimpl->angleTask)
+			{
+				pimpl->angleTask(actor);
+				pimpl->angleTask = nullptr;
+			}
+			if (pimpl->posTask)
+			{
+				pimpl->posTask(actor);
+				pimpl->posTask = nullptr;
+			}
+		});
+
+
+		if (pimpl->engineTask)
+		{
+			pimpl->engineTask();
+			pimpl->engineTask = nullptr;
+		}
+		pimpl->engine->EngineUpdateSpawned(actor);
+
+		if (this->IsDerived() == false)
+		{
+			if (pimpl->baseNpc != nullptr && pimpl->baseNpcID != 0)
+			{
+				if (pimpl->baseNpc->GetRace() != actor->GetRace())
+				{
+					ErrorHandling::SendError("ERROR:RemotePlayer Bad race");
+					return this->ForceDespawn(L"Bad race");
+				}
 			}
 		}
-
-		pimpl->movementDataOut = MovementData_::Get(actor);
-		if (pimpl->angleTask)
-		{
-			pimpl->angleTask(actor);
-			pimpl->angleTask = nullptr;
-		}
-		if (pimpl->posTask)
-		{
-			pimpl->posTask(actor);
-			pimpl->posTask = nullptr;
-		}
-
-		pimpl->engine->EngineUpdateSpawned(actor);
 
 		this->UpdateNickname(actor);
 
@@ -1985,10 +2051,12 @@ namespace ci
 
 	void RemotePlayer::Update()
 	{
-		try {
-			std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+		std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+		
+		const auto spawnStage = pimpl->spawnStage;
 
-			switch (pimpl->spawnStage)
+		try {
+			switch (spawnStage)
 			{
 			case SpawnStage::NonSpawned:
 				this->UpdateNonSpawned();
@@ -2004,7 +2072,7 @@ namespace ci
 			}
 		}
 		catch (...) {
-			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s'", WstringToString(this->GetName()).data());
+			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s' %d ", WstringToString(this->GetName()).data(), (int32_t)spawnStage);
 		}
 	}
 
@@ -2016,102 +2084,138 @@ namespace ci
 			return this->ForceDespawn(L"Despawned: Window isn't active");
 	}
 
-	void RemotePlayer::ForceSpawn(TESNPC *npc)
+	int32_t RemotePlayer::ForceSpawn(TESNPC *npc)
 	{
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		int32_t code = 0;
 
-		if (pimpl->spawnStage != SpawnStage::NonSpawned)
-			return;
-
-		this->DestroyGnomes();
-
-		pimpl->spawnStage = SpawnStage::Spawning;
-
-		auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
-		if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
-			refToPlaceAt = nullptr;
-		if (errorsInSpawn > 28 || !refToPlaceAt)
-			refToPlaceAt = g_thePlayer;
-
-		const bool der = this->IsDerived();
-		auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
-			auto setAVsToDefault = [](Actor *actor) {
-				sd::SetActorValue(actor, "Confidence", 0.0);
-				sd::ForceActorValue(actor, "Confidence", 0.0);
-				sd::SetActorValue(actor, "Agression", 0.0);
-				sd::SetActorValue(actor, "attackdamagemult", 0.0);
-				sd::SetActorValue(actor, "Variable01", rand());
-				sd::SetActorValue(actor, "MagicResist", 99);
-			};
-
-			auto actor = (Actor *)LookupFormByID(ac.GetFormID());
-			if (actor != nullptr)
+		//SAFE_CALL("RemotePlayer", [&] {
+			if (npc == nullptr)
 			{
-				setAVsToDefault(actor);
-				sd::AddItem(actor, LookupFormByID(ID_TESSoulGem::SoulGemBlack), 100, true);
+				ErrorHandling::SendError("ERROR:RemotePlayer Null NPC");
+				return code;
 			}
-			SET_TIMER_LIGHT(der ? 0 : 300, [=] {
-				const auto id = ac.GetFormID();
-				if (LookupFormByID(id) == nullptr)
-					return;
+			++code;
 
-				std::lock_guard<dlf_mutex> l(gMutex);
-				if (allRemotePlayers.find(this) == allRemotePlayers.end())
-					return;
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
-				std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+			if (pimpl->spawnStage != SpawnStage::NonSpawned)
+				return code;
+			++code;
 
-				pimpl->formID = id;
-				WorldCleaner::GetSingleton()->SetFormProtected(pimpl->formID, true);
-				pimpl->spawnStage = SpawnStage::Spawned;
-				pimpl->spawnMoment = clock();
-				pimpl->greyFaceFixed = false;
-				pimpl->syncState = {};
+			this->DestroyGnomes();
+			
+			++code;
+			pimpl->spawnStage = SpawnStage::Spawning;
 
-				auto actor = (Actor *)LookupFormByID(id);
+			auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
+			if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
+				refToPlaceAt = nullptr;
+			if (errorsInSpawn > 28 || !refToPlaceAt)
+				refToPlaceAt = g_thePlayer;
+
+			++code;
+
+			const bool der = this->IsDerived();
+			auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
+				auto setAVsToDefault = [](Actor *actor) {
+					sd::SetActorValue(actor, "Confidence", 4.0);
+					sd::ForceActorValue(actor, "Confidence", 4.0);
+					sd::SetActorValue(actor, "Agression", 0.0);
+					sd::SetActorValue(actor, "attackdamagemult", 0.0);
+					sd::SetActorValue(actor, "Variable01", rand());
+					sd::SetActorValue(actor, "MagicResist", 99);
+				};
+
+				auto actor = (Actor *)LookupFormByID(ac.GetFormID());
 				if (actor != nullptr)
 				{
 					setAVsToDefault(actor);
-
-					BSFixedString name = WstringToString(pimpl->name).c_str();
-					actor->SetDisplayName(name, true);
-
-					cd::SetPosition(ac, pimpl->movementData.pos);
-					sd::RemoveFromAllFactions(actor);
-					sd::BlockActivation(actor, true);
-					sd::AllowPCDialogue(actor, false);
-
-					enum {
-						CWPlayerAlly = 0x0008F36D,
-					};
-					cd::AddToFaction(
-						cd::Value<Actor>(actor->formID),
-						cd::Value<TESFaction>(CWPlayerAlly));
-
-					if (!this->IsDerived())
-					{
-					}
+					sd::AddItem(actor, LookupFormByID(ID_TESSoulGem::SoulGemBlack), 100, true);
 				}
+				SET_TIMER_LIGHT(der ? 0 : 300, [=] {
+					const auto id = ac.GetFormID();
+					if (LookupFormByID(id) == nullptr)
+						return;
 
-				cd::KeepOffsetFromActor(cd::Value<Actor>(ac.GetFormID()), cd::Value<Actor>(ac.GetFormID()), 0, 0, 0, 0, 0, 0, 1, 1);
+					std::lock_guard<dlf_mutex> l(gMutex);
+					if (allRemotePlayers.find(this) == allRemotePlayers.end())
+						return;
 
-				if (currentSpawning == this)
-					currentSpawning = nullptr;
-			});
-		};
+					std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 
-		if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
-		{
-			auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, false);
-			cd::Value<TESObjectREFR> cdRefr = refr;
-			SET_TIMER_LIGHT(200, [cdRefr, onPlace] {
-				onPlace(cdRefr);
-			});
-		}
-		else
-		{
-			cd::PlaceAtMe(refToPlaceAt, npc, 1, true, false, onPlace);
-		}
+					pimpl->formID = id;
+					WorldCleaner::GetSingleton()->SetFormProtected(pimpl->formID, true);
+					pimpl->spawnStage = SpawnStage::Spawned;
+					pimpl->spawnMoment = clock();
+					pimpl->greyFaceFixed = false;
+					pimpl->syncState = {};
+
+					auto actor = (Actor *)LookupFormByID(id);
+					if (actor != nullptr)
+					{
+						setAVsToDefault(actor);
+
+						BSFixedString name = WstringToString(pimpl->name).c_str();
+						actor->SetDisplayName(name, true);
+
+						cd::SetPosition(ac, pimpl->movementData.pos);
+						sd::RemoveFromAllFactions(actor);
+						sd::BlockActivation(actor, true);
+						sd::AllowPCDialogue(actor, false);
+
+						enum {
+							CWPlayerAlly = 0x0008F36D,
+						};
+						cd::AddToFaction(
+							cd::Value<Actor>(actor->formID),
+							cd::Value<TESFaction>(CWPlayerAlly));
+
+						if (!this->IsDerived())
+						{
+						}
+					}
+
+					cd::KeepOffsetFromActor(cd::Value<Actor>(ac.GetFormID()), cd::Value<Actor>(ac.GetFormID()), 0, 0, 0, 0, 0, 0, 1, 1);
+
+					if (currentSpawning == this)
+						currentSpawning = nullptr;
+				});
+			};
+
+			++code;
+
+			if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
+			{
+				SAFE_CALL("RemotePlayer", [&] {
+					if (refToPlaceAt == nullptr)
+						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 1");
+					if (npc == nullptr)
+						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
+					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, false);
+					if (refr == nullptr)
+						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
+
+
+					cd::Value<TESObjectREFR> cdRefr;
+					try {
+						cdRefr = refr;
+					}
+					catch (...) {
+						ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() cd::Value wtf");
+					}
+					SET_TIMER_LIGHT(200, [cdRefr, onPlace] {
+						onPlace(cdRefr);
+					});
+				});
+			}
+			else
+			{
+				cd::PlaceAtMe(refToPlaceAt, npc, 1, true, false, onPlace);
+			}
+			++code;
+		//});
+
+		return code;
 	}
 
 	void RemotePlayer::ForceDespawn(const wchar_t *reason)
@@ -2418,12 +2522,15 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
-		if (engineName == "RPEngineInput")
-			return pimpl->engine.reset(new RPEngineInput(this));
-		if (engineName == "RPEngineIO")
-			return pimpl->engine.reset(new RPEngineIO(this));
+		auto engineTask = [=] {
+			if (engineName == "RPEngineInput")
+				return pimpl->engine.reset(new RPEngineInput(this));
+			if (engineName == "RPEngineIO")
+				return pimpl->engine.reset(new RPEngineIO(this));
 
-		ErrorHandling::SendError("ERROR:RemotePlayer Unknown engine");
+			return ErrorHandling::SendError("ERROR:RemotePlayer Unknown engine %s", engineName.data());
+		};
+		pimpl->engineTask = engineTask;
 	}
 
 	std::string RemotePlayer::GetEngine() const
@@ -2454,9 +2561,12 @@ namespace ci
 
 	void RemotePlayer::SetBaseNPC(uint32_t npcID)
 	{
+		auto lastNpc = pimpl->baseNpc;
+
 		if (npcID == 0 || npcID == ~0)
 		{
 			pimpl->baseNpc = nullptr;
+			pimpl->baseNpcID = 0;
 		}
 		else
 		{
@@ -2480,7 +2590,7 @@ namespace ci
 				newNpc->TESContainer::entries = nullptr;
 				newNpc->TESContainer::numEntries = 0;
 				newNpc->TESSpellList::unk04 = nullptr;
-				newNpc->faction = nullptr;
+				//newNpc->faction = nullptr;
 				newNpc->nextTemplate = nullptr;
 				newNpc->TESActorBaseData::flags.pcLevelMult = false;
 				newNpc->TESActorBaseData::flags.unique = true;
@@ -2513,7 +2623,14 @@ namespace ci
 		}
 
 		if (pimpl->spawnStage == SpawnStage::Spawned)
-			this->ForceDespawn(L"Despawned: Base NPC updated");
+		{
+			if (lastNpc != pimpl->baseNpc)
+			{
+				pimpl->baseNpcID = pimpl->baseNpc->formID;
+				if (this->IsDerived() == false)
+					this->ForceDespawn(L"Despawned: Base NPC updated");
+			}
+		}
 	}
 
 	void RemotePlayer::SetMark(const std::string &mark)

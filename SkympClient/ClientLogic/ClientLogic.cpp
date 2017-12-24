@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.11";
+auto version = "0.14";
 
 #include "Agent.h"
 
@@ -38,6 +38,8 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Text3D *> text3Ds;
 	std::map<uint32_t, std::string> keywords;
 	std::map<uint32_t, ci::Recipe *> recipes;
+	std::map<uint16_t, uint32_t> baseNPCs;
+	std::set<uint16_t> hostedPlayers;
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
@@ -563,6 +565,11 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_MOVEMENT:
 		{
+			if (rand() % 15 == 0)
+			{
+				FixNPCs();
+			}
+
 			uint16_t playerid = ~0;
 			bsIn.Read(playerid);
 			ci::MovementData movData;
@@ -580,7 +587,10 @@ class ClientLogic : public ci::IClientLogic
 				if (lastFurniture[playerid] != 0)
 					movData.runMode = ci::MovementData::RunMode::Standing;
 				if (enabled)
-					player->ApplyMovementData(movData);
+				{
+					if (hostedPlayers.count(playerid) == 0)
+						player->ApplyMovementData(movData);
+				}
 				player->SetCell(localPlayer->GetCell());
 				player->SetWorldSpace(localPlayer->GetWorldSpace());
 
@@ -674,7 +684,8 @@ class ClientLogic : public ci::IClientLogic
 
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
 				try {
-					this->OnHit(players.at(id), eventData);
+					auto source = players.at((uint16_t)atoi(eventData.hitSrcMark.data()));
+					this->OnHit(players.at(id), source, eventData);
 				}
 				catch (...) {
 				}
@@ -686,7 +697,9 @@ class ClientLogic : public ci::IClientLogic
 				players[id] = nullptr;
 			}
 
-			players[id] = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);
+			auto newPl = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);;
+			newPl->SetMark(std::to_string(id));
+			players[id] = newPl;
 			lastFurniture[id] = 0;
 
 			uint32_t animID = ~0;
@@ -695,6 +708,16 @@ class ClientLogic : public ci::IClientLogic
 			{
 				players[id]->PlayAnimation(animID);
 			}
+
+			uint32_t baseNpc = 0;
+			bsIn.Read(baseNpc);
+			if (baseNpc != 0 && baseNpc != ~0)
+			{
+				baseNPCs[id] = baseNpc;
+				newPl->SetBaseNPC(baseNpc);
+			}
+			else
+				baseNPCs.erase(id);
 			break;
 		}
 		case ID_PLAYER_DESTROY:
@@ -2031,6 +2054,41 @@ class ClientLogic : public ci::IClientLogic
 
 			break;
 		}
+		case ID_PLAYER_HOST:
+		{
+			uint16_t playerID, hostID;
+			uint8_t isNpc;
+			bsIn.Read(playerID);
+			bsIn.Read(hostID);
+			bsIn.Read(isNpc);
+			if (isNpc)
+			{
+				if (players.count(playerID) == 0)
+					return;
+				auto remPl = dynamic_cast<ci::RemotePlayer *>(players.at(playerID));
+				if (remPl == nullptr)
+					return;
+
+				remPl->SetNicknameVisible(false);
+
+				std::string engine;
+
+				if (hostID == net.myID)
+				{
+					engine = ("RPEngineIO");
+					hostedPlayers.insert(playerID);
+				}
+				else
+				{
+					engine = ("RPEngineInput");
+					hostedPlayers.erase(playerID);
+				}
+
+				if (remPl->GetEngine() != engine)
+					remPl->SetEngine(engine);
+			}
+			break;
+		}
 		default:
 			ci::Chat::AddMessage(L"Unknown packet type " + std::to_wstring(packet->data[0]));
 			break;
@@ -2057,10 +2115,41 @@ class ClientLogic : public ci::IClientLogic
 					&& !movementData.isEmpty()
 					&& !ci::IsInPause())
 				{
-					RakNet::BitStream bsOut;
-					bsOut.Write(ID_UPDATE_MOVEMENT);
-					Serialize(bsOut, movementData);
-					net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+					auto sendMovement = [this](uint16_t movementOwner, const ci::MovementData &movement) {
+						RakNet::BitStream bsOut;
+						bsOut.Write(ID_UPDATE_MOVEMENT);
+						Serialize(bsOut, movement);
+						bsOut.Write(movementOwner);
+						net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+					};
+
+					sendMovement(net.myID, movementData);
+
+					for (auto hosted : hostedPlayers)
+					{
+						try {
+							const auto hostedPl = players.at(hosted);
+							const auto md = hostedPl->GetMovementData();
+							sendMovement(hosted, md);
+
+							auto asRemote = dynamic_cast<ci::RemotePlayer *>(hostedPl);
+							if (asRemote != nullptr)
+								asRemote->StartCombat(localPlayer);
+
+							const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
+							if (hitAnimIDPtr != nullptr)
+							{
+								RakNet::BitStream bsOut;
+								bsOut.Write(ID_ANIMATION_EVENT_HIT);
+								bsOut.Write(*hitAnimIDPtr);
+								bsOut.Write(hosted);
+								net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+							}
+
+						}
+						catch (...) {
+						}
+					}
 				}
 			}
 		}
@@ -2160,11 +2249,12 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
-	void OnHit(ci::IActor *hitTarget, const ci::HitEventData &eventData)
+	void OnHit(ci::IActor *hitTarget, ci::IActor *hitSource, const ci::HitEventData &eventData)
 	{
 		const auto playerID = GetID(hitTarget);
 		const auto weaponID = GetID(eventData.weapon);
 		const auto spellID = GetID(eventData.spell);
+		const auto sourceID = GetID(hitSource);
 
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_HIT_PLAYER);
@@ -2172,6 +2262,7 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(weaponID);
 		bsOut.Write(eventData.powerAttack);
 		bsOut.Write(spellID);
+		bsOut.Write(sourceID);
 		net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
@@ -2190,8 +2281,32 @@ class ClientLogic : public ci::IClientLogic
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
+	void FixNPCs()
+	{
+		for (auto &pair : baseNPCs)
+		{
+			try {
+				auto pl = players.at(pair.first);
+				if (pl)
+				{
+					auto rPl = dynamic_cast<ci::RemotePlayer *>(pl);
+					if (rPl)
+					{
+						rPl->SetBaseNPC(pair.second);
+					}
+				}
+			}
+			catch (...) {
+			}
+		}
+	}
+
 	void OnWorldInit() override
 	{
+		ci::Chat::AddMessage(L"Fix NPC");
+
+		FixNPCs();
+
 		delete new ci::Recipe("VI", nullptr, 0);
 
 		static bool firstInit = true;
@@ -2215,7 +2330,16 @@ class ClientLogic : public ci::IClientLogic
 			});
 
 			localPlayer->onHit.Add([=](ci::HitEventData evn) {
-				ci::Chat::AddMessage(L"Hit by" + StringToWstring(evn.hitSrcMark));
+				try {
+					auto source = players.at((uint16_t)atoi(evn.hitSrcMark.data()));
+					if (!source)
+						ci::Log("ERROR:ClientLogic Invalid hit source");
+					else
+						this->OnHit(localPlayer, source, evn);
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic LocalPlayer OnHit()");
+				}
 			});
 		}
 
@@ -2560,12 +2684,6 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//hit")
 		{
-			RakNet::BitStream bsOut;
-			bsOut.Write(ID_HIT_PLAYER);
-			bsOut.Write(net.myID);
-			bsOut.Write(GetID(localPlayer->GetEquippedWeapon()));
-			bsOut.Write(false);
-			net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 		}
 		else if (cmdText == L"//tpd")
 		{
@@ -3086,6 +3204,7 @@ class ClientLogic : public ci::IClientLogic
 			RakNet::BitStream bsOut;
 			bsOut.Write(ID_ANIMATION_EVENT_HIT);
 			bsOut.Write(*hitAnimIDPtr);
+			bsOut.Write(net.myID);
 			net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
 		}
 	}

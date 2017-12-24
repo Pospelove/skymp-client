@@ -126,7 +126,7 @@ namespace ci
 		void Update();
 		void Update_OT();
 
-		void ForceSpawn(TESNPC *npc);
+		int32_t ForceSpawn(TESNPC *npc);
 		void ForceDespawn(const wchar_t *reason = L"");
 
 		int32_t GetSyncMode() const;
