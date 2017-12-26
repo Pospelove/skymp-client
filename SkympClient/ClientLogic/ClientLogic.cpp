@@ -18,11 +18,9 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.4";
+auto version = "0.14.5";
 
 #include "Agent.h"
-
-std::map<int32_t, ci::MovementData> recordData;
 
 class ClientLogic : public ci::IClientLogic
 {
@@ -43,8 +41,6 @@ class ClientLogic : public ci::IClientLogic
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
-	bool record = false;
-	clock_t recordStart = 0;
 	std::map<uint16_t, uint32_t> lastFurniture;
 	bool tracehost = false;
 
@@ -91,10 +87,6 @@ class ClientLogic : public ci::IClientLogic
 				md = ci::LocalPlayer::GetSingleton()->GetMovementData();
 			}
 			return md;
-
-			/*
-			auto ms = clock() - connectedMoment;
-			return recordData[ms];*/
 		}
 
 		virtual bool AmIOnPause() const
@@ -2347,11 +2339,6 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnUpdate() override
 	{
-		if (record)
-		{
-			int32_t ms = clock() - recordStart;
-			recordData[ms] = ci::LocalPlayer::GetSingleton()->GetMovementData();
-		}
 
 		for (auto &pair : bots)
 		{
@@ -2654,11 +2641,7 @@ class ClientLogic : public ci::IClientLogic
 
 				auto m = localPlayer->GetMovementData();
 				m.pos += offsets[p];
-				if (p->GetEngine() == "RPEngineInput")
-					p->ApplyMovementData(m);
-				else
-					//p->PathTo(m.pos, false)
-					;
+				p->ApplyMovementData(m);
 
 				int32_t clearVisualEffect = 0;
 				for(int32_t i = 1; i >= 0; --i)
@@ -2699,10 +2682,18 @@ class ClientLogic : public ci::IClientLogic
 		{
 			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.1");
 		}
+		else if (cmdText == L"//record")
+		{
+			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.5");
+		}
+		else if (cmdText == L"//bot")
+		{
+			ci::Chat::AddMessage(L"#BEBEBE" L"Use //bots");
+		}
 		else if (cmdText == L"//tracehost")
 		{
-			ci::Chat::AddMessage(L"#BEBEBE" L">> tracehost");
 			tracehost = !tracehost;
+			ci::Chat::AddMessage((std::wstring)L"#BEBEBE" L">> tracehost " + (tracehost ? L"On" : L"Off"));
 		}
 		else if (cmdText == L"//clone")
 		{
@@ -2787,29 +2778,6 @@ class ClientLogic : public ci::IClientLogic
 				}
 			}
 		}
-		else if (cmdText == L"//bot")
-		{
-			if (!dataSearchEnabled)
-				ci::Chat::AddMessage(L"#BEBEBE" L"You don't have permission");
-
-			if (arguments.empty())
-			{
-				ci::Chat::AddMessage(L"#BEBEBE" L"//bot <connect/disconnect> <name>");
-				return;
-			}
-
-			if (arguments.size() == 2)
-			{
-				if (arguments[0] == L"connect")
-				{
-					bots[arguments[1]].reset(new Bot(arguments[1]));
-				}
-				else if (arguments[0] == L"diconnect")
-				{
-					bots[arguments[1]].reset();
-				}
-			}
-		}
 		else if (cmdText == L"//bots")
 		{
 			if (!dataSearchEnabled)
@@ -2832,21 +2800,6 @@ class ClientLogic : public ci::IClientLogic
 					}
 				}).detach();
 
-			}
-		}
-		else if (cmdText == L"//record")
-		{
-			if (!record)
-			{
-				ci::Chat::AddMessage(L"#BEBEBE" L"Record started");
-				record = true;
-				recordData.clear();
-				recordStart = clock();
-			}
-			else
-			{
-				ci::Chat::AddMessage(L"#BEBEBE" L"Record finished");
-				record = false;
 			}
 		}
 		else

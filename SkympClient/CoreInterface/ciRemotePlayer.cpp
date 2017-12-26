@@ -1933,6 +1933,7 @@ namespace ci
 
 		SAFE_CALL("RemotePlayer", [&] {
 			pimpl->movementDataOut = MovementData_::Get(actor);
+			pimpl->movementData = pimpl->movementDataOut;
 			if (pimpl->angleTask)
 			{
 				pimpl->angleTask(actor);
