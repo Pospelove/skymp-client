@@ -139,6 +139,7 @@ namespace ci
 		std::string mark;
 		uint32_t combatTarget = 0;
 		std::function<void()> engineTask = nullptr;
+		bool fullySpawned = false;
 
 		struct Equipment
 		{
@@ -722,6 +723,8 @@ namespace ci
 		{
 			auto &pimpl = this->GetImpl();
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			if (pimpl->fullySpawned == false)
+				return pimpl->movementData;
 			return pimpl->movementDataOut;
 		}
 
@@ -1933,7 +1936,10 @@ namespace ci
 
 		SAFE_CALL("RemotePlayer", [&] {
 			pimpl->movementDataOut = MovementData_::Get(actor);
-			pimpl->movementData = pimpl->movementDataOut;
+			if ((pimpl->movementData.pos - pimpl->movementDataOut.pos).Length() < 128)
+			{
+				pimpl->fullySpawned = true;
+			}
 			if (pimpl->angleTask)
 			{
 				pimpl->angleTask(actor);
@@ -1947,7 +1953,7 @@ namespace ci
 		});
 
 
-		if (pimpl->engineTask)
+		if (pimpl->engineTask && clock() - pimpl->spawnMoment > 2500)
 		{
 			pimpl->engineTask();
 			pimpl->engineTask = nullptr;
@@ -2121,6 +2127,8 @@ namespace ci
 				});
 			};
 
+			pimpl->fullySpawned = false;
+
 			if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
 			{
 				//SAFE_CALL("RemotePlayer", [&] {
@@ -2170,13 +2178,6 @@ namespace ci
 				currentFixingGreyFace = nullptr;
 			pimpl->hitAnimsOut = {};
 			pimpl->engine->factionsState = IRemotePlayerEngine::FactionsState::Unknown;
-
-			if (this->IsDerived())
-			{
-				const auto strName = WstringToString(this->GetName());
-				const auto strReason = WstringToString(reason);
-				ErrorHandling::SendError("WARN:RemotePlayer '%s' (derived) would despawn with reason '%s'", strName.data(), strReason.data());
-			}
 		}
 	}
 
