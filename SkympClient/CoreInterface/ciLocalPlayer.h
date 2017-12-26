@@ -52,6 +52,7 @@ namespace ci
 		void SetDisplayGold(uint32_t count);
 		void AddActiveEffect(const ci::Spell *parentSpell, const ci::MagicEffect *effect, const ci::IActor *caster, float magnitude, int64_t endMoment);
 		void ClearActiveEffects();
+		void Resurrect();
 
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;

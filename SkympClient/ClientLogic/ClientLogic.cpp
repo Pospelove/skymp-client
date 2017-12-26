@@ -536,7 +536,9 @@ class ClientLogic : public ci::IClientLogic
 
 			lastLocation = in.cellOrWorldspace;
 
-			ci::SetTimer(100, [=] {
+			localPlayer->Resurrect();
+
+			ci::SetTimer(180, [=] {
 				if (ci::IsWorldSpace(in.cellOrWorldspace))
 					localPlayer->SetWorldSpace(in.cellOrWorldspace);
 				else if (ci::IsCell(in.cellOrWorldspace))

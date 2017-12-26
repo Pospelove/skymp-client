@@ -76,6 +76,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"NORMAL_PROCESSING_WITH_MENUS = 1\n"
 		"MUTE_SOUND_ON_TP = 1\n"
 		"FF_CAST_DELAY = 0\n"
+		"SAFE_DEATH = 1\n"
 
 		"; ci::Object\n"
 		"SAFE_ITEM_REMOVE = 255\n"

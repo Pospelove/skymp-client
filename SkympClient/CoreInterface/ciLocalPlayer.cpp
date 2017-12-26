@@ -1097,6 +1097,17 @@ void ci::LocalPlayer::ClearActiveEffects()
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 }
 
+void ci::LocalPlayer::Resurrect()
+{
+	SET_TIMER_LIGHT(1, [=] {
+		if (sd::IsDead(g_thePlayer) || sd::GetActorValue(g_thePlayer, "Health") == 0)
+		{
+			sd::RestoreActorValue(g_thePlayer, "Health", 99999);
+			sd::Wait(1000);
+		}
+	});
+}
+
 clock_t timer = clock() + 5000;
 bool set = false;
 
@@ -1523,9 +1534,44 @@ bool UpdateLockpicking()
 	return result;
 }
 
+class DeathHandler
+{
+public:
+	DeathHandler()
+	{
+		auto base = (TESNPC *)g_thePlayer->baseForm;
+		base->TESActorBaseData::flags.essential = true;
+	}
+
+	void Update()
+	{
+		const bool isDead = sd::GetActorValue(g_thePlayer, "Health") == 0;
+		if (isDead != this->wasDead)
+		{
+			this->OnDeath();
+			this->wasDead = isDead;
+		}
+	}
+
+	void OnDeath()
+	{
+		sd::PushActorAway(g_thePlayer, g_thePlayer, 1.f);
+	}
+
+private:
+	~DeathHandler();
+	bool wasDead = false;
+};
+
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
+	{
+		static auto deathH = new DeathHandler;
+		deathH->Update();
+	}
 
 	using EventT = TESActiveEffectApplyRemoveEvent;
 
