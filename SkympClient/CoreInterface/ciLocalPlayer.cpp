@@ -871,6 +871,11 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 		auto val = sd::GetActorValue(g_thePlayer, cstr);
 		auto dest = val / sd::GetActorValuePercentage(g_thePlayer, cstr) * percentage;
 		auto toRestore = dest - val;
+		if (dest == 0)
+		{
+			sd::ForceThirdPerson();
+			sd::Wait(500);
+		}
 		if (toRestore == toRestore)
 		{
 			if (toRestore > 0)
