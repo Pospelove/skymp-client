@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.5";
+auto version = "0.14.6";
 
 #include "Agent.h"
 
@@ -698,13 +698,6 @@ class ClientLogic : public ci::IClientLogic
 			players[id] = newPl;
 			lastFurniture[id] = 0;
 
-			uint32_t animID = ~0;
-			bsIn.Read(animID);
-			if (animID != ~0 && !ci::IsCombatAnimID(animID))
-			{
-				players[id]->PlayAnimation(animID);
-			}
-
 			uint32_t baseNpc = 0;
 			bsIn.Read(baseNpc);
 			if (baseNpc != 0 && baseNpc != ~0)
@@ -714,6 +707,10 @@ class ClientLogic : public ci::IClientLogic
 			}
 			else
 				baseNPCs.erase(id);
+			if (tracehost)
+			{
+				ci::Chat::AddMessage((L"#BEBEBE" L"BaseNPC ") + std::to_wstring(baseNpc));
+			}
 			break;
 		}
 		case ID_PLAYER_DESTROY:
