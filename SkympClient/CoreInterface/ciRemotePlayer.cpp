@@ -2071,6 +2071,7 @@ namespace ci
 			}
 
 			auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
+
 				auto setAVsToDefault = [](Actor *actor) {
 					sd::SetActorValue(actor, "Confidence", 4.0);
 					sd::ForceActorValue(actor, "Confidence", 4.0);
@@ -2085,6 +2086,10 @@ namespace ci
 				{
 					setAVsToDefault(actor);
 					sd::AddItem(actor, LookupFormByID(ID_TESSoulGem::SoulGemBlack), 100, true);
+					if (pimpl->baseNpc != nullptr)
+					{
+						sd::Enable(actor, true);
+					}
 				}
 
 				SET_TIMER_LIGHT(isDerived ? 0 : 300, [=] {
@@ -2129,6 +2134,8 @@ namespace ci
 
 			pimpl->fullySpawned = false;
 
+			const bool disable = (pimpl->baseNpc != nullptr);
+
 			if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
 			{
 				//SAFE_CALL("RemotePlayer", [&] {
@@ -2136,7 +2143,7 @@ namespace ci
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 1");
 					if (npc == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
-					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, false);
+					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable);
 					if (refr == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
 
@@ -2155,7 +2162,7 @@ namespace ci
 			}
 			else
 			{
-				cd::PlaceAtMe(refToPlaceAt, npc, 1, true, false, onPlace);
+				cd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable, onPlace);
 			}
 		//});
 	}

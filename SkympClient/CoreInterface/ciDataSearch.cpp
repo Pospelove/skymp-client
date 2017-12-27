@@ -235,6 +235,11 @@ void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 	WorldCleaner::GetSingleton()->SetCallback(FormType::NPC, [=](TESObjectREFR *ref) {
 		if (ref->formID > 0xFF000000)
 			return;
+		if (sd::IsDisabled(ref) == true)
+			return;
+		auto npc = (TESNPC *)ref->baseForm;
+		if (npc->TESActorBaseData::flags.unique == true)
+			return;
 		ActorData c;
 		c.baseID = ref->baseForm->formID;
 		c.locationID = getLocation(ref);
