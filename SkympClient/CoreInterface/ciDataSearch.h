@@ -56,10 +56,16 @@ namespace ci
 			ci::ItemType::Subclass subCl;
 		};
 
+		struct ActorData : ReferenceData
+		{
+			uint32_t race;
+		};
+
 		void RequestNavMesh(std::function<void(NavMeshData)> callback);
 		void RequestTeleportDoorsManual(std::function<void(TeleportDoorsData)> callback);
 		void RequestContainers(std::function<void(ContainerData)> callback);
 		void RequestDoors(std::function<void(DoorData)> callback);
 		void RequestItems(std::function<void(ItemData)> callback);
+		void RequestActors(std::function<void(ActorData)> callback);
 	}
 }

@@ -227,3 +227,21 @@ void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 		callback(c);
 	});
 }
+
+void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
+{
+	Private::StartUpdating();
+
+	WorldCleaner::GetSingleton()->SetCallback(FormType::NPC, [=](TESObjectREFR *ref) {
+		if (ref->formID > 0xFF000000)
+			return;
+		ActorData c;
+		c.baseID = ref->baseForm->formID;
+		c.locationID = getLocation(ref);
+		c.pos = cd::GetPosition(ref);
+		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
+		c.refID = ref->GetFormID();
+		c.race = ((Actor *)ref)->GetRace()->formID;
+		callback(c);
+	});
+}

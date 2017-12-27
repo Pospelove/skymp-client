@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.9";
+auto version = "0.14.10";
 
 #include "Agent.h"
 
@@ -1874,6 +1874,7 @@ class ClientLogic : public ci::IClientLogic
 					Container = 2,
 					Door = 3,
 					Item = 4,
+					Actor = 5,
 				};
 
 				this->tpdCallback = [this](ci::DataSearch::TeleportDoorsData res) {
@@ -1936,7 +1937,8 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.x);
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
-					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					if (net.sendDoors)
+						net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 				ci::DataSearch::RequestDoors([this](ci::DataSearch::DoorData res) {
@@ -1954,6 +1956,23 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.z);
 					if (net.sendDoors)
 						net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+				});
+
+				ci::DataSearch::RequestActors([this](ci::DataSearch::ActorData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::Actor);
+					bsOut.Write(res.refID);
+					bsOut.Write(res.baseID);
+					bsOut.Write(res.locationID);
+					bsOut.Write(res.pos.x);
+					bsOut.Write(res.pos.y);
+					bsOut.Write(res.pos.z);
+					bsOut.Write(res.rot.x);
+					bsOut.Write(res.rot.y);
+					bsOut.Write(res.rot.z);
+					bsOut.Write(res.race);
+					net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 			}
@@ -2142,7 +2161,7 @@ class ClientLogic : public ci::IClientLogic
 							auto asRemote = dynamic_cast<ci::RemotePlayer *>(hostedPl);
 							if (asRemote != nullptr)
 							{
-								asRemote->SetCombatTarget(localPlayer);
+								//asRemote->SetCombatTarget(localPlayer);
 
 								const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
 								if (hitAnimIDPtr != nullptr)
