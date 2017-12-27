@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.12";
+auto version = "0.14.13";
 
 #include "Agent.h"
 
@@ -253,6 +253,7 @@ class ClientLogic : public ci::IClientLogic
 		uint16_t myID = ~0;
 
 		bool sendDoors = false;
+		bool sendActors = false;
 
 	} net;
 
@@ -1972,7 +1973,8 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
 					bsOut.Write(res.race);
-					net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+					if (net.sendActors)
+						net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 			}
@@ -2162,7 +2164,7 @@ class ClientLogic : public ci::IClientLogic
 							auto asRemote = dynamic_cast<ci::RemotePlayer *>(hostedPl);
 							if (asRemote != nullptr)
 							{
-								//asRemote->SetCombatTarget(localPlayer);
+								asRemote->SetCombatTarget(localPlayer);
 
 								const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
 								if (hitAnimIDPtr != nullptr)
@@ -2198,6 +2200,8 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnStartup() override
 	{
+		net.sendActors = true;
+
 		for (int32_t i = 0; i != 1024; ++i)
 			this->lastUpdateByServer[i] = NULL;
 
@@ -2696,6 +2700,11 @@ class ClientLogic : public ci::IClientLogic
 		{
 			net.sendDoors = !net.sendDoors;
 			ci::Chat::AddMessage(net.sendDoors ? L"#BEBEBE" L"DataSearch door loading started" : L"#BEBEBE" L"DataSearch door loading stopped");
+		}
+		else if (cmdText == L"//a")
+		{
+			net.sendActors = !net.sendActors;
+			ci::Chat::AddMessage(net.sendActors ? L"#BEBEBE" L"DataSearch Actor loading started" : L"#BEBEBE" L"DataSearch Actor loading stopped");
 		}
 		else if (cmdText == L"//clonenpc" || cmdText == L"//combat" || cmdText == L"//testalch" || cmdText == L"//hit" || cmdText == L"//sit")
 		{

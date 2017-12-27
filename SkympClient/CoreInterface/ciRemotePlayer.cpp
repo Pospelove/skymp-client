@@ -2209,12 +2209,8 @@ namespace ci
 	{
 		if (this->pimpl->spawnStage != SpawnStage::Spawned)
 			return false;
-		auto actor = (Actor *)LookupFormByID(pimpl->formID);
-		if (!actor || actor->baseForm->formType != FormType::NPC)
-			return false;
-		const bool bowEquipped = sd::GetEquippedItemType(actor, 0) == 7
-			|| sd::GetEquippedItemType(actor, 1) == 7;
-		return bowEquipped;
+		return (pimpl->eq.hands[0] && pimpl->eq.hands[0]->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow)
+			|| (pimpl->eq.hands[1] && pimpl->eq.hands[1]->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow);
 	}
 
 	bool RemotePlayer::IsSpellEquipped() const

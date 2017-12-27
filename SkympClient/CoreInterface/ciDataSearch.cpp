@@ -233,7 +233,7 @@ void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 	Private::StartUpdating();
 
 	WorldCleaner::GetSingleton()->SetCallback(FormType::NPC, [=](TESObjectREFR *ref) {
-		if (ref->formID > 0xFF000000)
+		if (ref->IsActivationBlocked() && ref->formID > 0xFF000000)
 			return;
 		if (sd::IsDisabled(ref) == true)
 			return;
