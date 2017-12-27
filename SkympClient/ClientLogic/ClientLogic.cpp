@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.11";
+auto version = "0.14.12";
 
 #include "Agent.h"
 
@@ -2088,7 +2088,8 @@ class ClientLogic : public ci::IClientLogic
 					return;
 
 				remPl->SetNicknameVisible(false);
-
+				remPl->SetName(L" ");
+				
 				std::string engine;
 
 				if (hostID == net.myID)

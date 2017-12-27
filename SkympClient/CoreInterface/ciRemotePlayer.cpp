@@ -203,7 +203,8 @@ namespace ci
 				{
 					const auto formID = pimpl->formID;
 					SET_TIMER_LIGHT(0, [=] {
-						cd::SetDisplayName(cd::Value<TESObjectREFR>(formID), WstringToString(name), true);
+						auto str = WstringToString(name);
+						cd::SetDisplayName(cd::Value<TESObjectREFR>(formID), str, true);
 					});
 				}
 			}
