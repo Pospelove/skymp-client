@@ -871,11 +871,6 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 		auto val = sd::GetActorValue(g_thePlayer, cstr);
 		auto dest = val / sd::GetActorValuePercentage(g_thePlayer, cstr) * percentage;
 		auto toRestore = dest - val;
-		if (dest == 0)
-		{
-			sd::ForceThirdPerson();
-			sd::Wait(500);
-		}
 		if (toRestore == toRestore)
 		{
 			if (toRestore > 0)
@@ -1100,17 +1095,6 @@ void ci::LocalPlayer::AddActiveEffect(const ci::Spell *parentSpell, const ci::Ma
 void ci::LocalPlayer::ClearActiveEffects()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
-}
-
-void ci::LocalPlayer::Resurrect()
-{
-	SET_TIMER_LIGHT(1, [=] {
-		if (sd::IsDead(g_thePlayer) || sd::GetActorValue(g_thePlayer, "Health") == 0)
-		{
-			sd::RestoreActorValue(g_thePlayer, "Health", 99999);
-			sd::Wait(1000);
-		}
-	});
 }
 
 clock_t timer = clock() + 5000;
@@ -1548,25 +1532,66 @@ public:
 		base->TESActorBaseData::flags.essential = true;
 	}
 
+	static void SetControlsEnabled(bool enable)
+	{
+		static bool enabled = true;
+		if (enable != enabled)
+		{
+			auto controls = {
+				Control::Movement,
+				Control::CamSwitch,
+				Control::Fighting,
+				Control::Activate,
+				Control::Looking,
+				Control::Menu
+			};
+			for (auto control : controls)
+				PlayerControls_::SetEnabled(control, enable);
+			enabled = enable;
+			ci::Chat::AddMessage(enable ? L"Enable" : L"Disable", 0);
+		}
+	}
+
 	void Update()
 	{
 		const bool isDead = sd::GetActorValue(g_thePlayer, "Health") == 0;
 		if (isDead != this->wasDead)
 		{
-			this->OnDeath();
+			if (isDead)
+				this->OnDeath();
 			this->wasDead = isDead;
+		}
+
+		if (sd::IsBleedingOut(g_thePlayer))
+		{
+			sd::ForceFirstPerson();
 		}
 	}
 
 	void OnDeath()
 	{
-		sd::PushActorAway(g_thePlayer, g_thePlayer, 1.f);
+		SetControlsEnabled(false);
 	}
 
 private:
 	~DeathHandler();
 	bool wasDead = false;
 };
+
+void ci::LocalPlayer::Resurrect()
+{
+	SET_TIMER_LIGHT(1, [=] {
+
+		if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
+		{
+			DeathHandler::SetControlsEnabled(true);
+		}
+		if (sd::IsDead(g_thePlayer) || sd::GetActorValue(g_thePlayer, "Health") == 0)
+		{
+			sd::RestoreActorValue(g_thePlayer, "Health", 99999);
+		}
+	});
+}
 
 void ci::LocalPlayer::Update()
 {
