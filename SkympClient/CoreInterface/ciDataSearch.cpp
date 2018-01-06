@@ -210,6 +210,8 @@ void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 	Private::StartUpdating();
 
 	WorldCleaner::GetSingleton()->SetCallback(FormType::Misc, [=](TESObjectREFR *ref) {
+		if (ref->formID > 0xFF000000)
+			return;
 		if (ref->baseForm->IsLockpick())
 			return;
 		if (ref->baseForm->IsGold())

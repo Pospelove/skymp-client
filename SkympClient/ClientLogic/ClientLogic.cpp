@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.18";
+auto version = "0.14.19";
 
 #include "Agent.h"
 
@@ -251,9 +251,6 @@ class ClientLogic : public ci::IClientLogic
 
 		bool fullyConnected = false;
 		uint16_t myID = ~0;
-
-		bool sendDoors = false;
-		bool sendActors = false;
 
 	} net;
 
@@ -1922,7 +1919,7 @@ class ClientLogic : public ci::IClientLogic
 					{
 						bsOut.Write(res.externalConnections[i]);
 					}
-					//net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 				ci::DataSearch::RequestContainers([this](ci::DataSearch::ContainerData res) {
@@ -1938,8 +1935,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.x);
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
-					if (net.sendDoors)
-						net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 				ci::DataSearch::RequestDoors([this](ci::DataSearch::DoorData res) {
@@ -1955,8 +1951,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.x);
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
-					if (net.sendDoors)
-						net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 				ci::DataSearch::RequestActors([this](ci::DataSearch::ActorData res) {
@@ -1973,8 +1968,27 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(res.rot.y);
 					bsOut.Write(res.rot.z);
 					bsOut.Write(res.race);
-					if (net.sendActors)
-						net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+					net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+				});
+
+				ci::DataSearch::RequestItems([this](ci::DataSearch::ItemData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::Item);
+					bsOut.Write(res.refID);
+					bsOut.Write(res.baseID);
+					bsOut.Write(res.locationID);
+					bsOut.Write(res.pos.x);
+					bsOut.Write(res.pos.y);
+					bsOut.Write(res.pos.z);
+					bsOut.Write(res.rot.x);
+					bsOut.Write(res.rot.y);
+					bsOut.Write(res.rot.z);
+					bsOut.Write(res.value);
+					bsOut.Write(res.damage);
+					bsOut.Write(res.cl);
+					bsOut.Write(res.subCl);
+					net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
 				});
 
 			}
@@ -2206,8 +2220,6 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnStartup() override
 	{
-		net.sendActors = true;
-
 		for (int32_t i = 0; i != 1024; ++i)
 			this->lastUpdateByServer[i] = NULL;
 
@@ -2702,15 +2714,9 @@ class ClientLogic : public ci::IClientLogic
 			else
 				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
 		}
-		else if (cmdText == L"//d")
+		else if (cmdText == L"//d" || cmdText == L"//a")
 		{
-			net.sendDoors = !net.sendDoors;
-			ci::Chat::AddMessage(net.sendDoors ? L"#BEBEBE" L"DataSearch door loading started" : L"#BEBEBE" L"DataSearch door loading stopped");
-		}
-		else if (cmdText == L"//a")
-		{
-			net.sendActors = !net.sendActors;
-			ci::Chat::AddMessage(net.sendActors ? L"#BEBEBE" L"DataSearch Actor loading started" : L"#BEBEBE" L"DataSearch Actor loading stopped");
+			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.19");
 		}
 		else if (cmdText == L"//clonenpc" || cmdText == L"//combat" || cmdText == L"//testalch" || cmdText == L"//hit" || cmdText == L"//sit")
 		{
