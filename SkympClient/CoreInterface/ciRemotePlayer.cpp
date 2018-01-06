@@ -757,7 +757,7 @@ namespace ci
 				pimpl->hitAnimsOut.push(*animPtr);
 			}
 
-			if (clock() - this->lastCombatUpdate > 2000)
+			if (clock() - this->lastCombatUpdate > (pimpl->combatTarget ? 500 : 10))
 			{
 				this->lastCombatUpdate = clock();
 
@@ -776,9 +776,13 @@ namespace ci
 							sd::StartCombat(actor, combatTarget);
 						}
 					}
+					sd::SetActorValue(actor, "Aggression", 1.0f);
+					sd::ForceActorValue(actor, "Aggression", 1.0f);
 				}
 				else
 				{
+					sd::SetActorValue(actor, "Aggression", 0.0f);
+					sd::ForceActorValue(actor, "Aggression", 0.0f);
 					if (sd::IsInCombat(actor))
 						sd::StopCombat(actor);
 				}
@@ -2076,7 +2080,7 @@ namespace ci
 				auto setAVsToDefault = [](Actor *actor) {
 					sd::SetActorValue(actor, "Confidence", 4.0);
 					sd::ForceActorValue(actor, "Confidence", 4.0);
-					sd::SetActorValue(actor, "Agression", 0.0);
+					sd::SetActorValue(actor, "Agression", 1.0);
 					sd::SetActorValue(actor, "attackdamagemult", 0.0);
 					sd::SetActorValue(actor, "Variable01", rand());
 					sd::SetActorValue(actor, "MagicResist", 99);

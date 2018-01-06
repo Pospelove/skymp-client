@@ -166,6 +166,9 @@
     <ClCompile Include="Sync\AnimData.cpp">
       <Filter>core\Sync</Filter>
     </ClCompile>
+    <ClCompile Include="Overlay\Loadscreen.cpp">
+      <Filter>core\Overlay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -424,6 +427,9 @@
     </ClInclude>
     <ClInclude Include="Sync\AnimData.h">
       <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\Loadscreen.h">
+      <Filter>core\Overlay</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

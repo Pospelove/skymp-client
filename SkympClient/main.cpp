@@ -6,6 +6,7 @@
 #include "Overlay\Chat.h"
 #include "Overlay\Input.h"
 #include "Overlay\3DText.h"
+#include "Overlay\Loadscreen.h"
 
 #include <iomanip>
 #include <chrono>
@@ -34,6 +35,9 @@ void other_thread(void *);
 class SkympClientDll : public SKSEPlugin
 {
 public:
+
+	Loadscreen *ls = nullptr;
+
 	SkympClientDll()
 	{
 	}
@@ -281,17 +285,6 @@ public:
 				allowTextInput = false;
 			}
 
-			if (0 && sd::GetKeyPressed(VK_F9))
-			{
-				auto msg = L"Unable to load saved game in online mode";
-				auto str = WstringToString(msg);
-				ErrorHandling::SendError(str.data());
-				ci::Chat::AddMessage(msg);
-				sd::QuitToMainMenu();
-				Sleep(1000);
-				std::exit(EXIT_FAILURE);
-			}
-
 			static auto menuManager = MenuManager::GetSingleton();
 			try
 			{
@@ -315,6 +308,11 @@ public:
 				{
 					if (mainMenuWasOpen)
 					{
+						if (this->ls != nullptr)
+						{
+							delete this->ls;
+							this->ls = nullptr;
+						}
 						if (!attached)
 						{
 							sd::ExecuteConsoleCommand("player.aps Costile PreLoad", 0);
@@ -325,6 +323,11 @@ public:
 
 				if (menuManager && menuManager->IsMenuOpen("Main Menu"))
 				{
+					if (this->ls == nullptr)
+					{
+						this->ls = new Loadscreen("MyGUI\\logo.png");
+					}
+
 					// Hack to force update after Main Menu
 					WorldCleaner::GetSingleton()->SetFormProtected(0, true);
 					WorldCleaner::GetSingleton()->SetFormProtected(0, false);

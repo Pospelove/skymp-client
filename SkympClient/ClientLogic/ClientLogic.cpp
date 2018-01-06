@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.15";
+auto version = "0.14.16";
 
 #include "Agent.h"
 
@@ -2078,9 +2078,12 @@ class ClientLogic : public ci::IClientLogic
 		{
 			uint16_t playerID, hostID;
 			uint8_t isNpc;
+			uint16_t combatTarget;
 			bsIn.Read(playerID);
 			bsIn.Read(hostID);
 			bsIn.Read(isNpc);
+			if (bsIn.Read(combatTarget) == false)
+				combatTarget = ~0;
 			if (isNpc)
 			{
 				if (players.count(playerID) == 0)
@@ -2091,6 +2094,12 @@ class ClientLogic : public ci::IClientLogic
 
 				remPl->SetNicknameVisible(false);
 				remPl->SetName(L" ");
+				try {
+					remPl->SetCombatTarget(players.at(combatTarget));
+				}
+				catch (...) {
+					remPl->SetCombatTarget(nullptr);
+				}
 				
 				std::string engine;
 
@@ -2164,8 +2173,6 @@ class ClientLogic : public ci::IClientLogic
 							auto asRemote = dynamic_cast<ci::RemotePlayer *>(hostedPl);
 							if (asRemote != nullptr)
 							{
-								asRemote->SetCombatTarget(localPlayer);
-
 								const auto hitAnimIDPtr = asRemote->GetNextHitAnim();
 								if (hitAnimIDPtr != nullptr)
 									this->SendAnimation(*hitAnimIDPtr, hosted);

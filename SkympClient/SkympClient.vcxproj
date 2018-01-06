@@ -161,6 +161,7 @@
     <ClCompile Include="Overlay\GUI.cpp" />
     <ClCompile Include="Overlay\Input.cpp" />
     <ClCompile Include="Overlay\3DText.cpp" />
+    <ClCompile Include="Overlay\Loadscreen.cpp" />
     <ClCompile Include="ScriptDragon\plugin.cpp" />
     <ClCompile Include="SKSEOriginal\Utilities.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -227,6 +228,7 @@
     <ClInclude Include="Overlay\Input.h" />
     <ClInclude Include="Overlay\InputConverter.h" />
     <ClInclude Include="Overlay\3DText.h" />
+    <ClInclude Include="Overlay\Loadscreen.h" />
     <ClInclude Include="ScriptDragon\enums.h" />
     <ClInclude Include="ScriptDragon\invoke.h" />
     <ClInclude Include="ScriptDragon\obscript.h" />
