@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.17";
+auto version = "0.14.18";
 
 #include "Agent.h"
 
@@ -2093,7 +2093,6 @@ class ClientLogic : public ci::IClientLogic
 					return;
 
 				remPl->SetNicknameVisible(false);
-				remPl->SetName(L" ");
 				try {
 					remPl->SetCombatTarget(players.at(combatTarget));
 				}

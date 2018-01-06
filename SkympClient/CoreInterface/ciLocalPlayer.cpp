@@ -1548,7 +1548,6 @@ public:
 			for (auto control : controls)
 				PlayerControls_::SetEnabled(control, enable);
 			enabled = enable;
-			ci::Chat::AddMessage(enable ? L"Enable" : L"Disable", 0);
 		}
 	}
 
