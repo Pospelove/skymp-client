@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.19";
+auto version = "0.14.20";
 
 #include "Agent.h"
 
@@ -289,6 +289,7 @@ class ClientLogic : public ci::IClientLogic
 			Illusion,
 			Restoration,
 			Enchanting,
+			Level,
 			NUM_AVS,
 		};
 		const std::string &GetAVName(uint8_t id) 
@@ -326,7 +327,8 @@ class ClientLogic : public ci::IClientLogic
 				"Destruction",
 				"Illusion",
 				"Restoration",
-				"Enchanting"
+				"Enchanting",
+				"Level"
 			};
 			if (id < NUM_AVS)
 				return names[id];

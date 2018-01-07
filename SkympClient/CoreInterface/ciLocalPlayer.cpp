@@ -850,6 +850,11 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	auto avName = avName_;
 	std::transform(avName_.begin(), avName_.end(), avName.begin(), ::tolower);
 
+	if (avName == "level")
+	{
+		cd::SetPlayerLevel(avData.base + avData.modifier);
+	}
+
 	localPlAVData[avName] = avData;
 
 	const auto base = avData.base,

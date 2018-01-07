@@ -776,16 +776,14 @@ namespace ci
 							sd::StartCombat(actor, combatTarget);
 						}
 					}
-					sd::SetActorValue(actor, "Aggression", 1.0f);
-					sd::ForceActorValue(actor, "Aggression", 1.0f);
 				}
 				else
 				{
-					sd::SetActorValue(actor, "Aggression", 0.0f);
-					sd::ForceActorValue(actor, "Aggression", 0.0f);
 					if (sd::IsInCombat(actor))
 						sd::StopCombat(actor);
 				}
+				sd::SetActorValue(actor, "Aggression", 0.0f);
+				sd::ForceActorValue(actor, "Aggression", 0.0f);
 			}
 			
 			TESObjectREFR *const target = pimpl->pathToTarget ? (TESObjectREFR *)LookupFormByID(ObjectAccess::GetObjectRefID(pimpl->pathToTarget.get())) : nullptr;
