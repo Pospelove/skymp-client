@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.14.20";
+auto version = "0.14.21";
 
 #include "Agent.h"
 
@@ -409,7 +409,8 @@ class ClientLogic : public ci::IClientLogic
 				bsOut.Write(nicknameCStr[i]);
 			bsOut.Write(passwordCStr, MAX_PASSWORD + 1);
 
-			ci::Chat::AddMessage(L"Connection request sent. Waiting for verification...");
+			Sleep(200);
+			ci::Chat::AddMessage(L"Found the server. Handshaking...");
 
 			net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, packet->systemAddress, false);
 			break;
@@ -453,6 +454,8 @@ class ClientLogic : public ci::IClientLogic
 			ci::Chat::AddMessage(L"Player " + net.nickname + L" is already connected to the server");
 			break;
 		case ID_WELCOME:
+			ci::Chat::AddMessage(L"Successful handshake.");
+			Sleep(200);
 			ci::Chat::AddMessage(L"Connected.");
 			bsIn.Read((uint16_t &)net.myID);
 			players[net.myID] = ci::LocalPlayer::GetSingleton();

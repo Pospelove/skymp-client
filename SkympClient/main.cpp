@@ -310,7 +310,10 @@ public:
 					{
 						if (this->ls != nullptr)
 						{
-							delete this->ls;
+							auto ls = this->ls;
+							ci::SetTimer(1000, [ls] {
+								delete ls;
+							});
 							this->ls = nullptr;
 						}
 						if (!attached)
