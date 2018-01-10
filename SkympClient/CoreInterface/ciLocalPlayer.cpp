@@ -8,6 +8,8 @@
 #include "Skyrim/Camera/PlayerCamera.h"
 #include <queue>
 
+#define INVALID_AV float(228228228)
+
 #pragma comment(lib, "winmm")
 
 void PreventCrash() {
@@ -870,13 +872,23 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	SET_TIMER_LIGHT(0, [=] {
 		const auto av = base + modifier;
 		if (av == av)
-			sd::SetActorValue(g_thePlayer, (char *)avName.data(), av);
+		{
+			const auto now = sd::GetBaseActorValue(g_thePlayer, (char *)avName.data());
+			if (now != av && now < INVALID_AV - 1)
+			{
+				if (avName == "destruction")
+				{
+					//ci::Chat::AddMessage(L"upd destr " + std::to_wstring(now) + L' ' + std::to_wstring(av));
+				}
+				sd::SetActorValue(g_thePlayer, (char *)avName.data(), av);
+			}
+		}
 
 		auto cstr = (char *)avName.data();
 		auto val = sd::GetActorValue(g_thePlayer, cstr);
 		auto dest = val / sd::GetActorValuePercentage(g_thePlayer, cstr) * percentage;
 		auto toRestore = dest - val;
-		if (toRestore == toRestore)
+		if (toRestore == toRestore && toRestore != 0)
 		{
 			if (toRestore > 0)
 				sd::RestoreActorValue(g_thePlayer, cstr, toRestore);
@@ -1652,6 +1664,40 @@ void ci::LocalPlayer::Update()
 				cd::SetGameSettingFloat("fArrowFakeMass", 10000.f);
 				cd::SetGameSettingFloat("fPlayerMaxResistance", 100);
 				sd::SetActorValue(g_thePlayer, "MagicResist", 99);
+
+				static auto skills = {
+					"OneHanded",
+					"TwoHanded",
+					"Marksman",
+					"Block",
+					"Smithing",
+					"HeavyArmor",
+					"LightArmor",
+					"Pickpocket",
+					"Lockpicking",
+					"Sneak",
+					"Alchemy",
+					"Speechcraft",
+					"Alteration",
+					"Conjuration",
+					"Destruction",
+					"Illusion",
+					"Restoration",
+					"Enchanting"
+				};
+
+				for (auto name : skills)
+				{
+					cd::GetActorValueInfoByName(name, [name](cd::Value<ActorValueInfo> result) {
+						auto avInfo = result.operator ActorValueInfo *();
+						if (avInfo == nullptr)
+							return ErrorHandling::SendError("WARN:LocalPlayer Bad skill name %s", name);
+						//auto &val = avInfo->skillUsages[ActorValueInfo::kSkillImproveMult];
+						//ci::Chat::AddMessage(std::to_wstring(val));
+						//val = 0;
+						cd::SetSkillImproveMult(result, 0);
+					});
+				}
 			});
 			set = true;
 
@@ -1667,6 +1713,47 @@ void ci::LocalPlayer::Update()
 
 	PreventMagicEffects<0>();
 	PreventMagicEffects<1>();
+
+
+	{
+		clock_t lastCasting = 0;
+		const bool isCasting = sd::Obscript::IsCasting(g_thePlayer) > 0;
+		if (isCasting)
+		{
+			lastCasting = clock();
+		}
+		static bool wasCasting = false;
+		if (isCasting != wasCasting)
+		{
+			static std::set<char *> skills = {
+				"Alteration",
+				"Conjuration",
+				"Destruction",
+				"Illusion",
+				"Restoration"
+			};
+			if (isCasting)
+			{
+				for (auto skill : skills)
+					sd::SetActorValue(g_thePlayer, skill, INVALID_AV);
+			}
+			else
+			{
+				for (auto skill : skills)
+					sd::SetActorValue(g_thePlayer, skill, 100.0f);
+				this->RecoverAVs();
+			}
+			wasCasting = isCasting;
+		}
+		
+		const bool needBlock = clock() - lastCasting < 1000;
+		static bool needBlockWas = false;
+		if (needBlock != needBlockWas)
+		{
+			needBlockWas = needBlock;
+			PlayerControls_::SetEnabled(Control::Menu, !needBlock);
+		}
+	}
 
 	UpdateSpellsCost();
 
