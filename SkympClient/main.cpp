@@ -277,6 +277,11 @@ public:
 			}
 		}).detach();
 
+		if (this->ls == nullptr)
+		{
+			this->ls = new Loadscreen("MyGUI\\logo.png");
+		}
+
 		while (1)
 		{
 			if (MenuManager::GetSingleton()->IsMenuOpen("Console"))
@@ -326,12 +331,6 @@ public:
 
 				if (menuManager && menuManager->IsMenuOpen("Main Menu"))
 				{
-					if (this->ls == nullptr)
-					{
-						this->ls = new Loadscreen("MyGUI\\logo.png");
-					}
-
-					// Hack to force update after Main Menu
 					WorldCleaner::GetSingleton()->SetFormProtected(0, true);
 					WorldCleaner::GetSingleton()->SetFormProtected(0, false);
 
