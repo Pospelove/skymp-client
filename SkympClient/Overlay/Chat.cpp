@@ -37,6 +37,12 @@ Chat *TheChat = nullptr;
 
 const auto cBlack = MyGUI::Colour(0.0, 0.0, 0.0, 1.0);
 
+struct
+{
+	int32_t normal;
+	int32_t over9000;
+} chatSizes;
+
 Chat::Chat()
 {
 	if (!TheGUI)
@@ -54,7 +60,7 @@ Chat::Chat()
 
 	m_pList->setTextAlign(MyGUI::Align::Default);
 	m_pList->setEditStatic(true);
-	m_pList->setVisibleHScroll(false);
+	m_pList->setVisibleHScroll(true);
 	m_pList->setVisibleVScroll(true);
 	m_pList->setOverflowToTheLeft(true);
 	m_pList->setEditWordWrap(true);
@@ -65,7 +71,12 @@ Chat::Chat()
 	m_pList->setPosition(pos);
 
 	auto size = m_pList->getSize();
-	size.width += 10000;
+
+	chatSizes = { -1, -1 };
+	chatSizes.normal = size.width + 100;
+	chatSizes.over9000 = size.width + 10000;
+	size.width = chatSizes.over9000;
+
 	size.height = 300;
 	m_pList->setSize(size);
 	m_pList->setTextShadowColour(cBlack);
@@ -150,6 +161,10 @@ void Chat::SetTyping(bool aForceHide)
 		PlayerControls_::SetEnabled(Control::Looking, aForceHide); 
 		PlayerControls_::SetEnabled(Control::Activate, aForceHide);
 		PlayerControls_::SetEnabled(Control::Console, aForceHide);
+
+		auto size = m_pList->getSize();
+		size.width = aForceHide ? chatSizes.over9000 : chatSizes.normal;
+		m_pList->setSize(size);
 	}
 }
 
