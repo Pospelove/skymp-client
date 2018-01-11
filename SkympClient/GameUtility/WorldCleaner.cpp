@@ -53,6 +53,47 @@ void WorldCleaner::SetCallback(FormType t, std::function<void(TESObjectREFR *)> 
 	callbacks[t] = f;
 }
 
+TESObjectREFR *WorldCleaner::FindFarObject()
+{
+	std::lock_guard<dlf_mutex> lock(mutex);
+
+	const auto plPos = cd::GetPosition(g_thePlayer);
+
+	float maxDistance = 0;
+	TESObjectREFR *res = nullptr;
+
+	std::vector<uint32_t> toErase;
+
+	for (auto refID : dict)
+	{
+		auto ref = (TESObjectREFR *)LookupFormByID(refID);
+		if (ref && refID < 0xFF000000 && ref->formType == FormType::Reference)
+		{
+			const auto pos = cd::GetPosition(ref);
+			const float distance = (pos - plPos).Length();
+			if (maxDistance < distance)
+			{
+				if (distance < 5000)
+				{
+					maxDistance = distance;
+					res = ref;
+				}
+			}
+		}
+		else
+		{
+			toErase.push_back(refID);
+		}
+	}
+
+	for (auto refID : toErase)
+	{
+		dict.erase(refID);
+	}
+
+	return res;
+}
+
 void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 {
 	std::lock_guard<dlf_mutex> lock(mutex);
@@ -75,6 +116,8 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		callbacks[formType](ref);
 	}
 
+	bool deleted = false;
+
 	switch (formType)
 	{
 	case FormType::NAVI:
@@ -86,6 +129,7 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	case FormType::NPC:
 	case FormType::LeveledCharacter:
 		sd::Delete(ref); // was cd::delete
+		deleted = true;
 		return;
 	case FormType::Projectile:
 		sd::SetDestroyed(ref, true);
@@ -104,17 +148,22 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	case FormType::LeveledItem:
 		//case FormType::MovableStatic:
 		sd::Delete(ref);
+		deleted = true;
 		return;
 	case FormType::Tree:
 		if (((TESObjectTREE *)baseForm)->produce)
 		{
 			sd::Delete(ref);
+			deleted = true;
 			return;
 		}
 		break;
 	case FormType::Flora:
 		if (((TESFlora *)baseForm)->produce)
+		{
 			sd::Delete(ref);
+			deleted = true;
+		}
 		return;
 	case FormType::Container:
 		sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);
@@ -140,6 +189,11 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		break;
 	default:
 		break;
+	}
+
+	if (deleted != true && ref->baseForm->formType != FormType::Static)
+	{
+		dict.insert(ref->formID);
 	}
 
 	static const std::set<UInt32> toDel = {

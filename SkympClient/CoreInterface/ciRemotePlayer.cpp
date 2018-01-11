@@ -2178,7 +2178,8 @@ namespace ci
 			this->DestroyGnomes();
 			pimpl->spawnStage = SpawnStage::Spawning;
 
-			auto refToPlaceAt = (TESObjectREFR *)LookupFormByID(markerFormID);
+			auto refToPlaceAt = //(TESObjectREFR *)LookupFormByID(markerFormID);
+				WorldCleaner::GetSingleton()->FindFarObject();
 			if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 				refToPlaceAt = nullptr;
 			if (errorsInSpawn > 28 || !refToPlaceAt)

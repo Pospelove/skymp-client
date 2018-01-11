@@ -14,6 +14,8 @@ namespace ci
 		CDScript = 1,
 	};
 
+	void DebugMoveFarFarAway();
+
 	void ExecuteCommand(CommandType cmdType, const std::wstring &consoleCmdString);
 	void ExecuteCommand(CommandType cmdType, const std::string &consoleCmdString);
 

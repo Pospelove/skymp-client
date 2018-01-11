@@ -2647,7 +2647,6 @@ class ClientLogic : public ci::IClientLogic
 					auto anim = p->GetNextHitAnim();
 					if (anim == nullptr)
 						break;
-					ci::Chat::AddMessage(L"Anim " + StringToWstring(p->GetMark()) + L' ' + std::to_wstring(*anim));
 					localPlayer->PlayAnimation(*anim);
 				}
 
@@ -2758,6 +2757,18 @@ class ClientLogic : public ci::IClientLogic
 		else if (cmdText == L"//bot")
 		{
 			ci::Chat::AddMessage(L"#BEBEBE" L"Use //bots");
+		}
+		else if (cmdText == L"//farobject")
+		{
+			if (localPlayer->GetName() == L"Pospelov")
+			{
+				ci::Chat::AddMessage(L"#BEBEBETeleporting");
+				ci::DebugMoveFarFarAway();
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"#BEBEBEOnly for Pospelov");
+			}
 		}
 		else if (cmdText == L"//werewolf")
 		{
@@ -3096,7 +3107,6 @@ class ClientLogic : public ci::IClientLogic
 		const auto hitAnimIDPtr = dynamic_cast<ci::LocalPlayer *>(localPlayer)->GetNextHitAnim();
 		if (hitAnimIDPtr != nullptr)
 		{
-			ci::Chat::AddMessage(std::to_wstring(*hitAnimIDPtr));
 			this->SendAnimation(*hitAnimIDPtr, net.myID);
 		}
 	}

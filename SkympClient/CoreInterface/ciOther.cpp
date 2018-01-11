@@ -68,6 +68,18 @@ namespace ci
 		ExecuteConsoleCommandImpl(WstringToString(consoleCmdString));
 	}
 
+	void DebugMoveFarFarAway()
+	{
+		SET_TIMER_LIGHT(1, [] {
+			auto refr = WorldCleaner::GetSingleton()->FindFarObject();
+			if (refr != nullptr)
+			{
+				const auto pos = cd::GetPosition(refr);
+				ci::LocalPlayer::GetSingleton()->SetPos(pos);
+			}
+		});
+	}
+
 	void ExecuteCommand(CommandType cmdType, const std::wstring &cmdString)
 	{
 		switch (cmdType)

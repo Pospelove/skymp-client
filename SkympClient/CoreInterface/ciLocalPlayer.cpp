@@ -1551,21 +1551,33 @@ public:
 
 	static void SetControlsEnabled(bool enable)
 	{
-
 		static bool enabled = true;
 		if (enable != enabled)
 		{
-			auto controls = {
-				Control::Movement,
-				Control::CamSwitch,
-				Control::Fighting,
-				Control::Activate,
-				Control::Looking,
-				Control::Menu
-			};
-			for (auto control : controls)
-				PlayerControls_::SetEnabled(control, enable);
-			enabled = enable;
+			if (!enable)
+			{
+				sd::Game::TriggerScreenBlood(100);
+				for (int32_t i = 0; i != 2; ++i)
+				{
+					auto item = sd::GetEquippedWeapon(g_thePlayer, i);
+					if (item != nullptr)
+						sd::UnequipItem(g_thePlayer, item, false, true);
+				}
+			}
+			SET_TIMER_LIGHT(enable ? 500 : 1, [=] {
+				sd::SetScale(g_thePlayer, enable ? 1 : 0.2);
+				auto controls = {
+					Control::Movement,
+					Control::CamSwitch,
+					Control::Fighting,
+					Control::Activate,
+					Control::Looking,
+					Control::Menu
+				};
+				for (auto control : controls)
+					PlayerControls_::SetEnabled(control, enable);
+				enabled = enable;
+			});
 		}
 	}
 
@@ -1581,13 +1593,12 @@ public:
 
 		if (sd::IsBleedingOut(g_thePlayer))
 		{
-			sd::ForceThirdPerson();
+			sd::ForceFirstPerson();
 		}
 	}
 
 	void OnDeath()
 	{
-		cd::SendAnimationEvent(g_thePlayer, "IdleAstridEnter", {});
 		SetControlsEnabled(false);
 	}
 
@@ -1600,7 +1611,6 @@ void ci::LocalPlayer::Resurrect()
 {
 	SET_TIMER_LIGHT(1, [=] {
 
-		cd::SendAnimationEvent(g_thePlayer, "IdleStop", {});
 		if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
 		{
 			DeathHandler::SetControlsEnabled(true);
