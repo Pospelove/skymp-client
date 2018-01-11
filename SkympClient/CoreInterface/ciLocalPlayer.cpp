@@ -1609,7 +1609,7 @@ void ci::LocalPlayer::Resurrect()
 		{
 			sd::RestoreActorValue(g_thePlayer, "Health", 99999);
 		}
-	});
+	});//test
 }
 
 void ci::LocalPlayer::Update()
