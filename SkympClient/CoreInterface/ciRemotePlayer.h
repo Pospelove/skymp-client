@@ -84,6 +84,7 @@ namespace ci
 		void TestMakeBroken();
 		NiPoint3 GetNicknamePos() const;
 		float GetNicknameDrawDistance() const;
+		bool IsSpawned() const;
 
 	private:
 

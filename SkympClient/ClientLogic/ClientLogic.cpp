@@ -27,6 +27,7 @@ class ClientLogic : public ci::IClientLogic
 	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
 	ci::LookData ld;
 	std::map<uint16_t, ci::IActor *> players;
+	std::set<uint16_t> werewolfs;
 	std::map<uint16_t, std::shared_ptr<ci::Text3D>> playerBubbles;
 	std::map<uint32_t, ci::Object *> objects;
 	std::map<uint32_t, ci::ItemType *> itemTypes;
@@ -727,6 +728,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				delete it->second;
 				players.erase(it);
+				werewolfs.erase(id);
 				hostedPlayers.erase(id);
 			}
 			break;
@@ -755,14 +757,30 @@ class ClientLogic : public ci::IClientLogic
 
 			bsIn.Read(id);
 			Deserialize(bsIn, look);
-			ci::SetTimer(1000, [=] {
+			
+			uint8_t isWerewolf = 0;
+			bsIn.Read(isWerewolf);
+			if (isWerewolf)
+				werewolfs.insert(id);
+			else
+				werewolfs.erase(id);
+
+			if (isWerewolf == false)
+			{
 				try {
-					if (!look.isEmpty())
-						players.at(id)->ApplyLookData(look);
+					players.at(id)->SetWerewolf(false);
+					ci::SetTimer(1000, [=] {
+						try {
+							if (!look.isEmpty())
+								players.at(id)->ApplyLookData(look);
+						}
+						catch (...) {
+						}
+					});
 				}
 				catch (...) {
-				}
-			});
+				};
+			}
 			break;
 		}
 		case ID_PLAYER_FURNITURE:
@@ -2487,6 +2505,12 @@ class ClientLogic : public ci::IClientLogic
 				catch (...) {
 					ci::Log("ERROR:ClientLogic UpdateKnownEffects()");
 				}
+				try {
+					UpdateWerewolfs();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic UpdateWerewolfs()");
+				}
 			}
 			catch (const std::exception &e) {
 				ci::Log("ERROR:ClientLogic OnUpdate() %s", e.what());
@@ -2741,9 +2765,9 @@ class ClientLogic : public ci::IClientLogic
 			ww = !ww;
 			for (auto p : ps)
 			{
-				p->SetWerewolf(ww, 1);
+				p->SetWerewolf(ww, false);
 			}
-			localPlayer->SetWerewolf(ww, 1);
+			localPlayer->SetWerewolf(ww, false);
 		}
 		else if (cmdText == L"//tracehost")
 		{
@@ -3071,7 +3095,10 @@ class ClientLogic : public ci::IClientLogic
 	{
 		const auto hitAnimIDPtr = dynamic_cast<ci::LocalPlayer *>(localPlayer)->GetNextHitAnim();
 		if (hitAnimIDPtr != nullptr)
+		{
+			ci::Chat::AddMessage(std::to_wstring(*hitAnimIDPtr));
 			this->SendAnimation(*hitAnimIDPtr, net.myID);
+		}
 	}
 
 	void UpdateActorValues()
@@ -3304,6 +3331,31 @@ class ClientLogic : public ci::IClientLogic
 				this->OnEffectLearned(itemTypeID, idx);
 			}
 
+		}
+	}
+
+	void UpdateWerewolfs()
+	{
+		std::set<uint16_t> lastWerewolfs;
+
+		auto onWerewolfUpdate = [this](ci::IActor *actor) {
+			auto remPl = dynamic_cast<ci::RemotePlayer *>(actor);
+			const bool isSpawned = remPl == nullptr || remPl->IsSpawned();
+			actor->SetWerewolf(true, !isSpawned);
+		};
+
+		if (lastWerewolfs != werewolfs)
+		{
+			for (auto id : werewolfs)
+			{
+				try {
+					auto wwPl = players.at(id);
+					onWerewolfUpdate(wwPl);
+				}
+				catch (...) {
+				}
+			}
+			lastWerewolfs = werewolfs;
 		}
 	}
 

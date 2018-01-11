@@ -2918,6 +2918,12 @@ namespace ci
 		return SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE");
 	}
 
+	bool RemotePlayer::IsSpawned() const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return pimpl->spawnStage == SpawnStage::Spawned;
+	}
+
 	void RemotePlayer::SetHeight(float h)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
