@@ -36,6 +36,7 @@ namespace PlayerControls_
 			sd::SetInChargen(state[(UInt32)Control::SaveGame] < MIN_ENABLED_STATE,
 				state[(UInt32)Control::Wait] < MIN_ENABLED_STATE,
 				false);
+			sd::Game::SetBeastForm(state[(UInt32)Control::BeastForm] < MIN_ENABLED_STATE);
 			MenuDisabler::SetDisabled("Console", state[(UInt32)Control::Console] < MIN_ENABLED_STATE);
 		});
 	}

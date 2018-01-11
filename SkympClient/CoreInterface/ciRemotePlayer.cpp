@@ -9,6 +9,111 @@
 #include <algorithm>
 #include <queue>
 
+namespace ci
+{
+	void SetWerewolfImpl(uint32_t refID, bool ww, bool skipAnim)
+	{
+		static dlf_mutex wwMutex;
+		std::lock_guard<dlf_mutex> l(wwMutex);
+
+		enum class Stage : int8_t
+		{
+			None = 0,
+			StartingWerewolf = 1,
+			Werewolf = 2,
+		};
+
+		static std::map<uint32_t, Stage> wwStage;
+		static std::set<uint32_t> wwPositive;
+
+		if (ww)
+			wwPositive.insert(refID);
+		else
+			wwPositive.erase(refID);
+
+		if ((wwStage[refID] == Stage::StartingWerewolf))
+		{
+			if (!ww)
+			{
+				SET_TIMER_LIGHT(250, [=] {
+					size_t count = 0;
+					{
+						std::lock_guard<dlf_mutex> l(wwMutex);
+						count = wwPositive.count(refID);
+					}
+					if (count == 0)
+					{
+						SetWerewolfImpl(refID, false, skipAnim);
+					}
+				});
+			}
+			return;
+		}
+
+		if ((wwStage[refID] == Stage::None && ww) || (wwStage[refID] == Stage::Werewolf && !ww))
+		{
+			SET_TIMER_LIGHT(0, [=] {
+				static auto wwSkin = LookupFormByID(0x000F6002);
+				static auto wwRace = (TESRace *)LookupFormByID(0x00CDD84);
+
+				auto ac = (Actor *)LookupFormByID(refID);
+				if (ac != nullptr)
+				{
+					static std::map<void *, TESRace *> lastRace;
+					if (ww)
+					{
+						wwStage[refID] = Stage::StartingWerewolf;
+						sd::UnequipAll(ac);
+						SET_TIMER(skipAnim ? 1 : 4500, [=] {
+							auto ac = (Actor *)LookupFormByID(refID);
+							if (ac != nullptr)
+							{
+								sd::SetRace(ac, wwRace);
+								wwStage[refID] = Stage::Werewolf;
+								if (g_thePlayer->formID == refID)
+								{
+									SET_TIMER_LIGHT(200, [] { AnimData_::Register(); });
+								}
+							}
+							else
+							{
+								wwStage.erase(refID);
+							}
+						});
+						if (skipAnim == false)
+							cd::SendAnimationEvent(ac, "IdleWerewolfTransformation");
+						sd::AddItem(ac, wwSkin, 1, true);
+						sd::EquipItem(ac, wwSkin, false, true);
+						if (lastRace[ac] == nullptr)
+						{
+							lastRace[ac] = ac->GetRace();
+						}
+					}
+					else
+					{
+						sd::RemoveItem(ac, wwSkin, -1, true, nullptr);
+						sd::SetRace(ac, lastRace[ac]);
+						lastRace.erase(ac);
+						wwStage.erase(refID);
+						if (g_thePlayer->formID == refID)
+						{
+							SET_TIMER_LIGHT(1000, [] { AnimData_::Register(); });
+						}
+					}
+				}
+			});
+		}
+	}
+
+	void ci::IActor::SetWerewolf(bool isWerewolf, bool skipAnim)
+	{
+		const auto refID = this->GetRefID();
+		if (refID == 0)
+			return;
+		SetWerewolfImpl(refID, isWerewolf, skipAnim);
+	}
+}
+
 enum class InvisibleFoxEngine {
 	None = 0x0,
 	Object = 0x2,
@@ -1793,7 +1898,7 @@ namespace ci
 	void RemotePlayer::ApplyEquipmentOther(Actor *actor)
 	{
 		SAFE_CALL("RemotePlayer", [&] {
-			if (sd::HasLOS(g_thePlayer, actor))
+			//if (sd::HasLOS(g_thePlayer, actor))
 			{
 				Equipment_::Equipment eq;
 				if (pimpl->eq.ammo != nullptr)
@@ -1821,6 +1926,14 @@ namespace ci
 						}
 					}
 				}
+
+				// Prevent breaking SetWerewolf 
+				static auto wwSkin = LookupFormByID(0x000F6002);
+				if (sd::IsEquipped(actor, wwSkin))
+				{
+					eq.other.insert(wwSkin);
+				}
+
 				Equipment_::ApplyOther(actor, eq);
 				pimpl->eqLast.armor = pimpl->eq.armor;
 				pimpl->eqLast.ammo = pimpl->eq.ammo;
@@ -1923,8 +2036,13 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			if (pimpl->baseNpc == nullptr)
 			{
+				const auto currentRace = sd::GetRace(actor);
+				enum {
+					WerewolfRace = 0x000CDD84,
+				};
+
 				if (pimpl->spawnMoment + 1000 < clock()
-					&& (sd::GetRace(actor)->formID != this->pimpl->lookData.raceID || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
+					&& ((currentRace->formID != WerewolfRace && currentRace->formID != this->pimpl->lookData.raceID) || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
 					&& this->pimpl->lookData.isEmpty() == false)
 				{
 					auto lookData = this->pimpl->lookData;

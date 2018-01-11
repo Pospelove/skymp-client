@@ -1945,10 +1945,10 @@ void ci::LocalPlayer::Update()
 	// UPD2: Добавлен вызов при переключении camera mode для исправления некорректной внешности
 	// UPD3: Попробую раскомментить, а то какая-то х*йня творится с внешнностью иногда
 	// UPD4: Сделаю, чтобы во время прыжка он это не выполнял
-	static int32_t fixes = 0;
+	/*static int32_t fixes = 0;
 	if (fixes < 0)
 		fixes = 0;
-	SAFE_CALL("LocalPlayer", [&] { 
+	SAFE_CALL("LocalPlayer", [&] {
 		const bool fp = PlayerCamera::GetSingleton()->IsFirstPerson();
 		static bool fpWas = true;
 
@@ -1976,7 +1976,7 @@ void ci::LocalPlayer::Update()
 				}
 			}
 		}
-	});
+	});*/
 
 	SAFE_CALL("LocalPlayer", [&] {
 		auto movDataPtr = task.movDataPtr; // Делаем копию movDataPtr, ибо DoTeleport_OT() вызовет task = {} в случае удачного выполнения

@@ -223,13 +223,15 @@ namespace MovementData_
 		static BSFixedString fsSpeedSampled("SpeedSampled");
 		float animSpeedSampled = 0.0;
 		actor->GetAnimationVariableFloat(fsSpeedSampled, animSpeedSampled);
-		result.speedSampled = (UInt16)animSpeedSampled;
+		result.speedSampled = (UInt16)animSpeedSampled; // 0.0 if actor is werewolf
 
 		static BSFixedString fsBInJumpState("bInJumpState");
 		bool animBInJumpState = false;
 		actor->GetAnimationVariableBool(fsBInJumpState, animBInJumpState);
 		result.isInJumpState = animBInJumpState;
 		result.isWeapDrawn = actor->IsWeaponDrawn() || (actor == g_thePlayer && weapDrawStart + 250 > clock());
+
+		result.isFirstPerson = actor != g_thePlayer || PlayerCamera::GetSingleton()->IsFirstPerson();
 
 		result.isBlocking = /*actor == g_thePlayer ? isPCBlocking :*/ sd::Obscript::IsBlocking(actor) != 0.0;
 		result.isSneaking = cd::IsSneaking(actor);
@@ -250,7 +252,22 @@ namespace MovementData_
 		}
 		result.isRPressed = (g_thePlayer && rPressed) ? 1 : 0;
 
-		if (result.speedSampled != 0)
+		bool moving = false;
+		static NiPoint3 lastPlPos = {};
+		if (actor == g_thePlayer)
+		{
+			static clock_t lastMove = 0;
+			NiPoint3 plPos = result.pos;
+			plPos.z = -1;
+			if (abs(plPos.Length() - lastPlPos.Length()) > 0.1)
+			{
+				lastMove = clock();
+			}
+			lastPlPos = plPos;
+			moving = result.isFirstPerson == false && clock() - lastMove < 50;
+		}
+
+		if (moving || result.speedSampled != 0)
 		{
 			const bool isRunning =
 				actor == g_thePlayer ? !!PlayerControls::GetSingleton()->unk14.runMode : sd::IsRunning(actor);
@@ -272,11 +289,6 @@ namespace MovementData_
 			result.castStage = { currentPCCastStage[0], currentPCCastStage[1] };
 		else
 			result.castStage = { sd::Obscript::IsCasting(actor) ? CastStage::Fire : CastStage::None, CastStage::None };
-
-		if (actor == g_thePlayer)
-			result.isFirstPerson = PlayerCamera::GetSingleton()->IsFirstPerson();
-		else
-			result.isFirstPerson = true;
 
 		static bool addedToSignal = false;
 		if (!addedToSignal)
@@ -548,7 +560,13 @@ namespace MovementData_
 		pos1.z = md.pos.z;
 		pos2.z = cd::GetPosition(ac).z;
 
+		enum {
+			WerewolfRace = 0x000CDD84,
+		};
+		const auto currentRace = sd::GetRace(ac);
+
 		if (distance > maxDistance
+			|| currentRace->formID == WerewolfRace
 			|| (md.angleZ != syncStatus.last.angleZ && (md.runMode != RunMode::Standing || abs(angleOffset) >= (config.smartAngle ? 74.99 : 0.0)))
 			|| syncStatus.lastRunModeChangeMoment + 300 > clock()
 			|| syncStatus.lastDirectionChangeMoment + syncStatus.translateToMSOnDirChange > clock()
@@ -563,6 +581,8 @@ namespace MovementData_
 			if (md.runMode == RunMode::Standing)
 				speed = 128.0;
 			if (md.runMode == RunMode::Standing && (distance > maxDistance || syncStatus.strictTranslateToTimer >= clock()))
+				speed = 8192.0;
+			if (currentRace->formID == WerewolfRace || md.isInJumpState)
 				speed = 8192.0;
 			if (syncStatus.lastTranslateToMoment + config.positionUpdateRate <= clock())
 			{
@@ -580,6 +600,8 @@ namespace MovementData_
 					if (distance <= 128.0 && !md.isInJumpState)
 					{
 						speed = md.speedSampled;
+						if (speed == 0)
+							speed = 512;
 						const float unitsOffset = 12.0;
 						const float pi = std::acos(-1);
 						const NiPoint3 offset{
@@ -771,8 +793,6 @@ namespace MovementData_
 
 				if (!syncStatus.isWorldSpell[i])
 					castStage = CastStage::None;
-
-				//ci::Chat::AddMessage(std::to_wstring((int32_t)castStage));
 
 				switch (castStage)
 				{

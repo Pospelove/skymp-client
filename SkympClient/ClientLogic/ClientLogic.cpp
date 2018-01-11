@@ -2735,6 +2735,16 @@ class ClientLogic : public ci::IClientLogic
 		{
 			ci::Chat::AddMessage(L"#BEBEBE" L"Use //bots");
 		}
+		else if (cmdText == L"//werewolf")
+		{
+			static bool ww = false;
+			ww = !ww;
+			for (auto p : ps)
+			{
+				p->SetWerewolf(ww, 1);
+			}
+			localPlayer->SetWerewolf(ww, 1);
+		}
 		else if (cmdText == L"//tracehost")
 		{
 			tracehost = !tracehost;

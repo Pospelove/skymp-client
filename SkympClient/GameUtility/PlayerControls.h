@@ -14,7 +14,8 @@ enum class Control
 	Wait = 9,
 	FastTravel = 10,
 	Console = 11,
-	COUNT = 12,
+	BeastForm = 12,
+	COUNT = 13,
 };
 
 enum {

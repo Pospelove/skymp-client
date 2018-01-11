@@ -52,6 +52,9 @@ namespace ci
 		virtual void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) = 0;
 		virtual void RemoveActiveEffect(const ci::MagicEffect *effect) = 0;
 
+		// Note: Not work on despawned RemotePlayers. You must flood this method
+		void SetWerewolf(bool ww, bool skipAnimation = false);
+
 		virtual std::wstring GetName() const = 0;
 		virtual NiPoint3 GetPos() const = 0;
 		virtual float GetAngleZ() const = 0;
