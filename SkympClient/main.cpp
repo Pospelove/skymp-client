@@ -37,6 +37,8 @@ class SkympClientDll : public SKSEPlugin
 public:
 
 	Loadscreen *ls = nullptr;
+	std::unique_ptr<Loadscreen> dummyLs;
+	bool needDummy = true;
 
 	SkympClientDll()
 	{
@@ -98,9 +100,11 @@ public:
 		for (SInt32 i = 0; i != 10; ++i)
 			sd::ExecuteConsoleCommand("player.aps Costile _TranslateTo_", 0);
 
-		SET_TIMER(0, [] {
+		SET_TIMER(0, [this] {
 			sd::ExecuteConsoleCommand("player.aps Costile PostLoad", 0);
 			sd::FadeOutGame(0, 1, 0.3, 0.5);
+			dummyLs.reset(nullptr);
+			needDummy = false;
 		});
 
 		while (1)
@@ -328,6 +332,10 @@ public:
 						}
 					}
 				}
+				if (menuManager && !menuManager->IsMenuOpen("Loading Menu") && needDummy && ls == nullptr)
+					dummyLs.reset(new Loadscreen("MyGUI\\dummy.png"));
+				else
+					dummyLs.reset(nullptr);
 
 				if (menuManager && menuManager->IsMenuOpen("Main Menu"))
 				{

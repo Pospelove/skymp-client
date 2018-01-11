@@ -1551,6 +1551,7 @@ public:
 
 	static void SetControlsEnabled(bool enable)
 	{
+
 		static bool enabled = true;
 		if (enable != enabled)
 		{
@@ -1580,12 +1581,13 @@ public:
 
 		if (sd::IsBleedingOut(g_thePlayer))
 		{
-			sd::ForceFirstPerson();
+			sd::ForceThirdPerson();
 		}
 	}
 
 	void OnDeath()
 	{
+		cd::SendAnimationEvent(g_thePlayer, "IdleAstridEnter", {});
 		SetControlsEnabled(false);
 	}
 
@@ -1598,6 +1600,7 @@ void ci::LocalPlayer::Resurrect()
 {
 	SET_TIMER_LIGHT(1, [=] {
 
+		cd::SendAnimationEvent(g_thePlayer, "IdleStop", {});
 		if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
 		{
 			DeathHandler::SetControlsEnabled(true);
