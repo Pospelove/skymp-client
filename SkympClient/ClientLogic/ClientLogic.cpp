@@ -2555,6 +2555,7 @@ class ClientLogic : public ci::IClientLogic
 		static ci::Object *obj = nullptr;
 		static std::vector<ci::RemotePlayer *> ps;
 		static std::map<ci::RemotePlayer *, NiPoint3> offsets;
+		static bool traceHorseMovement = false;
 
 		if (cmdText == L"/q")
 		{
@@ -2785,6 +2786,48 @@ class ClientLogic : public ci::IClientLogic
 			tracehost = !tracehost;
 			ci::Chat::AddMessage((std::wstring)L"#BEBEBE" L">> tracehost " + (tracehost ? L"On" : L"Off"));
 		}
+		else if (cmdText == L"//tracehorsemd")
+		{
+			traceHorseMovement = !traceHorseMovement;
+			ci::Chat::AddMessage((std::wstring)L"#BEBEBE" L">> tracehorsemd " + (traceHorseMovement ? L"On" : L"Off"));
+		}
+		else if (cmdText == L"//testhorse")
+		{
+			std::vector<ci::RemotePlayer *> horses;
+			for (int32_t i = 0; i != 2; ++i)
+			{
+				auto p = new ci::RemotePlayer(
+					localPlayer->GetName(),
+					localPlayer->GetLookData(),
+					localPlayer->GetPos(),
+					localPlayer->GetCell(),
+					localPlayer->GetWorldSpace(),
+					{});
+				p->SetBaseNPC(0x00109E3D);
+				horses.push_back(p);
+			}
+			if (horses.size() == 2)
+			{
+				auto horseOut = horses.back();
+				auto horseIn = horses.front();
+
+				horseOut->SetEngine("RPEngineIO");
+				horseIn->SetEngine("RPEngineInput");
+
+				testUpd.Add([=] {
+					auto md = horseOut->GetMovementData();
+					if (traceHorseMovement)
+					{
+						std::wstringstream ss;
+						ss << L"#BEBEBE" << L"SpeedSampled " << md.speedSampled << L" RunMode " << (int32_t)md.runMode;
+						ci::Chat::AddMessage(ss.str());
+					}
+					md.pos += {128, 128, 0};
+					horseIn->ApplyMovementData(md);
+					horseOut->SetCombatTarget(localPlayer);
+				});
+			}
+		}
 		else if (cmdText == L"//clone")
 		{
 			auto onHit = [](const ci::HitEventData &eventData) {
@@ -2805,6 +2848,8 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->GetCell(), 
 				localPlayer->GetWorldSpace(), 
 				onHit);
+			if (arguments.size() == 1 && arguments[0] == L"horse")
+				p->SetBaseNPC(0x00109E3D);
 
 			auto armor = localPlayer->GetEquippedArmor();
 			for (auto item : armor)

@@ -252,19 +252,24 @@ namespace MovementData_
 		}
 		result.isRPressed = (g_thePlayer && rPressed) ? 1 : 0;
 
+		enum {
+			HorseRace = 0x000131FD
+		};
+		const bool isHorse = actor->GetRace()->formID == HorseRace;
+
 		bool moving = false;
-		static NiPoint3 lastPlPos = {};
-		if (actor == g_thePlayer)
+		static std::map<uint32_t, NiPoint3> lastPlPos;
+		if (actor == g_thePlayer || isHorse)
 		{
-			static clock_t lastMove = 0;
+			static std::map<uint32_t, clock_t> lastMove;
 			NiPoint3 plPos = result.pos;
 			plPos.z = -1;
-			if (abs(plPos.Length() - lastPlPos.Length()) > 0.1)
+			if (abs(plPos.Length() - lastPlPos[actor->formID].Length()) > 0.1)
 			{
-				lastMove = clock();
+				lastMove[actor->formID] = clock();
 			}
-			lastPlPos = plPos;
-			moving = result.isFirstPerson == false && clock() - lastMove < 50;
+			lastPlPos[actor->formID] = plPos;
+			moving = (result.isFirstPerson == false || isHorse) && clock() - lastMove[actor->formID] < 50;
 		}
 
 		if (moving || result.speedSampled != 0)

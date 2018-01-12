@@ -2241,7 +2241,11 @@ namespace ci
 						actor->SetDisplayName(name, true);
 
 						cd::SetPosition(ac, pimpl->movementData.pos);
-						sd::BlockActivation(actor, true);
+						enum {
+							HorseRace = 0x000131FD
+						};
+						if (actor->GetRace()->formID != HorseRace)
+							sd::BlockActivation(actor, true);
 						sd::AllowPCDialogue(actor, false);
 
 						AnimData_::Register(actor);
