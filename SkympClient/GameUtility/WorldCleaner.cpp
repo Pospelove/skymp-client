@@ -237,8 +237,15 @@ void WorldCleaner::Update()
 	{
 		cellWas = currentCell;
 		forceUpdate = false;
+
 		if (currentCell)
 		{
+			enum {
+				MaxDict = 1000,
+			};
+			if (dict.size() > MaxDict)
+				dict.clear();
+
 			const UInt32 formID = currentCell->formID;
 			const auto deepth = CELL_SEARCH_DEEPTH;
 			for (UInt32 tmpFormID = (formID > deepth) ? formID - deepth : 0; tmpFormID != formID + deepth; ++tmpFormID)

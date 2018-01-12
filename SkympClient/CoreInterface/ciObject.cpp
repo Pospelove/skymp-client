@@ -112,7 +112,7 @@ struct ci::Object::Impl
 	NiPoint3 pos, rot, posData;
 	std::wstring name;
 	bool destroyed = true, open = true, blockedActivation = true, grabbed = false;
-	int32_t motionType = Motion_Keyframed;
+	int32_t motionType = Object::Motion_Keyframed;
 	bool isDisabled = false;
 	uint32_t count = 1, lastCount = 1;
 	uint8_t lockLevel = 0;
@@ -817,7 +817,11 @@ void ci::Object::Update()
 				&& NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() < GetRespawnRadius(isInterior)
 				&& (pimpl->locationID == worldSpaceID || pimpl->locationID == localPlCell->formID))
 			{
-				this->ForceSpawn();
+				auto marker = (TESObjectREFR *)LookupFormByID(markerFormID);
+				if (marker && marker->formType == FormType::Reference && (cd::GetPosition(marker) - ci::LocalPlayer::GetSingleton()->GetPos()).Length() > 1000)
+				{
+					this->ForceSpawn();
+				}
 			}
 		});
 		break;
@@ -1041,6 +1045,7 @@ void ci::Object::ForceSpawn()
 				ErrorHandling::SendError("ERROR:Object Unable to place");
 				return;
 			}
+			sd::SetMotionType(ref, Object::Motion_Keyframed , true);
 			pimpl->refID = ref->formID;
 			WorldCleaner::GetSingleton()->SetFormProtected(pimpl->refID, true);
 

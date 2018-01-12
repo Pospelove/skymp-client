@@ -2178,7 +2178,7 @@ namespace ci
 			this->DestroyGnomes();
 			pimpl->spawnStage = SpawnStage::Spawning;
 
-			auto refToPlaceAt = //(TESObjectREFR *)LookupFormByID(markerFormID);
+			auto refToPlaceAt =
 				WorldCleaner::GetSingleton()->FindFarObject();
 			if (refToPlaceAt && refToPlaceAt->formType != FormType::Reference)
 				refToPlaceAt = nullptr;
@@ -2266,6 +2266,7 @@ namespace ci
 					if (npc == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
 					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable);
+					sd::SetActorValue((Actor *)refr, "Variable01", rand()); // Fix magic cast on spawn
 					if (refr == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
 
