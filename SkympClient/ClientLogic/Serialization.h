@@ -14,6 +14,7 @@ inline void Serialize(RakNet::BitStream &bsOut, const ci::MovementData &d)
 	bsOut.Write(d.jumpStage);
 	bsOut.Write(d.castStage[0]);
 	bsOut.Write(d.castStage[1]);
+	bsOut.Write(d.mountStage);
 	bsOut.Write(d.isInJumpState);
 	bsOut.Write(d.isJumping);
 	bsOut.Write(d.isSprinting);
@@ -39,6 +40,7 @@ inline void Deserialize(RakNet::BitStream &bsIn, ci::MovementData &d)
 	bsIn.Read(d.jumpStage);
 	bsIn.Read(d.castStage[0]);
 	bsIn.Read(d.castStage[1]);
+	bsIn.Read(d.castStage);
 	bsIn.Read(d.isInJumpState);
 	bsIn.Read(d.isJumping);
 	bsIn.Read(d.isSprinting);

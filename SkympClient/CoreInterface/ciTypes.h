@@ -78,6 +78,14 @@ namespace ci
 			Release = 3,
 		};
 
+		enum class MountStage : uint8_t
+		{
+			None = 0,
+			Mounting = 1,
+			OnMount = 2,
+			Dismounting = 3,
+		};
+
 		NiPoint3 pos = { 0,0,0 };
 		uint16_t angleZ = 0;
 		uint16_t direction = 0;
@@ -87,6 +95,7 @@ namespace ci
 		RunMode runMode = RunMode::Standing;
 		JumpStage jumpStage = JumpStage::Landed;
 		std::array<CastStage, 2> castStage;
+		MountStage mountStage;
 		bool isInJumpState = false;
 		bool isJumping = false;
 		bool isSprinting = false;
