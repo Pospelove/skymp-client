@@ -1687,6 +1687,15 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+	// Blocking mounted fighting
+	const bool onMount = this->IsOnMount();
+	static bool wasOnMount = false;
+	if (onMount != wasOnMount)
+	{
+		PlayerControls_::SetEnabled(Control::Fighting, !onMount);
+		wasOnMount = onMount;
+	}
+
 	if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
 	{
 		static auto deathH = new DeathHandler;

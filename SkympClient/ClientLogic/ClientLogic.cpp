@@ -39,6 +39,9 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Recipe *> recipes;
 	std::map<uint16_t, uint32_t> baseNPCs;
 	std::set<uint16_t> hostedPlayers;
+	struct {
+		std::list<std::shared_ptr<uint32_t>> hitAnims;
+	} dbg;
 	bool silentInventoryChanges = false;
 	bool dataSearchEnabled = false;
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
@@ -2651,6 +2654,13 @@ class ClientLogic : public ci::IClientLogic
 					localPlayer->PlayAnimation(*anim);
 				}
 
+				while (dbg.hitAnims.empty() == false)
+				{
+					auto anim = dbg.hitAnims.front();
+					dbg.hitAnims.pop_front();
+					p->PlayAnimation(*anim);
+				}
+
 				{
 					auto handR = localPlayer->GetEquippedWeapon(),
 						handL = localPlayer->GetEquippedWeapon(true);
@@ -2914,6 +2924,40 @@ class ClientLogic : public ci::IClientLogic
 				});
 			}
 		}
+		else if (cmdText == L"//8")
+		{
+			for (auto p : ps)
+			{
+				p->PlayAnimation(8);
+			}
+		}
+		else if (cmdText == L"//swing")
+		{
+			if (arguments.size() != 0)
+			{
+				std::string aeName;
+				if (arguments[0] == L"right")
+				{
+					aeName = "weaponSwing";
+				}
+				if (arguments[0] == L"left")
+				{
+					aeName = "weaponLeftSwing";
+				}
+				if (!aeName.empty())
+				{
+					static uint32_t animID = 1001001000;
+					++animID;
+					ci::RegisterAnimation(aeName, animID);
+					ci::Chat::AddMessage(L"#BEBEBE" + StringToWstring(aeName));
+					for (auto p : ps)
+					{
+						p->PlayAnimation(animID);
+					}
+					localPlayer->PlayAnimation(animID);
+				}
+			}
+		}
 		else if (cmdText == L"//cddbg" || cmdText == L"//cdtrace")
 		{
 			static bool tr = true;
@@ -3171,6 +3215,7 @@ class ClientLogic : public ci::IClientLogic
 		const auto hitAnimIDPtr = dynamic_cast<ci::LocalPlayer *>(localPlayer)->GetNextHitAnim();
 		if (hitAnimIDPtr != nullptr)
 		{
+			dbg.hitAnims.push_back(hitAnimIDPtr);
 			this->SendAnimation(*hitAnimIDPtr, net.myID);
 		}
 	}
