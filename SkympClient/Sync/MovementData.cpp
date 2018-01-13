@@ -210,6 +210,15 @@ namespace MovementData_
 		lastAE = animEventName;
 	}
 
+	bool IsHorse(Actor *actor)
+	{
+		enum {
+			HorseRace = 0x000131FD
+		};
+		const bool isHorse = actor->GetRace()->formID == HorseRace;
+		return isHorse;
+	}
+
 	ci::MovementData Get(Actor *actor)
 	{
 		ci::MovementData result;
@@ -254,14 +263,9 @@ namespace MovementData_
 		}
 		result.isRPressed = (g_thePlayer && rPressed) ? 1 : 0;
 
-		enum {
-			HorseRace = 0x000131FD
-		};
-		const bool isHorse = actor->GetRace()->formID == HorseRace;
-
 		bool moving = false;
 		static std::map<uint32_t, NiPoint3> lastPlPos;
-		if (actor == g_thePlayer || isHorse)
+		if (actor == g_thePlayer || IsHorse(actor))
 		{
 			static std::map<uint32_t, clock_t> lastMove;
 			NiPoint3 plPos = result.pos;
@@ -271,7 +275,7 @@ namespace MovementData_
 				lastMove[actor->formID] = clock();
 			}
 			lastPlPos[actor->formID] = plPos;
-			moving = (result.isFirstPerson == false || isHorse) && clock() - lastMove[actor->formID] < 50;
+			moving = (result.isFirstPerson == false || IsHorse(actor)) && clock() - lastMove[actor->formID] < 50;
 		}
 
 		if (moving || result.speedSampled != 0)
@@ -780,6 +784,23 @@ namespace MovementData_
 
 	void ApplyJumping(ci::MovementData md, Actor *ac, SyncState &syncStatus, const Config &config)
 	{
+		char *jumpStandingStart = "JumpStandingStart";
+		char *jumpDirectionalStart = "JumpDirectionalStart";
+		char *jumpLand = "JumpLand";
+		char *jumpDirectionalLand = "JumpLandDirectional";
+
+		if (IsHorse(ac))
+		{
+			jumpStandingStart = "StandingRearUp";
+			jumpDirectionalStart = "forwardJumpStart";
+			jumpLand = jumpDirectionalLand = "forwardLandEnd";
+
+			if (md.isInJumpState)
+			{
+				md.jumpStage = ci::MovementData::JumpStage::Jumping;
+			}
+		}
+
 		bool isj;
 		ac->GetAnimationVariableBool("bInJumpState", isj);
 		if (md.jumpStage != JumpStage::Landed)
@@ -789,7 +810,7 @@ namespace MovementData_
 				if (ac->processManager && ac->processManager->middleProcess && ac->processManager->middleProcess->animGraphManager)
 				{
 					std::lock_guard<BSSpinLock>l(ac->processManager->middleProcess->animGraphManager.Get()->lock);
-					ac->SendAnimationEvent(md.runMode == RunMode::Standing ? "JumpStandingStart" : "JumpDirectionalStart");
+					ac->SendAnimationEvent(md.runMode == RunMode::Standing ? jumpStandingStart : jumpDirectionalStart);
 					syncStatus.lastJump = clock();
 				}
 			}
@@ -800,7 +821,7 @@ namespace MovementData_
 				if (ac->processManager && ac->processManager->middleProcess && ac->processManager->middleProcess->animGraphManager)
 				{
 					std::lock_guard<BSSpinLock>l(ac->processManager->middleProcess->animGraphManager.Get()->lock);
-					ac->SendAnimationEvent(md.runMode == RunMode::Standing ? "JumpLand" : "JumpLandDirectional");
+					ac->SendAnimationEvent(md.runMode == RunMode::Standing ? jumpLand : jumpDirectionalLand);
 				}
 		}
 	}
