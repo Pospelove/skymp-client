@@ -2793,16 +2793,29 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//testhorse")
 		{
-			std::vector<ci::RemotePlayer *> horses;
+			static std::vector<ci::RemotePlayer *> horses;
+			horses.clear();
 			for (int32_t i = 0; i != 2; ++i)
 			{
+				auto onActivate = [=] {
+					if (localPlayer->IsOnMount() == false)
+					{
+						localPlayer->EnterHorse(horses[i]);
+					}
+					else
+					{
+						localPlayer->ExitHorse();
+					}
+				};
+
 				auto p = new ci::RemotePlayer(
 					localPlayer->GetName(),
 					localPlayer->GetLookData(),
 					localPlayer->GetPos(),
 					localPlayer->GetCell(),
 					localPlayer->GetWorldSpace(),
-					{});
+					{}, "",
+					onActivate);
 				p->SetBaseNPC(0x00109E3D);
 				horses.push_back(p);
 			}
@@ -2824,7 +2837,13 @@ class ClientLogic : public ci::IClientLogic
 					}
 					md.pos += {128, 128, 0};
 					horseIn->ApplyMovementData(md);
-					horseOut->SetCombatTarget(localPlayer);
+					if (ps.size() > 0)
+					{
+						if (ps.front()->GetMovementData().mountStage != ci::MovementData::MountStage::None)
+							ps.front()->SetAttachedHorse(horseIn);
+						else
+							ps.front()->SetAttachedHorse(nullptr);
+					}
 				});
 			}
 		}

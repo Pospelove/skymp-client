@@ -332,10 +332,18 @@ public:
 						}
 					}
 				}
-				if (menuManager && !menuManager->IsMenuOpen("Loading Menu") && needDummy && ls == nullptr)
-					dummyLs.reset(new Loadscreen("MyGUI\\dummy.png"));
-				else
-					dummyLs.reset(nullptr);
+
+				static clock_t lastReset = 0;
+				if (clock() - lastReset > 1000)
+				{
+					if (menuManager && !menuManager->IsMenuOpen("Loading Menu") && needDummy && ls == nullptr)
+					{
+						lastReset = clock();
+						dummyLs.reset(new Loadscreen("MyGUI\\dummy.png"));
+					}
+					else
+						dummyLs.reset(nullptr);
+				}
 
 				if (menuManager && menuManager->IsMenuOpen("Main Menu"))
 				{

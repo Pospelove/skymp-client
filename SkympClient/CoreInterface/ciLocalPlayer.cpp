@@ -109,6 +109,7 @@ clock_t lastLocalPlUpdate = 0;
 bool registered = false;
 clock_t localPlCrosshairRefUpdateMoment = 0;
 uint32_t lastFurniture = 0;
+bool localPlOnMount = false;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -1619,7 +1620,67 @@ void ci::LocalPlayer::Resurrect()
 		{
 			sd::RestoreActorValue(g_thePlayer, "Health", 99999);
 		}
-	});//test
+	});
+}
+
+namespace ci
+{
+	class IActorAccess
+	{
+	public:
+		static uint32_t GetRefID(ci::IActor *actor) {
+			return actor->GetRefID();
+		}
+	};
+}
+
+void ci::LocalPlayer::EnterHorse(ci::IActor *horse)
+{
+	if (horse == nullptr)
+		return;
+	SET_TIMER_LIGHT(1, [=] {
+		auto horseRef = (Actor *)LookupFormByID(ci::IActorAccess::GetRefID(horse));
+		if (horseRef != nullptr && horseRef->formType == FormType::Character)
+		{
+			cd::IsOnMount(g_thePlayer, [=](bool isOnMount) {
+				if (!isOnMount)
+				{
+					SET_TIMER_LIGHT(1, [=] {
+						auto pos = cd::GetPosition(horseRef);
+						if ((pos - this->GetPos()).Length() < 256)
+						{
+							localPlOnMount = true;
+							sd::Activate(horseRef, g_thePlayer, true);
+						}
+					});
+				}
+			});
+		}
+	});
+}
+
+void ci::LocalPlayer::ExitHorse()
+{
+	SET_TIMER_LIGHT(1, [=] {
+		cd::IsOnMount(g_thePlayer, [=](bool isOnMount) {
+			if (isOnMount)
+			{
+				SET_TIMER_LIGHT(1, [=] {
+					auto horseRef = sd::GetPlayersLastRiddenHorse();
+					if (horseRef != nullptr)
+					{
+						localPlOnMount = false;
+						sd::Activate(horseRef, g_thePlayer, true);
+					}
+				});
+			}
+		});
+	});
+}
+
+bool ci::LocalPlayer::IsOnMount()
+{
+	return localPlOnMount;
 }
 
 void ci::LocalPlayer::Update()
@@ -2096,6 +2157,16 @@ void ci::LocalPlayer::Update()
 		{
 			//PreventCrash((TESNPC *)g_thePlayer->baseForm);
 			PreventCrash();
+			localPlOnMount = false;
+		}
+	});
+
+	SAFE_CALL("LocalPlayer", [&] {
+		static bool wasOnMount = false;
+		if (wasOnMount != localPlOnMount)
+		{
+			MovementData_::OnPlayerMountDismount(localPlOnMount);
+			wasOnMount = localPlOnMount;
 		}
 	});
 

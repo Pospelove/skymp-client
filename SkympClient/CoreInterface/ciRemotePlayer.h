@@ -15,6 +15,7 @@ namespace ci
 	public:
 
 		using OnHit = std::function<void(const HitEventData &)>;
+		using OnActivate = std::function<void()>;
 
 		RemotePlayer(
 			const std::wstring &name,
@@ -23,7 +24,8 @@ namespace ci
 			uint32_t cellID,
 			uint32_t worldSpaceID,
 			OnHit onHit = nullptr,
-			const std::string &engineName = "RPEngineInput");
+			const std::string &engineName = "RPEngineInput",
+			OnActivate onActivate = nullptr);
 
 		virtual ~RemotePlayer() override;
 
@@ -85,6 +87,7 @@ namespace ci
 		NiPoint3 GetNicknamePos() const;
 		float GetNicknameDrawDistance() const;
 		bool IsSpawned() const;
+		void SetAttachedHorse(ci::IActor *horse);
 
 	private:
 

@@ -23,6 +23,7 @@ namespace MovementData_
 		bool fullyUnsafeSync = false;
 		uint32_t myFoxID = 0;
 		bool isWorldSpell[2];
+		uint32_t myVehicleID = 0;
 
 		// in-out
 		SyncMode syncMode = SyncMode::Light;
@@ -65,10 +66,13 @@ namespace MovementData_
 		clock_t lastShot = 0;
 		clock_t lastCastRelease = 0;
 		size_t fatalErrors = 0;
+		clock_t enablePosApplyMoment = 0;
+		NiPoint3 lastDismountedPos = {};
 	};
 
 
 	ci::MovementData GetFromPlayer();
 	ci::MovementData Get(Actor *actor);
 	void Apply(ci::MovementData movementData, Actor *actor, SyncState *syncState, uint32_t ghostAxeID);
+	void OnPlayerMountDismount(bool mount);
 }

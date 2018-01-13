@@ -229,6 +229,7 @@ namespace ci
 		std::map<const ci::ItemType *, uint32_t> inventory;
 		std::queue<uint32_t> hitAnimsToApply, hitAnimsOut;
 		OnHit onHit = nullptr;
+		OnActivate onActivate = nullptr;
 		std::map<std::string, ci::AVData> avData;
 		Object *myPseudoFox = nullptr;
 		Object *dispenser = nullptr;
@@ -282,6 +283,7 @@ namespace ci
 		}
 
 		class HitEventSinkGlobal;
+		class ActivateEventSinkGlobal;
 	};
 
 	class IRemotePlayerEngine : public IActor 
@@ -1080,6 +1082,42 @@ namespace ci
 		}
 	}
 
+	class RemotePlayer::Impl::ActivateEventSinkGlobal : public BSTEventSink<TESActivateEvent>
+	{
+	public:
+		ActivateEventSinkGlobal() {
+			g_activateEventSource.AddEventSink(this);
+		}
+
+		virtual ~ActivateEventSinkGlobal() override {
+			g_activateEventSource.RemoveEventSink(this);
+		}
+
+		virtual	EventResult	ReceiveEvent(TESActivateEvent *evn, BSTEventSource<TESActivateEvent> * source) override
+		{
+			if (evn->caster == g_thePlayer)
+			{
+				std::lock_guard<dlf_mutex> l(gMutex);
+
+				for (auto pl : allRemotePlayers)
+				{
+					std::lock_guard<dlf_mutex> l1(pl->pimpl->mutex);
+					if (pl->pimpl->formID == evn->target->formID)
+					{
+						auto onActivate = pl->pimpl->onActivate;
+						std::thread([=] {
+							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+							onActivate();
+						}).detach();
+						goto ret;
+					}
+				}
+			}
+			ret:
+			return EventResult::kEvent_Continue;
+		}
+	};
+
 	class RemotePlayer::Impl::HitEventSinkGlobal : public BSTEventSink<TESHitEvent>
 	{
 	public:
@@ -1320,10 +1358,17 @@ namespace ci
 		}
 	}
 
-	RemotePlayer::RemotePlayer(const std::wstring &name, const LookData &lookData, NiPoint3 spawnPoint, uint32_t cellID, uint32_t worldSpaceID, OnHit onHit, const std::string &engineName) :
-		pimpl(new Impl)
+	RemotePlayer::RemotePlayer(const std::wstring &name, 
+		const LookData &lookData, 
+		NiPoint3 spawnPoint, 
+		uint32_t cellID, 
+		uint32_t worldSpaceID, 
+		OnHit onHit, 
+		const std::string &engineName, 
+		OnActivate onActivate) : pimpl(new Impl)
 	{
-		static auto hitEventSink = new Impl::HitEventSinkGlobal;
+		static void *hitEventSink = new Impl::HitEventSinkGlobal,
+			*activateEventSink = new Impl::ActivateEventSinkGlobal;
 
 		std::lock_guard<dlf_mutex> l(gMutex);
 		std::lock_guard<dlf_mutex> l1(pimpl->mutex);
@@ -1336,6 +1381,7 @@ namespace ci
 		pimpl->currentNonExteriorCell = CellUtil::LookupNonExteriorCellByID(cellID);
 		pimpl->worldSpaceID = worldSpaceID;
 		pimpl->onHit = onHit;
+		pimpl->onActivate = onActivate;
 		pimpl->engine.reset(new ci::RPEngineInput(this));
 		this->SetEngine(engineName);
 
@@ -2241,11 +2287,7 @@ namespace ci
 						actor->SetDisplayName(name, true);
 
 						cd::SetPosition(ac, pimpl->movementData.pos);
-						enum {
-							HorseRace = 0x000131FD
-						};
-						if (actor->GetRace()->formID != HorseRace)
-							sd::BlockActivation(actor, true);
+						sd::BlockActivation(actor, true);
 						sd::AllowPCDialogue(actor, false);
 
 						AnimData_::Register(actor);
@@ -2591,6 +2633,9 @@ namespace ci
 
 	void RemotePlayer::SetEngine(const std::string &engineName)
 	{
+		if (engineName.empty())
+			return;
+
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 		auto engineTask = [=] {
@@ -2928,6 +2973,13 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		return pimpl->spawnStage == SpawnStage::Spawned;
+	}
+
+	void RemotePlayer::SetAttachedHorse(ci::IActor *horse)
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		const uint32_t id = horse != nullptr ? IActorAccess::GetActorRefID(horse) : 0;
+		pimpl->syncState.myVehicleID = id;
 	}
 
 	void RemotePlayer::SetHeight(float h)

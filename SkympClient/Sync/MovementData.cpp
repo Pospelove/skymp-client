@@ -13,9 +13,11 @@ namespace MovementData_
 	using RunMode = ci::MovementData::RunMode;
 	using JumpStage = ci::MovementData::JumpStage;
 	using CastStage = ci::MovementData::CastStage;
+	using MountStage = ci::MovementData::MountStage;
 
 	JumpStage currentPCJumpStage;
 	CastStage currentPCCastStage[2] = { CastStage::None, CastStage::None };
+	MountStage currentPCMountStage = MountStage::None;
 	int32_t castSession[2] = { 0, 0 };
 	bool isPCBlocking = false;
 	clock_t weapDrawStart = 0;
@@ -289,6 +291,7 @@ namespace MovementData_
 			currentPCJumpStage = JumpStage::Landed;
 
 		result.jumpStage = actor == g_thePlayer ? currentPCJumpStage : JumpStage::Landed;
+		result.mountStage = actor == g_thePlayer ? currentPCMountStage : MountStage::None;
 
 		if (actor == g_thePlayer)
 			result.castStage = { currentPCCastStage[0], currentPCCastStage[1] };
@@ -550,8 +553,39 @@ namespace MovementData_
 		}
 	}
 
+	static std::map<uint32_t, ci::MovementData> positions;
+
 	void ApplyPosition(ci::MovementData md, Actor *ac, SyncState &syncStatus, const Config &config)
 	{
+		positions[ac->formID] = md;
+		
+		if (clock() < syncStatus.enablePosApplyMoment)
+		{
+			auto pos = syncStatus.lastDismountedPos;
+			sd::TranslateTo(ac, pos.x, pos.y, pos.z, 0, 0, sd::GetAngleZ(ac), 10000, 10000);
+			return;
+		}
+		//if (md.mountStage == ci::MovementData::MountStage::None)
+		{
+			syncStatus.lastDismountedPos = md.pos;
+		}
+
+		{
+			auto vehicleRef = (TESObjectREFR *)LookupFormByID(syncStatus.myVehicleID);
+			if (vehicleRef != nullptr && vehicleRef->formType == FormType::Character)
+			{
+				char *nodeName = "SaddleBone";
+				auto pos = Utility::GetNodeWorldPosition(vehicleRef, nodeName, 1);
+				sd::TranslateTo(ac, pos.x, pos.y, pos.z, 0, 0, md.angleZ, 10000, 10000);
+				pos = positions[vehicleRef->formID].pos;
+				auto currentVPos = cd::GetPosition(vehicleRef);
+				auto t = 0.1;
+				auto speed = (pos - currentVPos).Length() / t;
+				sd::TranslateTo(vehicleRef, pos.x, pos.y, pos.z, 0, 0, positions[vehicleRef->formID].angleZ, speed, 1000);
+				return;
+			}
+		}
+
 		const float angleOffset = (float)md.angleZ - sd::GetAngleZ(ac);
 
 		float maxDistance = config.maxLagDistance;
@@ -569,7 +603,7 @@ namespace MovementData_
 			WerewolfRace = 0x000CDD84,
 		};
 		const auto currentRace = sd::GetRace(ac);
-
+		
 		if (distance > maxDistance
 			|| currentRace->formID == WerewolfRace
 			|| (md.angleZ != syncStatus.last.angleZ && (md.runMode != RunMode::Standing || abs(angleOffset) >= (config.smartAngle ? 74.99 : 0.0)))
@@ -829,6 +863,32 @@ namespace MovementData_
 		}
 	}
 
+	void ApplyHorseRiding(ci::MovementData md, Actor *ac, SyncState &syncStatus)
+	{
+		const bool stageChanged = md.mountStage != syncStatus.last.mountStage;
+
+		switch (md.mountStage)
+		{
+		case MountStage::Dismounting:
+		case MountStage::None:
+			if (stageChanged)
+			{
+				SendAnimationEvent(ac, "HorseExit", syncStatus.fullyUnsafeSync);
+			}
+			break;
+		case MountStage::Mounting:
+		case MountStage::OnMount:
+			if (!syncStatus.isFirstNormalApply && stageChanged)
+			{
+				SendAnimationEvent(ac, "HorseEnter", syncStatus.fullyUnsafeSync);
+				syncStatus.enablePosApplyMoment = clock() + 1500;
+			}
+			else if(syncStatus.enablePosApplyMoment < clock())
+				SendAnimationEvent(ac, "HorseEnterInstant", syncStatus.fullyUnsafeSync);
+			break;
+		}
+	}
+
 	void StopIdles(Actor *ac, SyncState &syncStatus)
 	{
 		auto raceID = ((TESNPC *)ac->baseForm)->GetRace()->GetFormID();
@@ -909,6 +969,7 @@ namespace MovementData_
 				ApplyBlocking(md, ac, syncStatus, config);
 				ApplyJumping(md, ac, syncStatus, config);
 				ApplyCasting(md, ac, syncStatus);
+				ApplyHorseRiding(md, ac, syncStatus);
 				StopIdles(ac, syncStatus);
 
 				if (syncStatus.forceFixAfterHitAnim
@@ -983,5 +1044,10 @@ namespace MovementData_
 
 		if (syncState != nullptr)
 			ApplyImpl(md, actor, *syncState, ghostAxeID);
+	}
+
+	void OnPlayerMountDismount(bool mount)
+	{
+		currentPCMountStage = mount ? MountStage::OnMount : MountStage::None;
 	}
 }

@@ -53,6 +53,9 @@ namespace ci
 		void AddActiveEffect(const ci::Spell *parentSpell, const ci::MagicEffect *effect, const ci::IActor *caster, float magnitude, int64_t endMoment);
 		void ClearActiveEffects();
 		void Resurrect();
+		void EnterHorse(ci::IActor *targetHorse);
+		void ExitHorse();
+		bool IsOnMount();
 
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;
