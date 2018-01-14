@@ -639,13 +639,18 @@ class ClientLogic : public ci::IClientLogic
 					{
 						if (rPlayer->HasAttachedHorse() == false)
 						{
-							auto horse = FindClosestActor(movData.pos, [this, movData](ci::IActor *actor) {
+							const auto horse = dynamic_cast<ci::RemotePlayer *>(
+								FindClosestActor(movData.pos, [this, movData](ci::IActor *actor) {
 								return actor != localPlayer
 									&& actor->GetPos().z < movData.pos.z
 									&& abs(actor->GetAngleZ() - movData.angleZ) < 15.0
 									&& (actor->GetPos() - movData.pos).Length() < 256.0;
-							});
-							rPlayer->SetAttachedHorse(horse);
+							})
+								);
+							if (horse->IsSpawned())
+							{
+								rPlayer->SetAttachedHorse(horse);
+							}
 						}
 					}
 					else

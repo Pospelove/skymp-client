@@ -1674,6 +1674,8 @@ void ci::LocalPlayer::ExitHorse()
 					}
 				});
 			}
+			else
+				localPlOnMount = false;
 		});
 	});
 }

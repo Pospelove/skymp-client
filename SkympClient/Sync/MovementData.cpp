@@ -576,17 +576,24 @@ namespace MovementData_
 
 		{
 			auto vehicleRef = (TESObjectREFR *)LookupFormByID(syncStatus.myVehicleID);
-			if (vehicleRef != nullptr && vehicleRef->formType == FormType::Character)
+			if (vehicleRef != nullptr)
 			{
-				char *nodeName = "SaddleBone";
-				auto pos = Utility::GetNodeWorldPosition(vehicleRef, nodeName, 1);
-				sd::TranslateTo(ac, pos.x, pos.y, pos.z, 0, 0, md.angleZ, 10000, 10000);
-				pos = positions[vehicleRef->formID].pos;
-				auto currentVPos = cd::GetPosition(vehicleRef);
-				auto t = 0.1;
-				auto speed = (pos - currentVPos).Length() / t;
-				sd::TranslateTo(vehicleRef, pos.x, pos.y, pos.z, 0, 0, positions[vehicleRef->formID].angleZ, speed, 1000);
-				return;
+				if (vehicleRef->formType == FormType::Character)
+				{
+					char *nodeName = "SaddleBone";
+					auto pos = Utility::GetNodeWorldPosition(vehicleRef, nodeName, 1);
+					sd::TranslateTo(ac, pos.x, pos.y, pos.z, 0, 0, md.angleZ, 10000, 10000);
+					pos = positions[vehicleRef->formID].pos;
+					auto currentVPos = cd::GetPosition(vehicleRef);
+					auto t = 0.1;
+					auto speed = (pos - currentVPos).Length() / t;
+					sd::TranslateTo(vehicleRef, pos.x, pos.y, pos.z, 0, 0, positions[vehicleRef->formID].angleZ, speed, 1000);
+					return;
+				}
+			}
+			else
+			{
+				syncStatus.myVehicleID = 0;
 			}
 		}
 
@@ -1070,5 +1077,11 @@ namespace MovementData_
 	void OnPlayerMountDismount(bool mount)
 	{
 		currentPCMountStage = mount ? MountStage::OnMount : MountStage::None;
+
+		auto horse = sd::GetPlayersLastRiddenHorse();
+		if (horse != nullptr && sd::IsDead(horse))
+		{
+			currentPCMountStage = MountStage::None;
+		}
 	}
 }

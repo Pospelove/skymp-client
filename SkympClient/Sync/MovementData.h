@@ -23,11 +23,11 @@ namespace MovementData_
 		bool fullyUnsafeSync = false;
 		uint32_t myFoxID = 0;
 		bool isWorldSpell[2];
-		uint32_t myVehicleID = 0;
 
 		// in-out
 		SyncMode syncMode = SyncMode::Light;
 		bool forceFixAfterHitAnim = false;
+		uint32_t myVehicleID = 0;
 
 		// out
 		ci::MovementData last;
