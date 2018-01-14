@@ -655,11 +655,13 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_CREATE:
 		{
+			uint32_t baseNpc = 0;
 			uint16_t id = ~0;
 			ci::MovementData movement;
 			ci::LookData look;
 			uint32_t locationID = 0;
 
+			bsIn.Read(baseNpc);
 			bsIn.Read(id);
 			Deserialize(bsIn, movement);
 			Deserialize(bsIn, look);
@@ -696,19 +698,27 @@ class ClientLogic : public ci::IClientLogic
 				}
 			};
 
+			auto onActivate = [this, id]() {
+				try {
+					this->OnActivate(players.at(id));
+				}
+				catch (...) {
+				}
+			};
+
 			if (players[id] != nullptr)
 			{
 				delete players[id];
 				players[id] = nullptr;
 			}
 
-			auto newPl = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit);;
+			auto newPl = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
 			newPl->SetMark(std::to_string(id));
 			players[id] = newPl;
 			lastFurniture[id] = 0;
 
-			uint32_t baseNpc = 0;
-			bsIn.Read(baseNpc);
+			//uint32_t baseNpc = 0;
+			//bsIn.Read(baseNpc);
 			if (baseNpc != 0 && baseNpc != ~0)
 			{
 				baseNPCs[id] = baseNpc;
@@ -2285,21 +2295,20 @@ class ClientLogic : public ci::IClientLogic
 	{
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_ACTIVATE);
-		uint32_t id = 0;
-		for (auto it = objects.begin(); it != objects.end(); ++it)
-		{
-			if (it->second == self)
-			{
-				id = it->first;
-				break;
-			}
-		}
+		const auto id = GetID(self);
 		bsOut.Write(id);
 		bsOut.Write(isOpen);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
 
-		/*if (!isOpen && objectsInfo[id].type == Type::Container)
-			self->Respawn();*/
+	void OnActivate(ci::IActor *self)
+	{
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_ACTIVATE);
+		const auto id = GetID(self);
+		bsOut.Write((uint32_t)0);
+		bsOut.Write(id);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
 	void OnContainerChanged(ci::Object *self, const ci::ItemType *itemType, uint32_t count, bool isAdd)

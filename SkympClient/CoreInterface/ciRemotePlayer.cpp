@@ -1105,15 +1105,17 @@ namespace ci
 					if (pl->pimpl->formID == evn->target->formID)
 					{
 						auto onActivate = pl->pimpl->onActivate;
-						std::thread([=] {
-							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-							onActivate();
-						}).detach();
-						goto ret;
+						if (onActivate != nullptr)
+						{
+							std::thread([=] {
+								std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+								onActivate();
+							}).detach();
+						}
+						return EventResult::kEvent_Continue;
 					}
 				}
 			}
-			ret:
 			return EventResult::kEvent_Continue;
 		}
 	};
