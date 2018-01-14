@@ -594,6 +594,12 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(enabled);
 			bsIn.Read(locationID);
 			try {
+				ci::Chat::AddMessage(L"ID_PLAYER_MOVEMENT " + (players.at(playerid))->GetName());
+			}
+			catch (...) {
+
+			}
+			try {
 				auto &player = this->players.at(playerid);
 				if (player->GetName() == localPlayer->GetName())
 					movData.pos += NiPoint3{ 128, 128, 0 };
@@ -603,8 +609,22 @@ class ClientLogic : public ci::IClientLogic
 					movData.runMode = ci::MovementData::RunMode::Standing;
 				if (enabled)
 				{
+					try {
+						ci::Chat::AddMessage(L"ID_PLAYER_MOVEMENT_APPLY1" + (players.at(playerid))->GetName());
+					}
+					catch (...) {
+
+					}
 					if (hostedPlayers.count(playerid) == 0)
+					{
 						player->ApplyMovementData(movData);
+						try {
+							ci::Chat::AddMessage(L"ID_PLAYER_MOVEMENT_APPLY2" + (players.at(playerid))->GetName());
+						}
+						catch (...) {
+
+						}
+					}
 				}
 				player->SetCell(localPlayer->GetCell());
 				player->SetWorldSpace(localPlayer->GetWorldSpace());
@@ -698,7 +718,6 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(baseNpc);
 			Deserialize(bsIn, look);
 			bsIn.Read(baseNpc);
-			ci::Chat::AddMessage(std::to_wstring(baseNpc));
 			bsIn.Read(id);
 			Deserialize(bsIn, movement);
 			{
