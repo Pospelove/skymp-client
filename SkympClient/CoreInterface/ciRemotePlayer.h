@@ -88,6 +88,7 @@ namespace ci
 		float GetNicknameDrawDistance() const;
 		bool IsSpawned() const;
 		void SetAttachedHorse(ci::IActor *horse);
+		bool HasAttachedHorse() const;
 
 	private:
 

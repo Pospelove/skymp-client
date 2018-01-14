@@ -212,6 +212,24 @@ class ClientLogic : public ci::IClientLogic
 		);
 	}
 
+	ci::IActor *FindClosestActor(NiPoint3 pos, std::function<bool(ci::IActor *)> pred = nullptr)
+	{
+		float minDistance = std::numeric_limits<float>::infinity();
+		ci::IActor *res = nullptr;
+		for (auto &pair : players)
+		{
+			const auto actor = pair.second;
+			const auto acPos = actor->GetPos();
+			const auto distance = (pos - acPos).Length();
+			if (distance < minDistance && (pred == nullptr || pred(actor)))
+			{
+				minDistance = distance;
+				res = actor;
+			}
+		}
+		return res;
+	}
+
 	enum class Type : uint8_t
 	{
 		Static =			0x00,
@@ -614,6 +632,22 @@ class ClientLogic : public ci::IClientLogic
 						ci::Log("ERROR:ClientLogic RemotePlayer is broken");
 						this->StreamOut(playerid);
 					}
+
+					/*if (movData.mountStage == ci::MovementData::MountStage::OnMount)
+					{
+						if (rPlayer->HasAttachedHorse() == false)
+						{
+							auto horse = FindClosestActor(movData.pos, [this, movData](ci::IActor *actor) {
+								return actor != localPlayer
+									&& actor->GetPos().z < movData.pos.z
+									&& abs(actor->GetAngleZ() - movData.angleZ) < 15.0
+									&& (actor->GetPos() - movData.pos).Length() < 256.0;
+							});
+							rPlayer->SetAttachedHorse(horse);
+						}
+					}
+					else
+						rPlayer->SetAttachedHorse(nullptr);*/
 				}
 			}
 			catch (...) {
@@ -656,15 +690,21 @@ class ClientLogic : public ci::IClientLogic
 		case ID_PLAYER_CREATE:
 		{
 			uint32_t baseNpc = 0;
+			ci::LookData look;
 			uint16_t id = ~0;
 			ci::MovementData movement;
-			ci::LookData look;
 			uint32_t locationID = 0;
 
 			bsIn.Read(baseNpc);
+			Deserialize(bsIn, look);
+			bsIn.Read(baseNpc);
+			ci::Chat::AddMessage(std::to_wstring(baseNpc));
 			bsIn.Read(id);
 			Deserialize(bsIn, movement);
-			Deserialize(bsIn, look);
+			{
+				ci::LookData _;
+				Deserialize(bsIn, _);
+			}
 			bsIn.Read(locationID);
 
 			uint16_t characters;
@@ -2858,7 +2898,7 @@ class ClientLogic : public ci::IClientLogic
 					horseIn->ApplyMovementData(md);
 					if (ps.size() > 0)
 					{
-						if (ps.front()->GetMovementData().mountStage != ci::MovementData::MountStage::None)
+						if (ps.front()->GetMovementData().mountStage == ci::MovementData::MountStage::OnMount)
 							ps.front()->SetAttachedHorse(horseIn);
 						else
 							ps.front()->SetAttachedHorse(nullptr);
@@ -3552,7 +3592,23 @@ class ClientLogic : public ci::IClientLogic
 			{
 				localPlayer->SetDisplayGold(atoi(arguments[0].data()));
 			}
-			return;
+		}
+		else if (funcName == "Dismount")
+		{
+			localPlayer->ExitHorse();
+		}
+		else if (funcName == "Mount")
+		{
+			if (arguments.size() > 0)
+			{
+				const auto horseID = (uint16_t)atoi(arguments[0].data());
+				try {
+					auto horse = players.at(horseID);
+					localPlayer->EnterHorse(horse);
+				}
+				catch (...) {
+				}
+			}
 		}
 	}
 };

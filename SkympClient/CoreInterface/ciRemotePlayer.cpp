@@ -2984,6 +2984,12 @@ namespace ci
 		pimpl->syncState.myVehicleID = id;
 	}
 
+	bool RemotePlayer::HasAttachedHorse() const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return pimpl->syncState.myVehicleID != 0 && pimpl->syncState.myVehicleID != ~0;
+	}
+
 	void RemotePlayer::SetHeight(float h)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
