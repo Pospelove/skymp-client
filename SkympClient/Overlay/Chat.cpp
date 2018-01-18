@@ -193,7 +193,20 @@ void Chat::AddChatMessage(const MyGUI::UString& acString)
 	m_scrollBarPosition[0] = m_pList->getVScrollRange();
 	m_scrollBarPosition[1] = m_pList->getVScrollPosition();
 
-	m_pList->insertText("#FFFFFF" + acString + '\n');
+	static size_t numChars = 0;
+
+	if (acString != " ")
+	{
+		auto msg = "#FFFFFF" + acString + '\n';
+		numChars += msg.size();
+		m_pList->insertText(msg);
+	}
+	else
+	{
+		m_pList->eraseText(0, numChars);
+		numChars = 0;
+	}
+
 	m_chatList.push_back(acString);
 
 	if (m_pList->getVScrollPosition() - m_scrollBarPosition[1] > m_pList->getVScrollRange() - m_scrollBarPosition[0])
