@@ -67,5 +67,6 @@ namespace ci
 		void RequestDoors(std::function<void(DoorData)> callback);
 		void RequestItems(std::function<void(ItemData)> callback);
 		void RequestActors(std::function<void(ActorData)> callback);
+		void LuaCodegenStart();
 	}
 }

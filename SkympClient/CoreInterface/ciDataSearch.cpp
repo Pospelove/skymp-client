@@ -1,6 +1,11 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
 
+#define CI_IMPL
+#include "DataSearchUtil.h"
+
+#include  <iomanip>
+
 class CIAccess
 {
 public:
@@ -251,4 +256,141 @@ void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 		c.race = ((Actor *)ref)->GetRace()->formID;
 		callback(c);
 	});
+}
+
+void ci::DataSearch::LuaCodegenStart()
+{
+	static bool started = false;
+	if (!started)
+	{
+		started = true;
+		std::thread([] {
+
+			using Range = std::pair<uint32_t, uint32_t>;
+			static std::map<FormType, Range> ranges = {
+				{ FormType::EffectSetting,{ 0x0000014A, 0x0010FF0C } }
+			};
+
+			static auto prepareSS = [](std::stringstream &ss) {
+				ss << std::hex << std::showbase << std::setfill('0') << std::setw(8);
+			};
+
+			static auto getIdentifier = [](TESForm *form) {
+				std::string iden = form->GetName();
+				if (iden.empty())
+				{
+					auto tesFullName = DYNAMIC_CAST<TESFullName *, TESForm *>(form);
+					if (tesFullName != nullptr)
+						iden = tesFullName->GetFullName();
+				}
+				if (iden.empty())
+				{
+					auto refr = DYNAMIC_CAST<TESObjectREFR *, TESForm *>(form);
+					if (refr != nullptr)
+					{
+						auto xTextData = refr->extraData.GetByType<ExtraTextDisplayData>();
+						if (xTextData != nullptr)
+							iden = xTextData->name.c_str();
+					}
+				}
+				if (iden.empty())
+				{
+					std::stringstream idss;
+					prepareSS(idss);
+					idss << form->GetFormID();
+					iden = idss.str();
+				}
+				return iden;
+			};
+
+			std::stringstream ss;
+			prepareSS(ss);
+			ss << "local effects = {" << std::endl;
+
+			ss.clear();
+			const auto &effectsRange = ranges[FormType::EffectSetting];
+			for (uint32_t id = effectsRange.first; id <= effectsRange.second; ++id)
+			{
+				auto mgef = (EffectSetting *)LookupFormByID(id);
+				if (mgef != nullptr && mgef->formType == FormType::EffectSetting)
+				{
+					const std::string iden = getIdentifier(mgef);
+					const std::string archetype = ::EffectArchetype(mgef->properties.archetype).GetName();
+					const uint32_t formID = id;
+
+					std::string castingType;
+					enum CastingType
+					{
+						ConstantEffect = 0,
+						FireAndForget = 1,
+						Concentration = 2,
+					};
+					switch (mgef->properties.castType)
+					{
+					case ConstantEffect:
+						castingType = "ConstantEffect";
+						break;
+					case FireAndForget:
+						castingType = "FireAndForget";
+						break;
+					case Concentration:
+						castingType = "Concentration";
+						break;
+					}
+
+					std::string deliveryType;
+					enum Delivery
+					{
+						Self = 0,
+						Contact = 1,
+						Aimed = 2,
+						TargetActor = 3,
+						TargetLocation = 4,
+					};
+					switch (mgef->properties.deliveryType)
+					{
+					case Self:
+						deliveryType = "Self";
+						break;
+					case Contact:
+						deliveryType = "Contact";
+						break;
+					case Aimed:
+						deliveryType = "Aimed";
+						break;
+					case TargetActor:
+						deliveryType = "TargetActor";
+						break; 
+					case TargetLocation:
+						deliveryType = "TargetLocation";
+						break;
+					}
+
+					const std::string actorValues[2] = {
+						::GetEffectAVName(mgef->properties.primaryValue),
+						::GetEffectAVName(mgef->properties.secondaryValue)
+					};
+
+					static auto quote = "\"";
+
+					ss << "{ ";
+					ss << quote << iden << quote << ", ";
+					ss << quote << archetype << quote << ", ";
+					ss << formID << ", ";
+					ss << quote << castingType << quote << ", ";
+					ss << quote << deliveryType << quote << ", ";
+					ss << quote << actorValues[0] << quote << ", ";
+					ss << quote << actorValues[1] << quote;
+					ss << " },";
+				}
+			}
+
+			ss << "}" << std::endl;
+
+			std::ofstream file("AAA_DATASEARCH_EFFECTS.lua");
+			file << ss.str();
+			file.close();
+
+		}).detach();
+	}
 }

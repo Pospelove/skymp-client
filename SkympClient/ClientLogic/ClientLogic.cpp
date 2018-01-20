@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.15.3";
+auto version = "0.15.4";
 
 #include "Agent.h"
 
@@ -2845,6 +2845,11 @@ class ClientLogic : public ci::IClientLogic
 				p->SetWerewolf(ww, false);
 			}
 			localPlayer->SetWerewolf(ww, false);
+		}
+		else if (cmdText == L"//dump")
+		{
+			ci::Chat::AddMessage(L"#BEBEBE" L"Lua Codegen Start");
+			ci::DataSearch::LuaCodegenStart();
 		}
 		else if (cmdText == L"//tracehost")
 		{

@@ -197,6 +197,7 @@
     <ClInclude Include="CoreInterface\ciOther.h" />
     <ClInclude Include="CoreInterface\ciRemotePlayer.h" />
     <ClInclude Include="CoreInterface\CoreInterface.h" />
+    <ClInclude Include="CoreInterface\DataSearchUtil.h" />
     <ClInclude Include="Costile\Costile2.h" />
     <ClInclude Include="Costile\CostileDragon.h" />
     <ClInclude Include="Costile\CDScript.h" />

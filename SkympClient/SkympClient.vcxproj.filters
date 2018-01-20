@@ -431,6 +431,9 @@
     <ClInclude Include="Overlay\Loadscreen.h">
       <Filter>core\Overlay</Filter>
     </ClInclude>
+    <ClInclude Include="CoreInterface\DataSearchUtil.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptDragon\plugin.def">
