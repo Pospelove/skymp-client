@@ -381,7 +381,7 @@ void ci::DataSearch::LuaCodegenStart()
 					ss << quote << deliveryType << quote << ", ";
 					ss << quote << actorValues[0] << quote << ", ";
 					ss << quote << actorValues[1] << quote;
-					ss << " },";
+					ss << " }," << std::endl;
 				}
 			}
 
