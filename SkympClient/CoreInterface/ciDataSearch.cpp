@@ -267,12 +267,26 @@ void ci::DataSearch::LuaCodegenStart()
 		std::thread([] {
 
 			using Range = std::pair<uint32_t, uint32_t>;
+
 			static std::map<FormType, Range> ranges = {
-				{ FormType::EffectSetting,{ 0x0000014A, 0x0010FF0C } }
+				{ FormType::EffectSetting,{ 0x0000014A, 0x0010FF0C } },
+				{ FormType::Spell,{ 0x00000E52, 0x0010FF0B } },
+				{ FormType::Enchantment,{ 0x000170F2, 0x0010FCF6 } },
+				{ FormType::Ammo, {0x0001397D, 0x0010EC8C}},
+				{ FormType::Armor, {0x00000D64, 0x0010FC28}},
+				{ FormType::Book, {0x00015475, 0x0010FD60}},
+				{ FormType::Ingredient, {0x000134AA, 0x00106E1C}},
+				{ FormType::Key, {0x0006564E, 0x0010E7E6}},
+				{ FormType::Misc, {0x0000000A, 0x0010E44B}},
+				{ FormType::SoulGem, {0x0002E422, 0x00094E40} },
+				{ FormType::Weapon, {0x000001F4, 0x0010FD5E}},
+				{ FormType::Potion, {0x0001895F, 0x0010D666}}
 			};
 
+			static auto quote = "\"";
+
 			static auto prepareSS = [](std::stringstream &ss) {
-				ss << std::hex << std::showbase << std::setfill('0') << std::setw(8);
+				ss << std::hex << std::setfill('0') << std::setw(8);
 			};
 
 			static auto getIdentifier = [](TESForm *form) {
@@ -300,11 +314,187 @@ void ci::DataSearch::LuaCodegenStart()
 					idss << form->GetFormID();
 					iden = idss.str();
 				}
+				for (size_t i = 0; i != iden.size(); ++i)
+				{
+					if (iden[i] == *"\"")
+						iden[i] = *"'";
+				}
 				return iden;
+			};
+
+			static auto getWeight = [](TESForm *form) {
+				auto weightForm = DYNAMIC_CAST<TESWeightForm *, TESForm *>(form);
+				return weightForm != nullptr ? weightForm->weight : 0.0f;
+			};
+
+			static auto getGoldValue = [](TESForm *form) {
+				auto valueForm = DYNAMIC_CAST<TESValueForm *, TESForm *>(form);
+				return valueForm != nullptr ? valueForm->value : 0;
+			};
+
+			static auto getDamageArmorPoints = [](TESForm *form) {
+				float res = 0.0f;
+				switch (form->formType)
+				{
+				case FormType::Weapon:
+				{
+					auto weap = (TESObjectWEAP *)form;
+					res = weap->attackDamage;
+					break;
+				}
+				case FormType::Armor:
+				{
+					auto armor = (TESObjectARMO *)form;
+					res = armor->armorValTimes100 / 100;
+					break;
+				}
+				default:
+					break;
+				}
+				return res;
+			};
+
+			static auto getSkill = [](TESForm *form) {
+				std::string res;
+				switch (form->formType)
+				{
+				case FormType::Weapon:
+				{
+					auto weap = (TESObjectWEAP *)form;
+					switch (weap->gameData.type)
+					{
+					case TESObjectWEAP::GameData::kType_TwoHandSword:
+					case TESObjectWEAP::GameData::kType_TwoHandAxe:
+						res = "TwoHanded";
+						break;
+					case TESObjectWEAP::GameData::kType_Bow:
+					case TESObjectWEAP::GameData::kType_CrossBow:
+					case TESObjectWEAP::GameData::kType_Bow2:
+					case TESObjectWEAP::GameData::kType_CBow:
+						res = "Marksman";
+						break;
+					case TESObjectWEAP::GameData::kType_Staff:
+					case TESObjectWEAP::GameData::kType_Staff2:
+						res = ""; // Not implemented in 0.15
+						break;
+					default:
+						res = "OneHanded";
+						break;
+					}
+					break;
+				}
+				case FormType::Armor:
+				{
+					auto armor = (TESObjectARMO *)form;
+					res = armor->IsLightArmor() ? "LightArmor" : "HeavyArmor";
+					break;
+				}
+				default:
+					break;
+				}
+				return res;
+			};
+			
+			static auto getArmorSubcl = [](TESForm *form)->std::string {
+				auto armor = (TESObjectARMO *)form;
+				if (armor != nullptr && armor->formType == FormType::Armor)
+				{
+					const auto slotMask = armor->GetSlotMask();
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Body)
+						return "Armor";
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Amulet)
+						return "Amulet";
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Ring)
+						return "Ring";
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Shield)
+						return "Shield";
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Hands || slotMask & TESObjectARMO::PartFlag::kPart_Forearms)
+						return "Gauntlets";
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Head)
+						return "Helmet";
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Feet)
+						return "Boots";
+				}
+				return "";
+			};
+
+			static auto getWeapSubcl = [](TESForm *form)->std::string {
+				auto weap = (TESObjectWEAP *)form;
+				if (weap != nullptr && weap->formType == FormType::Weapon)
+				{
+					enum { kType_TwoHandWarhammer = -1 }; // Where is Warhammer ?!
+
+					switch (weap->gameData.type)
+					{
+					case TESObjectWEAP::GameData::kType_Staff:
+					case TESObjectWEAP::GameData::kType_Staff2:
+						return "Staff"; // Not implemented in 0.15
+					case TESObjectWEAP::GameData::kType_Bow:
+					case TESObjectWEAP::GameData::kType_Bow2:
+						return "Bow";
+					case TESObjectWEAP::GameData::kType_CrossBow:
+					case TESObjectWEAP::GameData::kType_CBow:
+						return "CrossBow"; // Not implemented in 0.15 (and will not be added before 2.0 release :P)
+					case TESObjectWEAP::GameData::kType_OneHandMace:
+						return "Mace";
+					case TESObjectWEAP::GameData::kType_OneHandSword:
+						return "Sword";
+					case TESObjectWEAP::GameData::kType_OneHandAxe:
+						return "WarAxe";
+					case TESObjectWEAP::GameData::kType_OneHandDagger:
+						return "Dagger";
+					case TESObjectWEAP::GameData::kType_TwoHandSword:
+						return "Greatsword";
+					case TESObjectWEAP::GameData::kType_TwoHandAxe:
+						return "Battleaxe";
+					case kType_TwoHandWarhammer: // ???
+						return "Warhammer";
+					default:
+						break;
+					}
+				}
+				return "";
+			};
+
+			static std::map<uint32_t, std::string> formIdents;
+
+			static auto getEnchantmentIden = [](TESForm *form)->std::string {
+				auto enchForm = DYNAMIC_CAST<TESEnchantableForm *, TESForm *>(form);
+				if (enchForm != nullptr && enchForm->enchantment != nullptr)
+				{
+					return formIdents[enchForm->enchantment->GetFormID()];
+				}
+				return "";
+			};
+
+			struct EffectItem
+			{
+				std::string mgefIden;
+				float mag, dur, area;
+			};
+			static auto getEffectItemList = [](TESForm *form) {
+				std::list<EffectItem> effectItemList;
+				auto sp = DYNAMIC_CAST<MagicItem *, TESForm *>(form);
+				if (sp != nullptr)
+				{
+					for (auto &efItemRaw : sp->effectItemList)
+					{
+						effectItemList.push_back({
+							formIdents[efItemRaw->mgef->GetFormID()],
+							efItemRaw->magnitude,
+							efItemRaw->duration,
+							efItemRaw->area
+						});
+					}
+				}
+				return effectItemList;
 			};
 
 			std::stringstream ss;
 			prepareSS(ss);
+
+			// Effects:
+
 			ss << "local effects = {" << std::endl;
 
 			ss.clear();
@@ -371,25 +561,164 @@ void ci::DataSearch::LuaCodegenStart()
 						::GetEffectAVName(mgef->properties.secondaryValue)
 					};
 
-					static auto quote = "\"";
-
 					ss << "{ ";
 					ss << quote << iden << quote << ", ";
 					ss << quote << archetype << quote << ", ";
-					ss << formID << ", ";
+					ss << "0x" << formID << ", ";
 					ss << quote << castingType << quote << ", ";
 					ss << quote << deliveryType << quote << ", ";
 					ss << quote << actorValues[0] << quote << ", ";
 					ss << quote << actorValues[1] << quote;
 					ss << " }," << std::endl;
+
+					formIdents[formID] = iden;
 				}
 			}
+			ss << "nil }" << std::endl;
 
-			ss << "}" << std::endl;
+			// Magic:
 
-			std::ofstream file("AAA_DATASEARCH_EFFECTS.lua");
-			file << ss.str();
-			file.close();
+			ss << std::endl;
+			ss << "local magic = {" << std::endl;
+			const auto &spellsRange = ranges[FormType::Spell];
+			const auto &enchsRange = ranges[FormType::Enchantment];
+			for (uint32_t id = min(spellsRange.first, enchsRange.first); id <= max(spellsRange.second, enchsRange.second); ++id)
+			{
+				auto sp = (MagicItem *)LookupFormByID(id);
+				if (sp != nullptr && (sp->formType == FormType::Spell || sp->formType == FormType::Enchantment))
+				{
+					const auto magicType = sp->formType == FormType::Enchantment ? "Enchantment" : "Spell";
+					const std::string iden = getIdentifier(sp);
+					const uint32_t formID = sp->GetFormID();
+					const float cost = sp->formType == FormType::Spell ? ((SpellItem *)sp)->GetMagickaCost() : 0.0f;
+					const auto effectItemList = getEffectItemList(sp);
+
+					ss << "{ ";
+					ss << quote << magicType << quote << ", ";
+					ss << quote << iden << quote << ", ";
+					ss << "0x" << formID << ", ";
+					ss << cost;
+					for (const auto &effectItem : effectItemList)
+						ss << ", " << "{ " << quote << effectItem.mgefIden << quote << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
+					ss << " }," << std::endl;
+				}
+			}
+			ss << "nil }" << std::endl;
+
+			// Items:
+
+			ss << std::endl;
+			ss << "local itemTypes = {" << std::endl;
+
+			const std::set<FormType> itemFormTypes = {
+				FormType::Ammo, FormType::Armor, FormType::Book, FormType::Ingredient, FormType::Key, FormType::Misc, FormType::SoulGem, FormType::Weapon, FormType::Potion
+			};
+
+			Range itemsRange = { 0xFF000000, 0x00000000 };
+			for (auto formType : itemFormTypes)
+			{
+				const auto &range = ranges[formType];
+				if (itemsRange.first > range.first)
+					itemsRange.first = range.first;
+				if (itemsRange.second < range.second)
+					itemsRange.second = range.second;
+			}
+			for (auto id = itemsRange.first; id <= itemsRange.second; ++id)
+			{
+				auto form = LookupFormByID(id);
+				if (form == nullptr)
+					continue;
+
+				uint8_t soulSize = 0, gemSize = 0;
+				std::string cl, subCl;
+
+				switch (form->formType)
+				{
+				case FormType::Ammo:
+					cl = "Ammo";
+					subCl = "";
+					break;
+				case FormType::Armor:
+					cl = "Armor";
+					subCl = getArmorSubcl(form);
+					break;
+				case FormType::Book:
+					cl = "Book"; // not implemented in 0.15
+					subCl = "";
+					break;
+				case FormType::Ingredient:
+					cl = "Ingredient";
+					subCl = "";
+					break;
+				case FormType::Key:
+					cl = "Key";
+					subCl = "";
+					break;
+				case FormType::Misc:
+					cl = "Misc";
+					if (form->IsGold())
+						subCl = "Gold";
+					else if (form->IsLockpick())
+						subCl = "Lockpick";
+					else
+						subCl = "Misc";
+					break;
+				case FormType::SoulGem:
+					soulSize = ((TESSoulGem *)form)->soulSize;
+					gemSize = ((TESSoulGem *)form)->gemSize;
+					cl = "SoulGem";
+					subCl = "";
+					break;
+				case FormType::Weapon:
+					cl = "Weapon";
+					subCl = getWeapSubcl(form);
+					break;
+				case FormType::Potion:
+					cl = "Potion";
+					if (((AlchemyItem *)form)->IsPoison())
+						subCl = "Poison";
+					else if (((AlchemyItem *)form)->IsFood())
+						subCl = "Food";
+					else
+						subCl = cl;
+					break;
+				default:
+					continue;
+				}
+
+				const std::string iden = getIdentifier(form);
+				const uint32_t formID = form->GetFormID();
+				const float weight = getWeight(form);
+				const uint32_t goldValue = getGoldValue(form);
+				const float damageArmorPoints = getDamageArmorPoints(form);
+				const std::string skill = getSkill(form);
+				const std::string enchIden = getEnchantmentIden(form);
+				const std::list<EffectItem> effectItemList = getEffectItemList(form);
+
+				const auto clSubclResultStr = subCl.empty() ? (cl) : (cl + '.' + subCl);
+
+				ss << "{ ";
+				ss << quote << iden << quote << ", ";
+				ss << quote << clSubclResultStr << quote << ", ";
+				ss << "0x" << formID << ", ";
+				ss << weight << ", ";
+				ss << std::to_string(goldValue) << ", ";
+				ss << damageArmorPoints << ", ";
+				ss << quote << skill << quote << ", ";
+				ss << quote << enchIden << quote << ", ";
+				ss << std::to_string(soulSize) << ", ";
+				ss << std::to_string(gemSize);
+				for (const auto &effectItem : effectItemList)
+					ss << ", " << "{ " << quote << effectItem.mgefIden << quote << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
+				ss << " }," << std::endl;
+			}
+			ss << "nil }" << std::endl;
+
+			{
+				std::ofstream file("AAA_DATASEARCH_LOCAL_RESULTS.lua");
+				file << ss.str();
+				file.close();
+			}
 
 		}).detach();
 	}
