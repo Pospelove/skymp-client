@@ -742,10 +742,12 @@ void ci::DataSearch::LuaCodegenStart()
 				const auto keyword =
 					((keywordBackup != nullptr && (*keywordBackup)[recipe] != nullptr )? (*keywordBackup)[recipe]->keyword : recipe->wbKeyword->keyword).operator const char *();
 				const auto createdObjectIden = getIdentifier(recipe->createdObject);
+				const auto numCreatedObjects = recipe->quantity;
 
 				ss << "{ ";
 				ss << quote << keyword << quote << ", ";
 				ss << quote << createdObjectIden << quote;
+				ss << quote << numCreatedObjects << ", ";
 
 				ss << ", " << "{ ";
 				bool isBegin = true;
