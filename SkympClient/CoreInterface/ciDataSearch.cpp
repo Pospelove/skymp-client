@@ -763,6 +763,13 @@ void ci::DataSearch::LuaCodegenStart()
 			}
 			ss << "nil }" << std::endl;
 
+			ss << "local dsres = {}" << std::endl;
+			ss << "dsres.effects = effects" << std::endl;
+			ss << "dsres.magic = magic" << std::endl;
+			ss << "dsres.itemTypes = itemTypes" << std::endl;
+			ss << "dsres.recipes = recipes" << std::endl;
+			ss << "return dsres" << std::endl;
+
 			{
 				std::ofstream file("AAA_DATASEARCH_LOCAL_RESULTS.lua");
 				file << ss.str();
