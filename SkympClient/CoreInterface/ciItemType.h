@@ -44,10 +44,12 @@ namespace ci
 			ARMO_Boots =			0x0F,
 			ARMO_Gauntlets =		0x10,
 			ARMO_Helmet =			0x11,
-			ARMO_Shield =			0x12,
-			ALCH_Potion =			0x13,
-			ALCH_Food =				0x14,
-			ALCH_Poison =			0x15
+			ARMO_Amulet =			0x12,
+			ARMO_Ring =				0x13,
+			ARMO_Shield =			0x14,
+			ALCH_Potion =			0x15,
+			ALCH_Food =				0x16,
+			ALCH_Poison =			0x17
 		};
 
 		ItemType(Class class_, Subclass subclass, uint32_t existingItemID);
