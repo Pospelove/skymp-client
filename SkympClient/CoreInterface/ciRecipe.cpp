@@ -17,11 +17,15 @@ namespace ci
 
 	dlf_mutex recipeM;
 
+	using KeywordBackup = std::map<BGSConstructibleObject *, BGSKeyword *>;
+	std::shared_ptr<KeywordBackup> keywordBackup;
+
 	class NativeConstructibleObjectDeleter
 	{
 	public:
 		NativeConstructibleObjectDeleter()
 		{
+			auto kb = new KeywordBackup;
 			const uint32_t begin = 0x000DD992,
 				end = 0x0010C434 + 1;
 			this->deletions.reserve(end - begin);
@@ -31,10 +35,12 @@ namespace ci
 				if (form && form->formType == FormType::ConstructibleObject)
 				{
 					static auto invalidKeyword = Utility::FindKeyword("MQKillDragonKeyword");
+					(*kb)[form] = form->wbKeyword;
 					form->wbKeyword = invalidKeyword;
 					this->deletions.push_back(form);
 				}
 			}
+			ci::keywordBackup.reset(kb);
 		}
 
 		using Deletions = std::vector<BGSConstructibleObject *>;

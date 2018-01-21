@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.15.5";
+auto version = "0.15.6";
 
 #include "Agent.h"
 
@@ -2416,8 +2416,6 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnWorldInit() override
 	{
-		delete new ci::Recipe("VI", nullptr, 0);
-
 		static bool firstInit = true;
 
 		if (firstInit)

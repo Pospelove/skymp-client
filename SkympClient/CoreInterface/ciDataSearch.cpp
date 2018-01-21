@@ -26,6 +26,9 @@ auto getLocation = [](TESObjectREFR *ref) {
 
 namespace ci
 {
+	using KeywordBackup = std::map<BGSConstructibleObject *, BGSKeyword *>;
+	extern std::shared_ptr<KeywordBackup> keywordBackup;
+
 	namespace DataSearch
 	{
 		namespace Private
@@ -260,6 +263,11 @@ void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 
 void ci::DataSearch::LuaCodegenStart()
 {
+	// –аньше это было в логике клиента в OnWorldInit() исключительно дл€ теста конструктора и деструктора ci::Recipe
+	// —ейчас же создание рецепта до запуска DataSearch гарантирует, что Keywords рецептов будут обработаны нормально + не будет состо€ни€ гонки (переменна€ keywordsBackup)
+	// 'VI', потому что иначе будет ошибка невалидного Keyword-а, а при использовании 'VI' ошибки будут проигнорированы и не попадут в логи
+	delete new ci::Recipe("VI", nullptr, 0);
+
 	static bool started = false;
 	if (!started)
 	{
@@ -280,7 +288,8 @@ void ci::DataSearch::LuaCodegenStart()
 				{ FormType::Misc, {0x0000000A, 0x0010E44B}},
 				{ FormType::SoulGem, {0x0002E422, 0x00094E40} },
 				{ FormType::Weapon, {0x000001F4, 0x0010FD5E}},
-				{ FormType::Potion, {0x0001895F, 0x0010D666}}
+				{ FormType::Potion, {0x0001895F, 0x0010D666}},
+				{ FormType::ConstructibleObject, {0x00000DD2, 0x0010FDF6}}
 			};
 
 			static auto quote = "\"";
@@ -290,6 +299,8 @@ void ci::DataSearch::LuaCodegenStart()
 			};
 
 			static auto getIdentifier = [](TESForm *form) {
+				if (form == nullptr)
+					return std::string{};
 				std::string iden = form->GetName();
 				if (iden.empty())
 				{
@@ -710,6 +721,44 @@ void ci::DataSearch::LuaCodegenStart()
 				ss << std::to_string(gemSize);
 				for (const auto &effectItem : effectItemList)
 					ss << ", " << "{ " << quote << effectItem.mgefIden << quote << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
+				ss << " }," << std::endl;
+			}
+			ss << "nil }" << std::endl;
+
+			// Recipes:
+
+			ss << std::endl;
+			ss << "local recipes = {" << std::endl;
+			const auto &recipesRange = ranges[FormType::ConstructibleObject];
+			for (auto id = recipesRange.first; id <= recipesRange.second; ++id)
+			{
+				auto form = LookupFormByID(id);
+				if (form == nullptr)
+					continue;
+				auto recipe = (BGSConstructibleObject *)form;
+				if (recipe->formType != FormType::ConstructibleObject)
+					continue;
+
+				const auto keyword =
+					((keywordBackup != nullptr && (*keywordBackup)[recipe] != nullptr )? (*keywordBackup)[recipe]->keyword : recipe->wbKeyword->keyword).operator const char *();
+				const auto createdObjectIden = getIdentifier(recipe->createdObject);
+
+				ss << "{ ";
+				ss << quote << keyword << quote << ", ";
+				ss << quote << createdObjectIden << quote;
+
+				ss << ", " << "{ ";
+				bool isBegin = true;
+				for (auto it = recipe->container.entries; it != recipe->container.entries + recipe->container.numEntries; ++it)
+				{
+					auto entry = *it;
+					if (!isBegin)
+						ss << ", ";
+					ss << "[" << quote << getIdentifier(entry->form) << quote << "]" << " = " << std::to_string(entry->count);
+					isBegin = false;
+				}
+				ss << " }";
+
 				ss << " }," << std::endl;
 			}
 			ss << "nil }" << std::endl;
