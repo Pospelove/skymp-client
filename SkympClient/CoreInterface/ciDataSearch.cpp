@@ -421,7 +421,9 @@ void ci::DataSearch::LuaCodegenStart()
 						return "Shield";
 					if (slotMask & TESObjectARMO::PartFlag::kPart_Hands || slotMask & TESObjectARMO::PartFlag::kPart_Forearms)
 						return "Gauntlets";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Head)
+					if (slotMask & TESObjectARMO::PartFlag::kPart_Head 
+						|| slotMask & TESObjectARMO::PartFlag::kPart_Hair 
+						|| slotMask & TESObjectARMO::PartFlag::kPart_LongHair)
 						return "Helmet";
 					if (slotMask & TESObjectARMO::PartFlag::kPart_Feet)
 						return "Boots";
