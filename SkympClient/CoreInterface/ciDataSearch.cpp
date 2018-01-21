@@ -747,7 +747,7 @@ void ci::DataSearch::LuaCodegenStart()
 				ss << "{ ";
 				ss << quote << keyword << quote << ", ";
 				ss << quote << createdObjectIden << quote << ", ";
-				ss << quote << numCreatedObjects;
+				ss << numCreatedObjects;
 
 				ss << ", " << "{ ";
 				bool isBegin = true;
