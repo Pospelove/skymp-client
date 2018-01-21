@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.15.9";
+auto version = "0.15.10";
 
 #include "Agent.h"
 
