@@ -13,6 +13,8 @@ DWORD ___stack[MAX_STACK_LEN];
 DWORD ___stackindex;
 DWORD ___result;
 
+#include <fstream> 
+
 namespace sd
 {
 	TNativeCall NativeCall;
@@ -109,12 +111,16 @@ namespace sd
 
 	void DragonPluginInit(HMODULE hModule)
 	{
+		std::ofstream f("skympsd.log");
+		f << "initsd 1" << std::endl;
 		HMODULE hDragon = LoadLibraryA(SCRIPT_DRAGON);
 		/*
 		In order to provide NORMAL support i need a plugins to be distributed without the DragonScript.dll engine
 		cuz user always must have the latest version which cud be found ONLY on my web page
 		*/
+		f << "initsd 2" << std::endl;
 		if (!hDragon) Error("Can't load %s, download latest version from http://alexander.sannybuilder.com/Files/tes/", SCRIPT_DRAGON);
+		f << "initsd 3" << std::endl;
 		NativeCall = (TNativeCall)GetProcAddress(hDragon, "Nativecall");
 		ObscriptCall = (TObscriptCall)GetProcAddress(hDragon, "Obscriptcall");
 		GetPlayerObjectHandle = (TGetPlayerObjectHandle)GetProcAddress(hDragon, "GetPlayerObjectHandle");
@@ -125,6 +131,7 @@ namespace sd
 		Wait = (TWait)GetProcAddress(hDragon, "WaitMs");
 		BSString_Create = (TBSString_Create)GetProcAddress(hDragon, "BSString_Create");
 		BSString_Free = (TBSString_Free)GetProcAddress(hDragon, "BSString_Free");
+		f << "initsd 4" << std::endl;
 
 		if (!NativeCall || !ObscriptCall || !GetPlayerObjectHandle || !ExecuteConsoleCommand
 			|| !GetConsoleSelectedRef || !dyn_cast || !RegisterPlugin || !Wait
@@ -133,7 +140,9 @@ namespace sd
 			Error("ScriptDragon engine dll `%s` has not all needed functions inside, exiting", SCRIPT_DRAGON);
 		}
 
+		f << "initsd 5" << std::endl;
 		RegisterPlugin(hModule);
+		f << "initsd 6" << std::endl;
 	}
 }
 
