@@ -730,7 +730,7 @@ class ClientLogic : public ci::IClientLogic
 					try {
 						if (ADD_PLAYER_ID_TO_NICKNAME_LABEL && id != net.myID)
 							name += " [" + std::to_string(id) + "]";
-						players.at(id)->SetName(StringToWstring(name));
+						players.at(id)->SetName(decodeCyrillic(StringToWstring(name)));
 					}
 					catch (...) {
 					}
@@ -803,7 +803,7 @@ class ClientLogic : public ci::IClientLogic
 				players[id] = nullptr;
 			}
 
-			auto newPl = new ci::RemotePlayer(StringToWstring(name), look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
+			auto newPl = new ci::RemotePlayer(decodeCyrillic(StringToWstring(name)), look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
 			newPl->SetMark(std::to_string(id));
 			players[id] = newPl;
 			lastFurniture[id] = 0;
@@ -1014,7 +1014,7 @@ class ClientLogic : public ci::IClientLogic
 						break;
 					}
 
-					ci::Dialog::Show(title, style, text, defaultIndex, [=](ci::Dialog::Result result) {
+					ci::Dialog::Show(decodeCyrillic(title), style, decodeCyrillic(text), defaultIndex, [=](ci::Dialog::Result result) {
 						this->OnDialogResponse(dialogID, result);
 					});
 				}
@@ -1138,7 +1138,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			try {
-				objects.at(id)->SetName(StringToWstring(name));
+				objects.at(id)->SetName(decodeCyrillic(StringToWstring(name)));
 			}
 			catch (...) {
 			}
@@ -1878,7 +1878,7 @@ class ClientLogic : public ci::IClientLogic
 						message = " ";
 
 
-					playerBubbles[playerID].reset(new ci::Text3D(StringToWstring(message), { 0,0,0 }));
+					playerBubbles[playerID].reset(new ci::Text3D(decodeCyrillic(StringToWstring(message)), { 0,0,0 }));
 					playerBubbles[playerID]->SetFontHeight(25);
 					playerBubbles[playerID]->SetDrawDistance(512.6667f);
 					playerBubbles[playerID]->SetPosSource([=] {
@@ -2142,7 +2142,7 @@ class ClientLogic : public ci::IClientLogic
 				delete text3Ds[id];
 			text3Ds[id] = new ci::Text3D(L" ", { 1000000000,1000000000,1000000000 });
 			text3Ds[id]->SetPos(pos);
-			text3Ds[id]->SetText(StringToWstring(txt));
+			text3Ds[id]->SetText(decodeCyrillic(StringToWstring(txt)));
 			break;
 		}
 		case ID_TEXT_DESTROY:
