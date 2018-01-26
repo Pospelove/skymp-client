@@ -341,7 +341,7 @@ inline void CallVMFunc(const std::string &className, const std::string &funcName
 extern UInt32 g_SDThreadId;
 
 
-static std::mutex execImplMutex;
+static dlf_mutex execImplMutex;
 
 inline CostileArgument ExecImpl(bool isAsync,
 	BSScript::IStackCallbackFunctorPtr callback,
@@ -349,7 +349,7 @@ inline CostileArgument ExecImpl(bool isAsync,
 	const std::string &funcName, 
 	const std::vector<CostileArgument> &arguments)
 {
-	std::lock_guard<std::mutex> l(execImplMutex);
+	std::lock_guard<dlf_mutex> l(execImplMutex);
 
 	const auto realFuncName = className + '_' + funcName;
 	auto s = Costile2::CreateSession(realFuncName);
@@ -405,7 +405,7 @@ inline ResultT ExecImpl(
 	T1 first,
 	TN ... nth)
 {
-	std::lock_guard<std::mutex> l(execImplMutex);
+	std::lock_guard<dlf_mutex> l(execImplMutex);
 
 	const auto realFuncName = className + '_' + funcName;
 	auto s = Costile2::CreateSession(realFuncName);

@@ -18,7 +18,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.15.13";
+auto version = "0.16";
 
 #include "Agent.h"
 
@@ -162,8 +162,43 @@ class ClientLogic : public ci::IClientLogic
 			return 0;
 		}
 	};
+
 	std::map<std::wstring, std::shared_ptr<Bot>> bots;
 	std::list<Bot *> botss;
+
+	using str_t = std::wstring;
+
+	str_t decodeCyrillic(str_t str)
+	{
+		static str_t abc = L"éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ";
+
+		auto replace = [](str_t s,
+			const str_t &toReplace,
+			const str_t &replaceWith)
+		{
+			rep:
+			std::size_t pos = s.find(toReplace);
+			if (pos == str_t::npos)
+				return s;
+			str_t lastS = s;
+			s.replace(pos, toReplace.length(), replaceWith);
+			if (s != lastS)
+			{
+				goto rep;
+			}
+			return s;
+		};
+
+		for (size_t i = 0; i != abc.size(); ++i)
+		{
+			str_t  abci;
+			abci.push_back(abc[i]);
+
+			str = replace(str, L"<cyrillic:" + std::to_wstring(i + 1) + L">", abci);
+		}
+		
+		return str;
+	}
 
 	uint16_t GetID(const ci::IActor *player)
 	{
@@ -413,10 +448,13 @@ class ClientLogic : public ci::IClientLogic
 		case ID_CONNECTION_REQUEST_ACCEPTED:
 			bsOut.Write(ID_HANDSHAKE);
 
-			wchar_t nicknameCStr[MAX_NICKNAME];
+			char nicknameCStr[MAX_NICKNAME];
 			if (net.nickname.size() > MAX_NICKNAME - 1)
 				net.nickname.resize(MAX_NICKNAME - 1);
-			std::memcpy(nicknameCStr, net.nickname.data(), sizeof(wchar_t) * net.nickname.size());
+			{
+				auto nicknameStr = WstringToString(net.nickname.data());
+				std::memcpy(nicknameCStr, nicknameStr.data(), sizeof(char) * net.nickname.size());
+			}
 			nicknameCStr[net.nickname.size()] = NULL;
 			nicknameCStr[MAX_NICKNAME - 1] = NULL;
 
@@ -488,43 +526,50 @@ class ClientLogic : public ci::IClientLogic
 			using T = uint16_t;
 			if (packet->length > (2 * sizeof(RakNet::MessageID)) + sizeof(T))
 			{
-				std::wstring message;
+				std::string message;
 				T characters;
 				bsIn.Read(characters);
 
-				if (packet->length == 2 + sizeof(T) + sizeof(wchar_t) * characters)
+				if (packet->length == 2 + sizeof(T) + sizeof(char) * characters)
 				{
 					for (size_t i = 0; i != characters; ++i)
 					{
-						wchar_t ch;
+						char ch;
 						bsIn.Read(ch);
 						message += ch;
 					}
 					bool isNotification;
 					bsIn.Read((uint8_t &)isNotification);
 
-					if (!memcmp(message.data(), L"<RegisterAnim>", -(2) + (int32_t)sizeof L"<RegisterAnim>"))
+					if (!memcmp(message.data(), "<RegisterAnim>", -(1) + (int32_t)sizeof "<RegisterAnim>"))
 					{
-						std::wistringstream ss(message.data());
-						std::wstring aeName, cmdStr;
+						std::istringstream ss(message.data());
+						std::string aeName, cmdStr;
 						uint32_t aeID;
 						ss >> cmdStr;
 						ss >> aeName;
 						ss >> aeID;
-						ci::RegisterAnimation(WstringToString(aeName), aeID);
+						ci::RegisterAnimation((aeName), aeID);
+						ci::Log("RegisterAnim added");
 					}
-					else if (!memcmp(message.data(), L"<RegisterKeyword>", -(2) + (int32_t)sizeof L"<RegisterKeyword>"))
+					else if (!memcmp(message.data(), "<RegisterKeyword>", -(1) + (int32_t)sizeof "<RegisterKeyword>"))
 					{
-						std::wistringstream ss(message.data());
-						std::wstring str, cmdStr;
+						std::istringstream ss(message.data());
+						std::string str, cmdStr;
 						uint32_t id;
 						ss >> cmdStr;
 						ss >> str;
 						ss >> id;
-						keywords[id] = WstringToString(str);
+						keywords[id] = (str);
+						ci::Log("RegisterKeyword added");
 					}
 					else
-						ci::Chat::AddMessage(message, isNotification);
+					{
+						auto abcMsg = decodeCyrillic
+							(StringToWstring(message));
+						ci::Chat::AddMessage((abcMsg), isNotification);
+						ci::Log(L"Message: " + abcMsg);
+					}
 				}
 			}
 			break;
@@ -668,24 +713,24 @@ class ClientLogic : public ci::IClientLogic
 			using T = uint16_t;
 			if (packet->length > (3 + sizeof(T)))
 			{
-				std::wstring name;
+				std::string name;
 				T characters;
 				uint16_t id = ~0;
 				bsIn.Read(id);
 				bsIn.Read(characters);
 
-				if (packet->length == (3 + sizeof(T) + sizeof(wchar_t) * characters))
+				if (packet->length == (3 + sizeof(T) + sizeof(char) * characters))
 				{
 					for (size_t i = 0; i != characters; ++i)
 					{
-						wchar_t ch;
+						char ch;
 						bsIn.Read(ch);
 						name += ch;
 					}
 					try {
 						if (ADD_PLAYER_ID_TO_NICKNAME_LABEL && id != net.myID)
-							name += L" [" + std::to_wstring(id) + L"]";
-						players.at(id)->SetName(name);
+							name += " [" + std::to_string(id) + "]";
+						players.at(id)->SetName(StringToWstring(name));
 					}
 					catch (...) {
 					}
@@ -716,10 +761,10 @@ class ClientLogic : public ci::IClientLogic
 			uint16_t characters;
 			bsIn.Read(characters); 
 
-			std::wstring name;
+			std::string name;
 			for (size_t i = 0; i != characters; ++i)
 			{
-				wchar_t ch;
+				char ch;
 				bsIn.Read(ch);
 				name += ch;
 			}
@@ -758,7 +803,7 @@ class ClientLogic : public ci::IClientLogic
 				players[id] = nullptr;
 			}
 
-			auto newPl = new ci::RemotePlayer(name, look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
+			auto newPl = new ci::RemotePlayer(StringToWstring(name), look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
 			newPl->SetMark(std::to_string(id));
 			players[id] = newPl;
 			lastFurniture[id] = 0;
@@ -1084,16 +1129,16 @@ class ClientLogic : public ci::IClientLogic
 			uint16_t characters;
 			bsIn.Read(characters);
 
-			std::wstring name;
+			std::string name;
 			for (size_t i = 0; i != characters; ++i)
 			{
-				wchar_t ch;
+				char ch;
 				bsIn.Read(ch);
 				name += ch;
 			}
 
 			try {
-				objects.at(id)->SetName(name);
+				objects.at(id)->SetName(StringToWstring(name));
 			}
 			catch (...) {
 			}
@@ -1812,15 +1857,15 @@ class ClientLogic : public ci::IClientLogic
 			using T = uint16_t;
 			if (packet->length > 2 + sizeof(T))
 			{
-				std::wstring message;
+				std::string message;
 				T characters;
 				bsIn.Read(characters);
 
-				if (packet->length == 7 + sizeof(T) + sizeof(wchar_t) * characters)
+				if (packet->length == 7 + sizeof(T) + sizeof(char) * characters)
 				{
 					for (size_t i = 0; i != characters; ++i)
 					{
-						wchar_t ch;
+						char ch;
 						bsIn.Read(ch);
 						message += ch;
 					}
@@ -1830,10 +1875,10 @@ class ClientLogic : public ci::IClientLogic
 					bsIn.Read(ms);
 
 					if (message.empty())
-						message = L" ";
+						message = " ";
 
 
-					playerBubbles[playerID].reset(new ci::Text3D(message, { 0,0,0 }));
+					playerBubbles[playerID].reset(new ci::Text3D(StringToWstring(message), { 0,0,0 }));
 					playerBubbles[playerID]->SetFontHeight(25);
 					playerBubbles[playerID]->SetDrawDistance(512.6667f);
 					playerBubbles[playerID]->SetPosSource([=] {
@@ -2081,7 +2126,7 @@ class ClientLogic : public ci::IClientLogic
 			uint32_t id;
 			NiPoint3 pos;
 			uint32_t txtSize;
-			std::wstring txt;
+			std::string txt;
 			bsIn.Read(id);
 			bsIn.Read(pos.x);
 			bsIn.Read(pos.y);
@@ -2089,7 +2134,7 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(txtSize);
 			for (uint32_t i = 0; i != txtSize; ++i)
 			{
-				wchar_t wch;
+				char wch;
 				bsIn.Read(wch);
 				txt += wch;
 			}
@@ -2097,7 +2142,7 @@ class ClientLogic : public ci::IClientLogic
 				delete text3Ds[id];
 			text3Ds[id] = new ci::Text3D(L" ", { 1000000000,1000000000,1000000000 });
 			text3Ds[id]->SetPos(pos);
-			text3Ds[id]->SetText(txt);
+			text3Ds[id]->SetText(StringToWstring(txt));
 			break;
 		}
 		case ID_TEXT_DESTROY:
@@ -2136,7 +2181,9 @@ class ClientLogic : public ci::IClientLogic
 					auto prod = itemTypes.at(prodID);
 
 					if (recipes[id] == nullptr)
+					{
 						recipes[id] = new ci::Recipe(kwrdTxt, prod, numProd);
+					}
 
 					//recipes[id]->SetPlayerKnows(true);
 					recipes[id]->RemoveAllRecipeComponents();
@@ -2300,8 +2347,20 @@ class ClientLogic : public ci::IClientLogic
 		}
 	}
 
+	void RunTests()
+	{
+		auto dcd = decodeCyrillic(L"<cyrillic:16><cyrillic:31><cyrillic:15>");
+		if (dcd != L"àáâ")
+		{
+			ci::Log(L"ERROR:ClientLogic Test failed - decodeCyrillic() " + dcd);
+			ci::SetTimer(2000, []() {std::exit(-1); });
+		}
+	}
+
 	void OnStartup() override
 	{
+		RunTests();
+
 		for (int32_t i = 0; i != 1024; ++i)
 			this->lastUpdateByServer[i] = NULL;
 
@@ -3542,7 +3601,8 @@ class ClientLogic : public ci::IClientLogic
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_DIALOG_RESPONSE);
 		bsOut.Write((uint16_t)result.inputText.size());
-		for (auto it = result.inputText.begin(); it != result.inputText.end(); ++it)
+		const auto inputText = WstringToString(result.inputText);
+		for (auto it = inputText.begin(); it != inputText.end(); ++it)
 			bsOut.Write(*it);
 		bsOut.Write(result.listItem);
 
