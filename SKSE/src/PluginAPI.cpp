@@ -461,25 +461,38 @@ SKSE_API bool SKSEPlugin_Query(const SKSEInterface * a_skse, PluginInfo * info)
 	if (!thePlugin)
 		return false;
 
+	if (!gLog.is_open())
+	{
+		char path[MAX_PATH];
+
+		if (!dllName.empty() && SHGetFolderPath(0, CSIDL_MYDOCUMENTS, 0, SHGFP_TYPE_CURRENT, path) == S_OK)
+		{
+			strcat_s(path, "\\My Games\\Skyrim\\SKSE\\");
+			strcat_s(path, dllName.c_str());
+			strcat_s(path, ".log");
+			gLog.open(path);
+		}
+	}
+
 	skse = a_skse;
 	thePluginInfo = info;
 
 	if (skse->isEditor)
 	{
-		// _MESSAGE("loaded in editor, marking as incompatible");
+		 _MESSAGE("loaded in editor, marking as incompatible");
 		return false;
 	}
 
 	if (skse->runtimeVersion != RUNTIME_VERSION_1_9_32_0)
 	{
-		//UInt32 runtimeVersion = skse->runtimeVersion;
-		//int major = (runtimeVersion >> 24) & 0xFF;
-		//int minor = (runtimeVersion >> 16) & 0xFF;
-		//int build = (runtimeVersion >> 8) & 0xFF;
-		//int sub = runtimeVersion & 0xFF;
+		UInt32 runtimeVersion = skse->runtimeVersion;
+		int major = (runtimeVersion >> 24) & 0xFF;
+		int minor = (runtimeVersion >> 16) & 0xFF;
+		int build = (runtimeVersion >> 8) & 0xFF;
+		int sub = runtimeVersion & 0xFF;
 
-		//_MESSAGE("unsupported runtime version 1.%d.%d.%d", major, minor, build);
-		//_MESSAGE("(this plugin needs 1.%d.%d.%d)", major, minor, build);
+		_MESSAGE("unsupported runtime version 1.%d.%d.%d", major, minor, build);
+		_MESSAGE("(this plugin needs 1.%d.%d.%d)", major, minor, build);
 		return false;
 	}
 
@@ -502,19 +515,6 @@ SKSE_API bool SKSEPlugin_Query(const SKSEInterface * a_skse, PluginInfo * info)
 				skseReleaseIndex = i;
 				break;
 			}
-		}
-	}
-
-	if (!gLog.is_open())
-	{
-		char path[MAX_PATH];
-
-		if (!dllName.empty() && SHGetFolderPath(0, CSIDL_MYDOCUMENTS, 0, SHGFP_TYPE_CURRENT, path) == S_OK)
-		{
-			strcat_s(path, "\\My Games\\Skyrim\\SKSE\\");
-			strcat_s(path, dllName.c_str());
-			strcat_s(path, ".log");
-			gLog.open(path);
 		}
 	}
 
