@@ -434,6 +434,9 @@
     <ClInclude Include="CoreInterface\DataSearchUtil.h">
       <Filter>core_interface</Filter>
     </ClInclude>
+    <ClInclude Include="ClientLogic\EncodeCyrillic.h">
+      <Filter>client_logic</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptDragon\plugin.def">

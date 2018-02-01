@@ -69,6 +69,7 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <FunctionLevelLinking>true</FunctionLevelLinking>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -175,6 +176,7 @@
   <ItemGroup>
     <ClInclude Include="ClientLogic\Agent.h" />
     <ClInclude Include="ClientLogic\Config.h" />
+    <ClInclude Include="ClientLogic\EncodeCyrillic.h" />
     <ClInclude Include="ClientLogic\MessageID.h" />
     <ClInclude Include="ClientLogic\Serialization.h" />
     <ClInclude Include="Common\clip.h" />

@@ -13,12 +13,13 @@
 #include "Serialization.h"
 #include "Config.h"
 #include "MessageID.h"
+#include "EncodeCyrillic.h"
 
 #define MAX_NICKNAME							(24u)
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.3";
+auto version = "0.17.5";
 
 #include "Agent.h"
 
@@ -165,40 +166,6 @@ class ClientLogic : public ci::IClientLogic
 
 	std::map<std::wstring, std::shared_ptr<Bot>> bots;
 	std::list<Bot *> botss;
-
-	using str_t = std::wstring;
-
-	str_t decodeCyrillic(str_t str)
-	{
-		static str_t abc = L"éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ";
-
-		auto replace = [](str_t s,
-			const str_t &toReplace,
-			const str_t &replaceWith)
-		{
-			rep:
-			std::size_t pos = s.find(toReplace);
-			if (pos == str_t::npos)
-				return s;
-			str_t lastS = s;
-			s.replace(pos, toReplace.length(), replaceWith);
-			if (s != lastS)
-			{
-				goto rep;
-			}
-			return s;
-		};
-
-		for (size_t i = 0; i != abc.size(); ++i)
-		{
-			str_t  abci;
-			abci.push_back(abc[i]);
-
-			str = replace(str, L"<cyrillic:" + std::to_wstring(i + 1) + L">", abci);
-		}
-		
-		return str;
-	}
 
 	uint16_t GetID(const ci::IActor *player)
 	{
@@ -565,7 +532,7 @@ class ClientLogic : public ci::IClientLogic
 					}
 					else
 					{
-						auto abcMsg = decodeCyrillic
+						auto abcMsg = decodeRu
 							(StringToWstring(message));
 						ci::Chat::AddMessage((abcMsg), isNotification);
 						ci::Log(L"Message: " + abcMsg);
@@ -730,7 +697,7 @@ class ClientLogic : public ci::IClientLogic
 					try {
 						if (ADD_PLAYER_ID_TO_NICKNAME_LABEL && id != net.myID)
 							name += " [" + std::to_string(id) + "]";
-						players.at(id)->SetName(decodeCyrillic(StringToWstring(name)));
+						players.at(id)->SetName(decodeRu(StringToWstring(name)));
 					}
 					catch (...) {
 					}
@@ -803,7 +770,7 @@ class ClientLogic : public ci::IClientLogic
 				players[id] = nullptr;
 			}
 
-			auto newPl = new ci::RemotePlayer(decodeCyrillic(StringToWstring(name)), look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
+			auto newPl = new ci::RemotePlayer(decodeRu(StringToWstring(name)), look, movement.pos, cellID, worldSpaceID, onHit, "RPEngineInput", onActivate);
 			newPl->SetMark(std::to_string(id));
 			players[id] = newPl;
 			lastFurniture[id] = 0;
@@ -1014,7 +981,7 @@ class ClientLogic : public ci::IClientLogic
 						break;
 					}
 
-					ci::Dialog::Show(decodeCyrillic(title), style, decodeCyrillic(text), defaultIndex, [=](ci::Dialog::Result result) {
+					ci::Dialog::Show(decodeRu(title), style, decodeRu(text), defaultIndex, [=](ci::Dialog::Result result) {
 						this->OnDialogResponse(dialogID, result);
 					});
 				}
@@ -1138,7 +1105,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			try {
-				objects.at(id)->SetName(decodeCyrillic(StringToWstring(name)));
+				objects.at(id)->SetName(decodeRu(StringToWstring(name)));
 			}
 			catch (...) {
 			}
@@ -1878,7 +1845,7 @@ class ClientLogic : public ci::IClientLogic
 						message = " ";
 
 
-					playerBubbles[playerID].reset(new ci::Text3D(decodeCyrillic(StringToWstring(message)), { 0,0,0 }));
+					playerBubbles[playerID].reset(new ci::Text3D(decodeRu(StringToWstring(message)), { 0,0,0 }));
 					playerBubbles[playerID]->SetFontHeight(25);
 					playerBubbles[playerID]->SetDrawDistance(512.6667f);
 					playerBubbles[playerID]->SetPosSource([=] {
@@ -2142,7 +2109,7 @@ class ClientLogic : public ci::IClientLogic
 				delete text3Ds[id];
 			text3Ds[id] = new ci::Text3D(L" ", { 1000000000,1000000000,1000000000 });
 			text3Ds[id]->SetPos(pos);
-			text3Ds[id]->SetText(decodeCyrillic(StringToWstring(txt)));
+			text3Ds[id]->SetText(decodeRu(StringToWstring(txt)));
 			break;
 		}
 		case ID_TEXT_DESTROY:
@@ -2349,10 +2316,17 @@ class ClientLogic : public ci::IClientLogic
 
 	void RunTests()
 	{
-		auto dcd = decodeCyrillic(L"<cyrillic:16><cyrillic:31><cyrillic:15>");
+		auto dcd = decodeRu(L"<cy:16><cy:31><cy:15>");
 		if (dcd != L"àáâ")
 		{
-			ci::Log(L"ERROR:ClientLogic Test failed - decodeCyrillic() " + dcd);
+			ci::Log(L"ERROR:ClientLogic Test failed - decodeRu() " + dcd);
+			ci::SetTimer(2000, []() {std::exit(-1); });
+		}
+		
+		auto ecd = encodeRu(L"àáâ");
+		if (ecd != "<cy:16><cy:31><cy:15>")
+		{
+			ci::Log("ERROR:ClientLogic Test failed - encodeRu() " + ecd);
 			ci::SetTimer(2000, []() {std::exit(-1); });
 		}
 	}
@@ -2657,8 +2631,9 @@ class ClientLogic : public ci::IClientLogic
 
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_MESSAGE);
-		bsOut.Write((uint16_t)text.size());
-		for (auto it = text.begin(); it != text.end(); ++it)
+		auto text_ = encodeRu(text);
+		bsOut.Write((uint16_t)text_.size());
+		for (auto it = text_.begin(); it != text_.end(); ++it)
 			bsOut.Write(*it);
 
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);

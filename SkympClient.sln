@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.13
+VisualStudioVersion = 15.0.27004.2005
 MinimumVisualStudioVersion = 12.0
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}"
 EndProject
@@ -17,9 +17,14 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A552F51E-1A5B-4CA2-A3F4-BEFCE34864BB}"
 	ProjectSection(SolutionItems) = preProject
 		Performance1.psess = Performance1.psess
+		Performance2.psess = Performance2.psess
+		Performance3.psess = Performance3.psess
 	EndProjectSection
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
 		Debug|x64 = Debug|x64
@@ -66,6 +71,9 @@ Global
 		{E2BB26EC-2013-42CD-BCA5-C9C566BA0379} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
 		{AD95F75E-FD79-4F2F-BC36-828D592A790A} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
 		{6FD8CBA3-1496-4143-8681-EE9CFC0DC713} = {B97F6877-F78C-4BE1-A8A1-4F4C0ECB59C5}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B4DABBD8-7721-4C45-879D-2A190BBEBE20}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

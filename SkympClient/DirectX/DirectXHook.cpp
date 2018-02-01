@@ -18,12 +18,10 @@ IDirect3D9* WINAPI FakeDirect3DCreate9(UINT SDKVersion)
 
 void HookDirect3D9()
 {
+	std::ofstream f("loadlibrary.log");
+	f << "d3d9.dll begin" << std::endl;
 	HMODULE d3d9 = LoadLibraryA("d3d9.dll");
-	if (d3d9 == NULL)
-	{
-		std::exit(-1);
-	}
 	Direct3DCreate9_RealFunc = (tDirect3DCreate9)GetProcAddress(d3d9, "Direct3DCreate9");
-
 	Mhook_SetHook((PVOID*)&Direct3DCreate9_RealFunc, FakeDirect3DCreate9);
+	f << "d3d9.dll end" << std::endl;
 }
