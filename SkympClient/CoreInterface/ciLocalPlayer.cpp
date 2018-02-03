@@ -110,6 +110,9 @@ bool registered = false;
 clock_t localPlCrosshairRefUpdateMoment = 0;
 uint32_t lastFurniture = 0;
 bool localPlOnMount = false;
+std::map<std::string, uint8_t> localPlSkillPercents;
+std::map<std::string, std::function<void()>> skillTasks;
+clock_t lastIncrementSkill = 0;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -117,6 +120,10 @@ std::map<TESForm *, const ci::ItemType *> knownItems;
 std::map<TESForm *, const ci::Spell *> knownSpells;
 std::map<TESForm *, const ci::MagicEffect *> knownEffects;
 std::map<TESForm *, const ci::Enchantment *> knownEnch;
+
+const static std::set<std::string> sskills = {
+	"onehanded", "twohanded", "marksman", "block", "smithing", "heavyarmor", "lightarmor", "pickpocket", "lockpicking", "sneak", "alchemy", "speechcraft", "alteration", "conjuration", "destruction", "illusion", "restoration", "enchanting"
+};
 
 struct ActiveEffectInfo
 {
@@ -853,10 +860,18 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	auto avName = avName_;
 	std::transform(avName_.begin(), avName_.end(), avName.begin(), ::tolower);
 
+	const bool isSkill = sskills.count(avName) != 0;
+
 	if (avName == "level")
 	{
-		cd::SetPlayerLevel(avData.base + avData.modifier);
+		SET_TIMER_LIGHT(0, [=] {
+			cd::SetPlayerLevel(avData.base + avData.modifier);
+		});
 	}
+	else if (avName == "perkpoints")
+		g_thePlayer->numPerkPoints = avData.base + avData.modifier;
+	else if (avName == "experience")
+		g_thePlayer->skills->data->levelPoints = avData.base + avData.modifier;
 
 	localPlAVData[avName] = avData;
 
@@ -870,7 +885,7 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	};
 	static std::map<std::string, AVData> data;
 
-	SET_TIMER_LIGHT(0, [=] {
+	auto f = [=] {
 		const auto av = base + modifier;
 		if (av == av)
 		{
@@ -897,7 +912,15 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 				sd::DamageActorValue(g_thePlayer, cstr, -toRestore);
 		}
 
-	});
+	};
+	if (!isSkill)
+	{
+		SET_TIMER_LIGHT(0, f);
+	}
+	else
+	{
+		skillTasks[avName] = f;
+	}
 
 	data[avName] = { base, modifier, percentage };
 }
@@ -1685,9 +1708,66 @@ bool ci::LocalPlayer::IsOnMount()
 	return localPlOnMount;
 }
 
+void SetSkillPointsPercentImpl(const std::string &skillName, uint8_t val)
+{
+	auto avName = skillName;
+	std::transform(avName.begin(), avName.end(), avName.begin(), ::tolower);
+	localPlSkillPercents[avName] = val;
+}
+
+void ci::LocalPlayer::SetSkillPointsPercent(const std::string &skillName, uint8_t val)
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	if (val >= 100)
+		val = 99;
+	return SetSkillPointsPercentImpl(skillName, val);
+}
+
+void ci::LocalPlayer::IncrementSkill(const std::string &skillName)
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	SET_TIMER_LIGHT(0, [=] {
+		const auto av = sd::GetActorValue(g_thePlayer, (char *)skillName.data());
+		lastIncrementSkill = clock();
+		sd::IncrementSkill((char *)skillName.data());
+		const auto avData = localPlAVData[skillName];
+		if ((int32_t)avData.base == 100)
+		{
+			// Ёто была предрелизна€ верси€ 0.17
+			// avData.base == 100. всегда.
+			//  акой-то лютый пиздец
+			//  огда этот монстр, бл€дь, релизнетс€, этот мир перевернЄтс€
+		}
+		sd::SetActorValue(g_thePlayer, (char *)skillName.data(), av);
+	});
+}
+
+typedef UInt32(*_LookupActorValueByName)(const char * name);
+static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
+
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	// Apply skill points percentage
+	static clock_t lastApply = 0;
+	if (clock() - lastApply > 1000)
+	{
+		auto &skills = g_thePlayer->skills;
+		for (auto skill : sskills)
+		{
+			const UInt32 avId = LookupActorValueByName(skill.data());
+			const SInt32 skillId = skills->ResolveAdvanceableSkillId(avId);
+			skills->data->levelData[skillId].pointsMax = 100 * 1000 * 1000;
+			skills->data->levelData[skillId].points = localPlSkillPercents[skill] * 1000 * 1000;
+		}
+	}
+	if (clock() - lastIncrementSkill > 5000)
+	{
+		for (auto &p : skillTasks)
+			p.second();
+		skillTasks.clear();
+	}
 
 	// Blocking mounted fighting
 	const bool onMount = this->IsOnMount();

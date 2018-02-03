@@ -19,7 +19,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.5";
+auto version = "0.17.6";
 
 #include "Agent.h"
 
@@ -314,6 +314,28 @@ class ClientLogic : public ci::IClientLogic
 			Restoration,
 			Enchanting,
 			Level,
+			PerkPoints,
+			_fXPLevelUpBase,
+			_fXPLevelUpMult,
+			Experience,
+			__OneHandedExp,
+			__TwoHandedExp,
+			__MarksmanExp,
+			__BlockExp,
+			__SmithingExp,
+			__HeavyArmorExp,
+			__LightArmorExp,
+			__PickpocketExp,
+			__LockpickingExp,
+			__SneakExp,
+			__AlchemyExp,
+			__SpeechcraftExp,
+			__AlterationExp,
+			__ConjurationExp,
+			__DestructionExp,
+			__IllusionExp,
+			__RestorationExp,
+			__EnchantingExp,
 			NUM_AVS,
 		};
 		const std::string &GetAVName(uint8_t id) 
@@ -352,7 +374,29 @@ class ClientLogic : public ci::IClientLogic
 				"Illusion",
 				"Restoration",
 				"Enchanting",
-				"Level"
+				"Level",
+				"PerkPoints",
+				"_fXPLevelUpBase",
+				"_fXPLevelUpMult",
+				"Experience",
+				"-OneHandedExp",
+				"-TwoHandedExp",
+				"-MarksmanExp",
+				"-BlockExp",
+				"-SmithingExp",
+				"-HeavyArmorExp",
+				"-LightArmorExp",
+				"-PickpocketExp",
+				"-LockpickingExp",
+				"-SneakExp",
+				"-AlchemyExp",
+				"-SpeechcraftExp",
+				"-AlterationExp",
+				"-ConjurationExp",
+				"-DestructionExp",
+				"-IllusionExp",
+				"-RestorationExp",
+				"-EnchantingExp"
 			};
 			if (id < NUM_AVS)
 				return names[id];
@@ -1424,7 +1468,20 @@ class ClientLogic : public ci::IClientLogic
 				try {
 					currentAVsOnServer[avID] = avData.percentage * (avData.base + avData.modifier);
 					try {
-						players.at(playerID)->UpdateAVData(av.GetAVName(avID), avData);
+						auto avName = av.GetAVName(avID);
+						if (avName.size() > 0 && avName[0] == '-')
+						{
+							if (playerID == net.myID)
+							{
+								const std::string skillName = { avName.begin() + 1, avName.end() - 3 };
+								const uint8_t skillPoints = avData.base + avData.modifier;
+								localPlayer->SetSkillPointsPercent(skillName, skillPoints);
+							}
+						}
+						else
+						{
+							players.at(playerID)->UpdateAVData(avName, avData);
+						}
 					}
 					catch (...) {
 					}
@@ -2492,6 +2549,7 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnUpdate() override
 	{
+		localPlayer->SetSkillPointsPercent("Marksman", 50);
 
 		for (auto &pair : bots)
 		{
@@ -2855,6 +2913,11 @@ class ClientLogic : public ci::IClientLogic
 		else if (cmdText == L"//bot")
 		{
 			ci::Chat::AddMessage(L"#BEBEBE" L"Use //bots");
+		}
+		else if (cmdText == L"//skill")
+		{
+			localPlayer->IncrementSkill("Lockpicking");
+			ci::Chat::AddMessage(L"#BEBEBE" L"IncrementSkill");
 		}
 		else if (cmdText == L"//farobject")
 		{

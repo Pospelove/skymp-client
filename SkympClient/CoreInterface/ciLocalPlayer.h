@@ -56,6 +56,8 @@ namespace ci
 		void EnterHorse(ci::IActor *targetHorse);
 		void ExitHorse();
 		bool IsOnMount();
+		void SetSkillPointsPercent(const std::string &skillName, uint8_t skillPoints);
+		void IncrementSkill(const std::string &skillName);
 
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;
