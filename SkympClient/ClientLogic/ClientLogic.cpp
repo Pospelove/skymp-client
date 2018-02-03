@@ -3717,6 +3717,13 @@ class ClientLogic : public ci::IClientLogic
 				}
 			}
 		}
+		else if (funcName == "IncrementSkill")
+		{
+			if (arguments.size() > 0)
+			{
+				localPlayer->IncrementSkill(arguments[0]);
+			}
+		}
 	}
 };
 
