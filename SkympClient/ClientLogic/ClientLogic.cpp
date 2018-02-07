@@ -14,12 +14,13 @@
 #include "Config.h"
 #include "MessageID.h"
 #include "EncodeCyrillic.h"
+#include "Tests.h"
 
 #define MAX_NICKNAME							(24u)
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.6";
+auto version = "0.17.8";
 
 #include "Agent.h"
 
@@ -2371,27 +2372,8 @@ class ClientLogic : public ci::IClientLogic
 		}
 	}
 
-	void RunTests()
-	{
-		auto dcd = decodeRu(L"<cy:16><cy:31><cy:15>");
-		if (dcd != L"рст")
-		{
-			ci::Log(L"ERROR:ClientLogic Test failed - decodeRu() " + dcd);
-			ci::SetTimer(2000, []() {std::exit(-1); });
-		}
-		
-		auto ecd = encodeRu(L"рст");
-		if (ecd != "<cy:16><cy:31><cy:15>")
-		{
-			ci::Log("ERROR:ClientLogic Test failed - encodeRu() " + ecd);
-			ci::SetTimer(2000, []() {std::exit(-1); });
-		}
-	}
-
 	void OnStartup() override
 	{
-		RunTests();
-
 		for (int32_t i = 0; i != 1024; ++i)
 			this->lastUpdateByServer[i] = NULL;
 
@@ -2510,8 +2492,21 @@ class ClientLogic : public ci::IClientLogic
 
 		if (firstInit)
 		{
-			localPlayer->onPlayerBowShot.Add([=](float power) {
+			Tests::Run();
 
+			localPlayer->onLevelUp.Add([=](std::string increasedAv) {
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_LEVEL_UP);
+				if (increasedAv == "Health")
+					bsOut.Write((uint8_t)av.Health);
+				else if (increasedAv == "Magicka")
+					bsOut.Write((uint8_t)av.Magicka);
+				else if(increasedAv == "Stamina")
+					bsOut.Write((uint8_t)av.Stamina);
+				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+			});
+
+			localPlayer->onPlayerBowShot.Add([=](float power) {
 				const auto powerInt = int32_t(power * 100);
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_BOW_SHOT);
@@ -2543,14 +2538,11 @@ class ClientLogic : public ci::IClientLogic
 		firstInit = false;
 	}
 
-	//std::function<void()> testUpd;
 	ci::Signal<void()> testUpd;
 	std::list<std::function<void()>> fns;
 
 	void OnUpdate() override
 	{
-		localPlayer->SetSkillPointsPercent("Marksman", 50);
-
 		for (auto &pair : bots)
 		{
 			if (pair.second != nullptr)
@@ -2914,11 +2906,6 @@ class ClientLogic : public ci::IClientLogic
 		{
 			ci::Chat::AddMessage(L"#BEBEBE" L"Use //bots");
 		}
-		else if (cmdText == L"//skill")
-		{
-			localPlayer->IncrementSkill("Lockpicking");
-			ci::Chat::AddMessage(L"#BEBEBE" L"IncrementSkill");
-		}
 		else if (cmdText == L"//farobject")
 		{
 			if (localPlayer->GetName() == L"Pospelov")
@@ -2943,8 +2930,25 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//dump")
 		{
-			ci::Chat::AddMessage(L"#BEBEBE" L"Lua Codegen Start");
-			ci::DataSearch::LuaCodegenStart();
+			ci::Chat::AddMessage(L"#BEBEBE" L"Running Lua Codegen");
+			ci::DataSearch::LuaCodegenStart([] {
+				ci::Chat::AddMessage(L"#BEBEBE" L"Done");
+			});
+		}
+		else if (cmdText == L"//testperk")
+		{
+			static auto Alchemist80 = new ci::Perk(0x000C07CD);
+			Alchemist80->SetRequiredSkillLevel(1000);
+			if (arguments.size() == 0 || arguments[0] == L"add")
+			{
+				ci::Chat::AddMessage(L"#BEBEBE" L"Perk added");
+				localPlayer->AddPerk(Alchemist80);
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"#BEBEBE" L"Perk removed");
+				localPlayer->RemovePerk(Alchemist80);
+			}
 		}
 		else if (cmdText == L"//tracehost")
 		{
@@ -3720,9 +3724,7 @@ class ClientLogic : public ci::IClientLogic
 		else if (funcName == "IncrementSkill")
 		{
 			if (arguments.size() > 0)
-			{
 				localPlayer->IncrementSkill(arguments[0]);
-			}
 		}
 	}
 };

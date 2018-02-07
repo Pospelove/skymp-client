@@ -49,6 +49,8 @@ namespace ci
 		void UpdateAVData(const std::string &avName, const AVData &data) override;
 		void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) override;
 		void RemoveActiveEffect(const ci::MagicEffect *effect) override;
+		void AddPerk(const ci::Perk *perk) override;
+		void RemovePerk(const ci::Perk *perk) override;
 
 		std::wstring GetName() const override;
 		NiPoint3 GetPos() const  override;
@@ -112,6 +114,7 @@ namespace ci
 
 		void UpdateGnomes(Actor *actor);
 		void UpdateNickname(Actor *actor);
+		void UpdatePerks(Actor *actor);
 		void DeleteProjectile(Actor *actor);
 		void UpdateMovement(Actor *actor);
 		void ApplyHitAnimations(Actor *actor);

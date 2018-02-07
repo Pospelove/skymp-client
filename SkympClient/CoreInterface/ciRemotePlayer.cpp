@@ -246,6 +246,7 @@ namespace ci
 		uint32_t combatTarget = 0;
 		std::function<void()> engineTask = nullptr;
 		bool fullySpawned = false;
+		std::set<const ci::Perk *> perks;
 
 		struct Equipment
 		{
@@ -467,6 +468,21 @@ namespace ci
 		void RemoveActiveEffect(const ci::MagicEffect *effect) override
 		{
 			// ...
+		}
+
+		void AddPerk(const ci::Perk *perk) override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->perks.insert(perk);
+			pimpl->perks.erase(nullptr);
+		}
+
+		void RemovePerk(const ci::Perk *perk) override
+		{
+			auto &pimpl = this->GetImpl();
+			std::lock_guard<dlf_mutex> l(pimpl->mutex);
+			pimpl->perks.erase(perk);
 		}
 
 		std::wstring GetName() const override
@@ -1666,6 +1682,11 @@ namespace ci
 		});
 	}
 
+	void RemotePlayer::UpdatePerks(Actor *actor)
+	{
+		// ...
+	}
+
 	void RemotePlayer::DeleteProjectile(Actor *actor)
 	{
 		SAFE_CALL("RemotePlayer", [&] {
@@ -2132,6 +2153,7 @@ namespace ci
 		pimpl->engine->EngineApplyFactions(actor);
 
 		this->UpdateNickname(actor);
+		this->UpdatePerks(actor);
 
 		if (pimpl->greyFaceFixed || pimpl->baseNpc != nullptr)
 		{
@@ -2579,6 +2601,14 @@ namespace ci
 
 	void RemotePlayer::RemoveActiveEffect(const ci::MagicEffect *effect) {
 		return pimpl->engine->RemoveActiveEffect(effect);
+	}
+
+	void RemotePlayer::AddPerk(const ci::Perk *perk) {
+		return pimpl->engine->AddPerk(perk);
+	}
+
+	void RemotePlayer::RemovePerk(const ci::Perk *perk) {
+		return pimpl->engine->RemovePerk(perk);
 	}
 
 	std::wstring RemotePlayer::GetName() const {

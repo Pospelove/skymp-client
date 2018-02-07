@@ -51,6 +51,8 @@ namespace ci
 		virtual void UpdateAVData(const std::string &avName, const AVData &data) = 0;
 		virtual void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) = 0;
 		virtual void RemoveActiveEffect(const ci::MagicEffect *effect) = 0;
+		virtual void AddPerk(const ci::Perk *perk) = 0;
+		virtual void RemovePerk(const ci::Perk *perk) = 0;
 
 		// Note: Not work on despawned RemotePlayers. You must flood this method
 		void SetWerewolf(bool ww, bool skipAnimation = false);

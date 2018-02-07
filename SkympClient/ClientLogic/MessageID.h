@@ -37,6 +37,9 @@ enum : RakNet::MessageID {
 	ID_DATASEARCH_RESULT,
 	ID_FORGET_PLAYER,
 	ID_POISON_ATTACK,
+	ID_LEVEL_UP,
+	ID_LEARN_PERK,
+	ID_LEGENDARY_SKILL,
 
 	// client <---> server
 	ID_MESSAGE,

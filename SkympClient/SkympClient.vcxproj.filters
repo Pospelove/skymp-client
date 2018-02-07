@@ -169,6 +169,9 @@
     <ClCompile Include="Overlay\Loadscreen.cpp">
       <Filter>core\Overlay</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciPerk.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -435,6 +438,12 @@
       <Filter>core_interface</Filter>
     </ClInclude>
     <ClInclude Include="ClientLogic\EncodeCyrillic.h">
+      <Filter>client_logic</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciPerk.h">
+      <Filter>core_interface</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientLogic\Tests.h">
       <Filter>client_logic</Filter>
     </ClInclude>
   </ItemGroup>

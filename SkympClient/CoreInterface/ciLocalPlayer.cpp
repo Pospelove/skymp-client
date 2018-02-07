@@ -113,6 +113,7 @@ bool localPlOnMount = false;
 std::map<std::string, uint8_t> localPlSkillPercents;
 std::map<std::string, std::function<void()>> skillTasks;
 clock_t lastIncrementSkill = 0;
+std::set<const ci::Perk *> localPlPerks;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -861,6 +862,8 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	std::transform(avName_.begin(), avName_.end(), avName.begin(), ::tolower);
 
 	const bool isSkill = sskills.count(avName) != 0;
+	if (isSkill)
+		return;
 
 	if (avName == "level")
 	{
@@ -940,6 +943,23 @@ void ci::LocalPlayer::RemoveActiveEffect(const ci::MagicEffect *effect)
 		return;
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 	localPlActiveEffects.erase(effect);
+}
+
+void ci::LocalPlayer::AddPerk(const ci::Perk *perk)
+{
+	if (perk == nullptr)
+		return;
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	localPlPerks.insert((perk));
+	const_cast<ci::Perk *>(perk)->UpdateRequiredSkillLevel();
+}
+
+void ci::LocalPlayer::RemovePerk(const ci::Perk *perk)
+{
+	if (perk == nullptr)
+		return;
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	localPlPerks.erase(perk);
 }
 
 void ci::LocalPlayer::SetCell(uint32_t cellID)
@@ -1731,13 +1751,6 @@ void ci::LocalPlayer::IncrementSkill(const std::string &skillName)
 		lastIncrementSkill = clock();
 		sd::IncrementSkill((char *)skillName.data());
 		const auto avData = localPlAVData[skillName];
-		if ((int32_t)avData.base == 100)
-		{
-			// Ёто была предрелизна€ верси€ 0.17
-			// avData.base == 100. всегда.
-			//  акой-то лютый пиздец
-			//  огда этот монстр, бл€дь, релизнетс€, этот мир перевернЄтс€
-		}
 		sd::SetActorValue(g_thePlayer, (char *)skillName.data(), av);
 	});
 }
@@ -1745,9 +1758,61 @@ void ci::LocalPlayer::IncrementSkill(const std::string &skillName)
 typedef UInt32(*_LookupActorValueByName)(const char * name);
 static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
 
+void AddPerkWithRequirements(const ci::Perk *p)
+{
+	auto perkList = p->GetLocalRequirements();
+	for (auto perk : perkList)
+	{
+		auto rawPerk = (BGSPerk *)LookupFormByID(perk->GetFormID());
+		sd::AddPerk(g_thePlayer, rawPerk);
+	}
+}
+
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	// Update perks
+	static decltype(localPlPerks) lastPerks;
+	if (lastPerks != localPlPerks)
+	{
+		for (auto p : lastPerks)
+			sd::RemovePerk(g_thePlayer, (BGSPerk *)LookupFormByID(p->GetFormID()));
+		for (auto p : localPlPerks)
+			AddPerkWithRequirements(p);
+		lastPerks = localPlPerks;
+	}
+
+	// Detect levelup
+	for (auto &iav : { "health", "stamina", "magicka" })
+	{
+		auto v = (sd::GetBaseActorValue(g_thePlayer, (char *)iav));
+		if (int64_t(v - localPlAVData[iav].base) % 10 == 0 && v - localPlAVData[iav].base > 0)
+		{
+			auto numNewLevels = int64_t(v - localPlAVData[iav].base) / 10;
+
+			auto avDat = this->GetAVData(iav);
+			avDat.base += 10.0f;
+			this->UpdateAVData(iav, avDat);
+
+			avDat = this->GetAVData("level");
+			avDat.base += 1;
+			this->UpdateAVData("level", avDat);
+
+			avDat = this->GetAVData("perkpoints");
+			avDat.base += 1;
+			this->UpdateAVData("perkpoints", avDat);
+
+			std::thread([=] {
+				std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+				auto str = (std::string)iav;
+				str[0] = ::toupper(str[0]);
+				for (int64_t i = 0; i != numNewLevels; ++i)
+					ci::LocalPlayer::GetSingleton()->onLevelUp(str);
+			}).detach();
+			break;
+		}
+	}
 
 	// Apply skill points percentage
 	static clock_t lastApply = 0;
@@ -1860,7 +1925,7 @@ void ci::LocalPlayer::Update()
 						//auto &val = avInfo->skillUsages[ActorValueInfo::kSkillImproveMult];
 						//ci::Chat::AddMessage(std::to_wstring(val));
 						//val = 0;
-						cd::SetSkillImproveMult(result, 0);
+						/// cd::SetSkillImproveMult(result, 0); // skill level goes to 100
 					});
 				}
 			});

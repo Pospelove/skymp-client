@@ -24,6 +24,9 @@ auto getLocation = [](TESObjectREFR *ref) {
 		return ref->GetWorldSpace()->formID;
 };
 
+typedef UInt32(*_LookupActorValueByName)(const char * name);
+static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
+
 namespace ci
 {
 	using KeywordBackup = std::map<BGSConstructibleObject *, BGSKeyword *>;
@@ -195,6 +198,7 @@ void ci::DataSearch::RequestContainers(std::function<void(ContainerData)> callba
 		c.pos = cd::GetPosition(ref);
 		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
 		c.refID = ref->GetFormID();
+		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		callback(c);
 	});
 }
@@ -209,6 +213,7 @@ void ci::DataSearch::RequestDoors(std::function<void(DoorData)> callback)
 		c.pos = cd::GetPosition(ref);
 		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
 		c.refID = ref->GetFormID();
+		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		callback(c);
 	});
 }
@@ -234,6 +239,7 @@ void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 		c.damage = 0;
 		c.cl = ci::ItemType::Class::Misc;
 		c.subCl = ci::ItemType::Subclass::MISC_Misc;
+		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		callback(c);
 	});
 }
@@ -257,11 +263,12 @@ void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
 		c.refID = ref->GetFormID();
 		c.race = ((Actor *)ref)->GetRace()->formID;
+		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		callback(c);
 	});
 }
 
-void ci::DataSearch::LuaCodegenStart()
+void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 {
 	// –аньше это было в логике клиента в OnWorldInit() исключительно дл€ теста конструктора и деструктора ci::Recipe
 	// —ейчас же создание рецепта до запуска DataSearch гарантирует, что Keywords рецептов будут обработаны нормально + не будет состо€ни€ гонки (переменна€ keywordsBackup)
@@ -272,7 +279,7 @@ void ci::DataSearch::LuaCodegenStart()
 	if (!started)
 	{
 		started = true;
-		std::thread([] {
+		std::thread([onFinish] {
 
 			using Range = std::pair<uint32_t, uint32_t>;
 
@@ -289,7 +296,8 @@ void ci::DataSearch::LuaCodegenStart()
 				{ FormType::SoulGem, {0x0002E422, 0x00094E40} },
 				{ FormType::Weapon, {0x000001F4, 0x0010FD5E}},
 				{ FormType::Potion, {0x0001895F, 0x0010D666}},
-				{ FormType::ConstructibleObject, {0x00000DD2, 0x0010FDF6}}
+				{ FormType::ConstructibleObject, {0x00000DD2, 0x0010FDF6}},
+				{ FormType::Perk, {0x000153CD, 0x0010FE04}}
 			};
 
 			static auto quote = "\"";
@@ -767,17 +775,144 @@ void ci::DataSearch::LuaCodegenStart()
 			}
 			ss << "nil }" << std::endl;
 
+			// Perks:
+			ss << std::endl;
+			ss << "local perks = {" << std::endl;
+			const auto &perksRange = ranges[FormType::Perk];
+			using Iden = std::string;
+			using AVName = std::string;
+			std::map<Iden, AVName> map;
+			for (auto id = perksRange.first; id <= perksRange.second; ++id)
+			{
+				auto form = LookupFormByID(id);
+				if (form == nullptr)
+					continue;
+				auto perk = (BGSPerk *)form;
+				if (perk->formType != FormType::Perk)
+					continue;
+
+				if (perk->IsPlayable() == false)
+					continue;
+
+				static std::map<BGSPerk *, std::string> avNames;
+				if (avNames.empty())
+				{
+					const static std::set<std::string> sskills = {
+						"onehanded", "twohanded", "marksman", "block", "smithing", "heavyarmor", "lightarmor", "pickpocket", "lockpicking", "sneak", "alchemy", "speechcraft", "alteration", "conjuration", "destruction", "illusion", "restoration", "enchanting"
+					};
+					for (auto &skill : sskills)
+					{
+						const auto cdAvi = cd::GetActorValueInfoByName(skill);
+						const auto avi = cdAvi.operator ActorValueInfo *();
+						if (avi != nullptr)
+						{
+							class MyVisitor : public BGSSkillPerkTreeNode::PerkVisitor
+							{
+							public:
+								explicit MyVisitor(const std::string &avName) : avName(avName)
+								{
+								}
+
+								bool Accept(BGSPerk *node) override
+								{
+									avNames[node] = this->avName;
+									return false;
+								}
+							private:
+								const std::string avName;
+							};
+							auto visitor = MyVisitor(skill);
+							avi->perkTree->VisitPerks(visitor);
+						}
+					}
+				}
+
+				const auto iden = getIdentifier(form);
+				float requiredSkillLevel = 0;
+				uint32_t requiredPerkID = 0;
+				std::string avName = avNames[perk];
+
+				if (avName.size() > 0)
+				{
+					map[iden] = avName;
+				}
+				else
+				{
+					avName = map[iden];
+				}
+
+				if (perk->conditions.nodes != nullptr)
+				{
+					auto first = perk->conditions.nodes;
+					if (first != nullptr)
+					{
+						requiredSkillLevel = *(float *)&first->comparisonValue;
+						auto second = first->next;
+						if (second != nullptr)
+						{
+							auto form = (TESForm *)second->param1;
+							if (form != nullptr)
+							{
+								try {
+									requiredPerkID = form->formID;
+								}
+								catch (...) { // form is not valid pointer
+									requiredPerkID = 0;
+								}
+							}
+						}
+					}
+					if (requiredSkillLevel == 1.0f) // oops
+					{
+						if (first != nullptr)
+						{
+							auto form = (TESForm *)first->param1;
+							if (form != nullptr)
+							{
+								try {
+									requiredPerkID = form->formID;
+								}
+								catch (...) { // form is not valid pointer
+									requiredPerkID = 0;
+								}
+							}
+							auto second = first->next;
+							if (second != nullptr)
+							{
+								requiredSkillLevel = *(float *)&second->comparisonValue;
+							}
+						}
+					}
+				}
+
+				ss << "{ ";
+				ss << quote << iden << quote << ", ";
+				ss << "0x" << form->formID << ", ";
+				ss << "0x" << requiredPerkID << ", ";
+				ss << quote << avName << quote << ", ";
+				ss << std::to_string(requiredSkillLevel) << "";
+				ss << " }," << std::endl;
+			}
+			ss << "nil }" << std::endl;
+
 			ss << "local dsres = {}" << std::endl;
 			ss << "dsres.effects = effects" << std::endl;
 			ss << "dsres.magic = magic" << std::endl;
 			ss << "dsres.itemTypes = itemTypes" << std::endl;
 			ss << "dsres.recipes = recipes" << std::endl;
+			ss << "dsres.perks = perks" << std::endl;
 			ss << "return dsres" << std::endl;
 
 			{
 				std::ofstream file("AAA_DATASEARCH_LOCAL_RESULTS.lua");
 				file << ss.str();
 				file.close();
+			}
+
+			if (onFinish != nullptr)
+			{
+				std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+				onFinish();
 			}
 
 		}).detach();

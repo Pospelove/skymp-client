@@ -32,6 +32,8 @@ namespace ci
 		void UpdateAVData(const std::string &avName, const AVData &data) override;
 		void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) override;
 		void RemoveActiveEffect(const ci::MagicEffect *effect) override;
+		void AddPerk(const ci::Perk *perk) override;
+		void RemovePerk(const ci::Perk *perk) override;
 
 		std::wstring GetName() const override;
 		NiPoint3 GetPos() const override;
@@ -67,6 +69,9 @@ namespace ci
 
 		using _HitData = ci::HitEventData;
 		ci::Signal<void(_HitData)> onHit;
+
+		using _IncreasedAV = std::string;
+		ci::Signal<void(_IncreasedAV)> onLevelUp;
 
 		virtual ~LocalPlayer() {}
 
