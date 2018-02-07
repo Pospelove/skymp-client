@@ -60,6 +60,7 @@ namespace ci
 		bool IsOnMount();
 		void SetSkillPointsPercent(const std::string &skillName, uint8_t skillPoints);
 		void IncrementSkill(const std::string &skillName);
+		void RemoveAllPerks();
 
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;

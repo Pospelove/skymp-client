@@ -1755,6 +1755,12 @@ void ci::LocalPlayer::IncrementSkill(const std::string &skillName)
 	});
 }
 
+void ci::LocalPlayer::RemoveAllPerks()
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	localPlPerks.clear();
+}
+
 typedef UInt32(*_LookupActorValueByName)(const char * name);
 static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
 

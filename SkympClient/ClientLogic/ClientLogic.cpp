@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.8";
+auto version = "0.17.9";
 
 #include "Agent.h"
 
@@ -2291,6 +2291,36 @@ class ClientLogic : public ci::IClientLogic
 
 				if (remPl->GetEngine() != engine)
 					remPl->SetEngine(engine);
+			}
+			break;
+		}
+		case ID_PLAYER_PERKS:
+		{
+			uint16_t playerID;
+			uint32_t size;
+			bsIn.Read(playerID);
+			bsIn.Read(size);
+
+			if (playerID != net.myID)
+			{
+				// not implemented
+				return;
+			}
+
+			localPlayer->RemoveAllPerks();
+
+			static std::map<uint32_t, ci::Perk *> perks;
+
+			while (size > 0)
+			{
+				uint32_t perkID, skillLevel;
+				bsIn.Read(perkID);
+				bsIn.Read(skillLevel);
+				if (perks[perkID] == nullptr)
+					perks[perkID] = new ci::Perk(perkID);
+				perks[perkID]->SetRequiredSkillLevel(skillLevel);
+				localPlayer->AddPerk(perks[perkID]);
+				--size;
 			}
 			break;
 		}
