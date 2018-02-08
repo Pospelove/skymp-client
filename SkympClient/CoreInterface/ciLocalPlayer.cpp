@@ -114,6 +114,8 @@ std::map<std::string, uint8_t> localPlSkillPercents;
 std::map<std::string, std::function<void()>> skillTasks;
 clock_t lastIncrementSkill = 0;
 std::set<const ci::Perk *> localPlPerks;
+std::vector<BGSPerk *> allPerks;
+std::set<BGSPerk *> rawPerksWas;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -1777,6 +1779,53 @@ void AddPerkWithRequirements(const ci::Perk *p)
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	// Detect perk select
+	if (allPerks.empty())
+	{
+		for (uint32_t id = 0x000153CD; id <= 0x0010FE04; ++id)
+		{
+			auto perk = (BGSPerk *)LookupFormByID(id);
+			if (perk != nullptr && perk->formType == FormType::Perk)
+				allPerks.push_back(perk);
+		}
+	}
+
+	auto pp = this->GetAVData("PerkPoints");
+	if (pp.base + pp.modifier > g_thePlayer->numPerkPoints)
+	{
+		pp.base = g_thePlayer->numPerkPoints;
+		pp.modifier = 0;
+		this->UpdateAVData("PerkPoints", pp);
+
+		decltype(rawPerksWas) rawPerks;
+		for (auto perk : allPerks)
+		{
+			if (sd::HasPerk(g_thePlayer, perk))
+				rawPerks.insert(perk);
+		}
+		if (rawPerks != rawPerksWas)
+		{
+			for (auto perk : rawPerks)
+			{
+				static const std::set<uint32_t> ignoreList = {
+					94492, 94494, 1071619,
+					1071146, 1041156, 1006895,
+					987561, 715781, 684636,
+					178717, 849800, 847916
+				};
+
+				if (rawPerksWas.count(perk) == 0 && ignoreList.count(perk->formID) == 0)
+				{
+					std::thread([=] {
+						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+						this->onPerkSelect(perk->formID);
+					}).detach();
+				}
+			}
+			rawPerksWas = std::move(rawPerks);
+		}
+	}
 
 	// Update perks
 	static decltype(localPlPerks) lastPerks;

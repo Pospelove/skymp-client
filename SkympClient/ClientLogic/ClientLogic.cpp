@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.12";
+auto version = "0.17.13";
 
 #include "Agent.h"
 
@@ -2495,6 +2495,13 @@ class ClientLogic : public ci::IClientLogic
 		{
 			Tests::Run();
 
+			localPlayer->onPerkSelect.Add([=](ci::LocalPlayer::_PerkID perkID) {
+				RakNet::BitStream bsOut;
+				bsOut.Write(ID_LEARN_PERK);
+				bsOut.Write((uint32_t)perkID);
+				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+			});
+
 			localPlayer->onLevelUp.Add([=](std::string increasedAv) {
 				RakNet::BitStream bsOut;
 				bsOut.Write(ID_LEVEL_UP);
@@ -2504,7 +2511,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write((uint8_t)av.Magicka);
 				else if(increasedAv == "Stamina")
 					bsOut.Write((uint8_t)av.Stamina);
-				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+				net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 			});
 
 			localPlayer->onPlayerBowShot.Add([=](float power) {
@@ -3654,6 +3661,7 @@ class ClientLogic : public ci::IClientLogic
 
 	void ExecuteCommand(std::string cmd)
 	{
+		ci::Log("Command: " + cmd);
 		enum {
 			ReadFuncName,
 			ReadArguments,

@@ -74,6 +74,9 @@ namespace ci
 		using _IncreasedAV = std::string;
 		ci::Signal<void(_IncreasedAV)> onLevelUp;
 
+		using _PerkID = uint32_t;
+		ci::Signal<void(_PerkID)> onPerkSelect;
+
 		virtual ~LocalPlayer() {}
 
 	private:
