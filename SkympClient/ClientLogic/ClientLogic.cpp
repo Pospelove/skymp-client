@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.9";
+auto version = "0.17.12";
 
 #include "Agent.h"
 
@@ -38,6 +38,7 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Magic *> magic;
 	std::map<uint32_t, ci::Text3D *> text3Ds;
 	std::map<uint32_t, std::string> keywords;
+	std::map<uint32_t, ci::Perk *> perks;
 	std::map<uint32_t, ci::Recipe *> recipes;
 	std::map<uint16_t, uint32_t> baseNPCs;
 	std::set<uint16_t> hostedPlayers;
@@ -2294,36 +2295,6 @@ class ClientLogic : public ci::IClientLogic
 			}
 			break;
 		}
-		case ID_PLAYER_PERKS:
-		{
-			uint16_t playerID;
-			uint32_t size;
-			bsIn.Read(playerID);
-			bsIn.Read(size);
-
-			if (playerID != net.myID)
-			{
-				// not implemented
-				return;
-			}
-
-			localPlayer->RemoveAllPerks();
-
-			static std::map<uint32_t, ci::Perk *> perks;
-
-			while (size > 0)
-			{
-				uint32_t perkID, skillLevel;
-				bsIn.Read(perkID);
-				bsIn.Read(skillLevel);
-				if (perks[perkID] == nullptr)
-					perks[perkID] = new ci::Perk(perkID);
-				perks[perkID]->SetRequiredSkillLevel(skillLevel);
-				localPlayer->AddPerk(perks[perkID]);
-				--size;
-			}
-			break;
-		}
 		default:
 			ci::Chat::AddMessage(L"Unknown packet type " + std::to_wstring(packet->data[0]));
 			break;
@@ -3755,6 +3726,46 @@ class ClientLogic : public ci::IClientLogic
 		{
 			if (arguments.size() > 0)
 				localPlayer->IncrementSkill(arguments[0]);
+		}
+		else if (funcName == "AddPerk")
+		{
+			if (arguments.size() != 2)
+				ci::Log("ERROR:ClientLogic AddPerk bad argc %d", (int32_t)arguments.size());
+			else
+			{
+				const auto perkID = (uint32_t)atoll(arguments[0].data());
+				const auto requiredSkillLevel = (uint32_t)atoll(arguments[0].data());
+				ci::Perk *perk = nullptr;
+				try {
+					perk = perks.at(perkID);
+				}
+				catch (...) {
+					perks[perkID] = new ci::Perk(perkID);
+					perk = perks[perkID];
+				}
+				if (perk == nullptr)
+					ci::Log("ERROR:ClientLogic AddPerk nullptr perk");
+				else
+				{
+					perk->SetRequiredSkillLevel(requiredSkillLevel);
+					localPlayer->AddPerk(perk);
+				}
+			}
+		}
+		else if (funcName == "RemovePerk")
+		{
+			if (arguments.size() != 1)
+				ci::Log("ERROR:ClientLogic RemovePerk bad argc %d", (int32_t)arguments.size());
+			else
+			{
+				const auto perkID = (uint32_t)atoll(arguments[0].data());
+				try {
+					localPlayer->RemovePerk(perks.at(perkID));
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic RemovePerk nullptr perk");
+				}
+			}
 		}
 	}
 };

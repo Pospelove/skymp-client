@@ -91,5 +91,4 @@ enum : RakNet::MessageID {
 	ID_REGISTER_KEYWORD,
 	ID_RECIPE,
 	ID_PLAYER_HOST,
-	ID_PLAYER_PERKS,
 };
