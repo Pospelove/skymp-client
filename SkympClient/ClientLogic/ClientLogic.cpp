@@ -2357,7 +2357,7 @@ class ClientLogic : public ci::IClientLogic
 			static clock_t cl = 0;
 			auto clNow = clock();
 			const int32_t delay =
-				movementData.runMode == ci::MovementData::RunMode::Standing ? 50 : 40;
+				movementData.runMode == ci::MovementData::RunMode::Standing ? 250 : 55;
 			if (cl + delay < clNow)
 			{
 				cl = clNow;

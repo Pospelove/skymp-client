@@ -384,7 +384,8 @@ void ci::DataSearch::RequestActivators(std::function<void(ActivatorData)> callba
 		FormType::Book,
 		FormType::Key,
 		FormType::Flora,
-		FormType::Tree
+		FormType::Tree,
+		FormType::Furniture
 	};
 
 	for (auto formType : formTypes)
