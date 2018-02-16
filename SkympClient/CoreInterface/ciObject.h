@@ -66,6 +66,7 @@ namespace ci
 			this->ForceDespawn("Script");
 		}
 		void SetLockLevel(uint8_t lockLevel);
+		void Activate();
 
 		void AddEventHandler(OnActivate onActivate);
 

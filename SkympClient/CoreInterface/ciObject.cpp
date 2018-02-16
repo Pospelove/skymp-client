@@ -122,6 +122,7 @@ struct ci::Object::Impl
 	float speed = 0;
 	clock_t every1000ms = 0;
 	NiPoint3 lastPos = { 0,0,0 };
+	clock_t lastCheck = 0;
 
 	bool isNative = false;
 	bool waitingForDespawn = false;
@@ -575,15 +576,15 @@ void ci::Object::SetMotionType(int32_t type)
 
 	auto task = ObjectTask{ [=](TESObjectREFR *ref) {
 		auto refID = ref->formID;
-		SET_TIMER(100, [=] {
-			auto ref = (TESObjectREFR *)LookupFormByID(refID);
+		//SET_TIMER(100, [=] {
+			//auto ref = (TESObjectREFR *)LookupFormByID(refID);
 			if (ref != nullptr)
 			{
 				sd::SetMotionType(ref, type, true);
 				if (type == Motion_Dynamic)
 					sd::ApplyHavokImpulse(ref, 0.0, 0.0, -1.0, 0.75);
 			}
-		});
+		//});
 	} };
 	pimpl->overridableTasks[OverrideChannel::SetMotionType] = task;
 	pimpl->motionType = type;
@@ -595,9 +596,9 @@ void ci::Object::SetDisabled(bool disabled)
 
 	auto task = ObjectTask{ [=](TESObjectREFR *ref) {
 		if (disabled)
-			sd::DisableNoWait(ref, true);
+			sd::DisableNoWait(ref, false);
 		else
-			sd::EnableNoWait(ref, true);
+			sd::EnableNoWait(ref, false);
 	} };
 
 	auto ref = (TESObjectREFR *)LookupFormByID(pimpl->refID);
@@ -714,6 +715,27 @@ void ci::Object::SetLockLevel(uint8_t lockLevel)
 	} };
 
 	pimpl->simpleTasks.push_back(task);
+}
+
+void ci::Object::Activate()
+{
+	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
+	const auto refID = pimpl->refID;
+	auto f = [=] {
+		auto ref = (TESObjectREFR *)LookupFormByID(refID);
+		if (ref != nullptr && ref->formType == FormType::Reference)
+		{
+			//sd::ExecuteConsoleCommand("activate", ref);
+			{
+				auto activate = sd::Activate;
+				auto kura = sd::PlaceActorAtMe(ref, (TESNPC *)LookupFormByID(ID_TESNPC::EncChicken), 1, nullptr);
+				activate(ref, kura, false);
+				activate(ref, kura, true);
+				sd::Delete(kura);
+			}
+		}
+	};
+	SET_TIMER_LIGHT(1, f);
 }
 
 void ci::Object::AddEventHandler(OnActivate onActivate)
@@ -839,6 +861,17 @@ void ci::Object::Update()
 
 		if (ref != nullptr)
 		{
+			if(pimpl->motionType == Object::Motion_Keyframed)
+				if (clock() - pimpl->lastCheck > 1000 && (pimpl->pos - cd::GetPosition(ref)).Length() > 2.0)
+				{
+					pimpl->lastCheck = clock();
+					if (pimpl->lastCheck != 0)
+					{
+						this->SetPosition(pimpl->pos);
+						this->SetAngle(pimpl->rot);
+					}
+				}
+
 			SAFE_CALL("Object", [&] {
 				if (!ref->baseForm || ref->baseForm->formID != pimpl->baseID)
 					return this->ForceDespawn("Base form changed");

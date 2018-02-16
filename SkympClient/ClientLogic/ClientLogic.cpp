@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "0.17.13";
+auto version = "1.0";
 
 #include "Agent.h"
 
@@ -689,8 +689,16 @@ class ClientLogic : public ci::IClientLogic
 
 					if (rPlayer->IsBroken())
 					{
-						ci::Log("ERROR:ClientLogic RemotePlayer is broken");
-						this->StreamOut(playerid);
+						auto engine = rPlayer->GetEngine();
+						if (engine == "RPEngineInput")
+						{
+							ci::Log("ERROR:ClientLogic RemotePlayer is broken " + engine + " isHosted=" + std::to_string(hostedPlayers.count(playerid)));
+							this->StreamOut(playerid);
+						}
+						else
+						{
+							ci::Log("WARN:ClientLogic RemotePlayer is broken " + engine);
+						}
 					}
 
 					if (movData.mountStage == ci::MovementData::MountStage::OnMount)
@@ -827,6 +835,21 @@ class ClientLogic : public ci::IClientLogic
 			{
 				baseNPCs[id] = baseNpc;
 				newPl->SetBaseNPC(baseNpc);
+				if (baseNpc == 0x109e3d) // позор
+				{
+					auto p = new ci::RemotePlayer(
+						localPlayer->GetName(),
+						localPlayer->GetLookData(),
+						localPlayer->GetPos(),
+						localPlayer->GetCell(),
+						localPlayer->GetWorldSpace(),
+						onHit, "",
+						onActivate);
+					p->SetBaseNPC(0x00109E3D);
+					p->SetMark(std::to_string(id));
+					delete players[id];
+					players[id] = p;
+				}
 			}
 			else
 				baseNPCs.erase(id);
@@ -1078,6 +1101,7 @@ class ClientLogic : public ci::IClientLogic
 
 			objects[id] = new ci::Object(isNative ? id : 0, baseFormID, locationID, pos, rot, onActivate, onContainerChanged, onHit);
 			objects[id]->SetDestroyed(true);
+			objects[id]->SetMotionType(ci::Object::Motion_Keyframed); 
 			objectsInfo[id] = {};
 			objectsInfo[id].createMoment = clock();
 			break;
@@ -1262,6 +1286,7 @@ class ClientLogic : public ci::IClientLogic
 				case Type::Furniture:
 					object->SetDestroyed(destroyed);
 					object->BlockActivation(true);
+					object->SetMotionType(ci::Object::Motion_Keyframed);
 					break;
 				case Type::Container:
 					object->SetDestroyed(destroyed);
@@ -2026,6 +2051,7 @@ class ClientLogic : public ci::IClientLogic
 					Door = 3,
 					Item = 4,
 					Actor = 5,
+					Acti = 6,
 				};
 
 				this->tpdCallback = [this](ci::DataSearch::TeleportDoorsData res) {
@@ -2095,6 +2121,22 @@ class ClientLogic : public ci::IClientLogic
 					RakNet::BitStream bsOut;
 					bsOut.Write(ID_DATASEARCH_RESULT);
 					bsOut.Write(Opcode::Door);
+					bsOut.Write(res.refID);
+					bsOut.Write(res.baseID);
+					bsOut.Write(res.locationID);
+					bsOut.Write(res.pos.x);
+					bsOut.Write(res.pos.y);
+					bsOut.Write(res.pos.z);
+					bsOut.Write(res.rot.x);
+					bsOut.Write(res.rot.y);
+					bsOut.Write(res.rot.z);
+					net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE, NULL, net.remote, false);
+				});
+
+				ci::DataSearch::RequestActivators([this](ci::DataSearch::ActivatorData res) {
+					RakNet::BitStream bsOut;
+					bsOut.Write(ID_DATASEARCH_RESULT);
+					bsOut.Write(Opcode::Acti);
 					bsOut.Write(res.refID);
 					bsOut.Write(res.baseID);
 					bsOut.Write(res.locationID);
@@ -2360,6 +2402,7 @@ class ClientLogic : public ci::IClientLogic
 		// RECEIVE:
 		for (auto packet = net.peer->Receive(); packet; net.peer->DeallocatePacket(packet), packet = net.peer->Receive())
 		{
+			const auto packetID = (int32_t)packet->data[0];
 			if (net.remote == RakNet::UNASSIGNED_SYSTEM_ADDRESS)
 				net.remote = packet->systemAddress;
 			if (net.remoteGUID == RakNet::UNASSIGNED_RAKNET_GUID)
@@ -2368,7 +2411,7 @@ class ClientLogic : public ci::IClientLogic
 				this->ProcessPacket(packet);
 			}
 			catch (...) {
-				ci::Log("ERROR:ClientLogic UpdateNetworking() Receive %d", packet->data[0]);
+				ci::Log("ERROR:ClientLogic UpdateNetworking() Receive " + std::to_string(packetID));
 			}
 		}
 	}
@@ -2551,6 +2594,28 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnUpdate() override
 	{
+		// Freeze activators (fake items)
+		static clock_t lastCheck = 0;
+		if (clock() - lastCheck > 100)
+		{
+			lastCheck = clock();
+			for (auto &p : objects)
+			{
+				//if (p.second->IsCrosshairRef())
+				{
+					try {
+						if (objectsInfo.at(p.first).type != ClientLogic::Type::Item)
+						{
+							p.second->SetMotionType(ci::Object::Motion_Keyframed);
+						}
+					}
+					catch (...) {
+					}
+					break;
+				}
+			}
+		}
+
 		for (auto &pair : bots)
 		{
 			if (pair.second != nullptr)
@@ -3208,11 +3273,17 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnItemUsed(const ci::ItemType *itemType) override
 	{
-		const uint32_t itemTypeID = GetID(itemType);
-		RakNet::BitStream bsOut;
-		bsOut.Write(ID_USEITEM);
-		bsOut.Write(itemTypeID);
-		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+		// shitfix doubling this callback:
+		static bool send = true;
+		if (send)
+		{
+			const uint32_t itemTypeID = GetID(itemType);
+			RakNet::BitStream bsOut;
+			bsOut.Write(ID_USEITEM);
+			bsOut.Write(itemTypeID);
+			net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+		}
+		send = !send;
 	}
 
 	void OnItemUsedInCraft(const ci::ItemType *itemType, uint32_t count) override
@@ -3288,6 +3359,8 @@ class ClientLogic : public ci::IClientLogic
 			const auto object = pair.second;
 
 			auto &info = objectsInfo[id];
+			if (info.type != Type::Item)
+				continue;
 
 			enum : uint16_t {
 				INVALID_HOST_ID = (uint16_t)~0,
@@ -3742,14 +3815,22 @@ class ClientLogic : public ci::IClientLogic
 			else
 			{
 				const auto perkID = (uint32_t)atoll(arguments[0].data());
-				const auto requiredSkillLevel = (uint32_t)atoll(arguments[0].data());
+				const auto requiredSkillLevel = (uint32_t)atoll(arguments[1].data());
 				ci::Perk *perk = nullptr;
 				try {
 					perk = perks.at(perkID);
 				}
 				catch (...) {
-					perks[perkID] = new ci::Perk(perkID);
-					perk = perks[perkID];
+					try {
+						perks[perkID] = new ci::Perk(perkID);
+						perk = perks[perkID];
+					}
+					catch (const std::exception &e) {
+						return ci::Log("ERROR:ClientLogic error while creating perk " + (std::string)e.what());
+					}
+					catch (...) {
+						return ci::Log("ERROR:ClientLogic unknown error while creating perk");
+					}
 				}
 				if (perk == nullptr)
 					ci::Log("ERROR:ClientLogic AddPerk nullptr perk");
@@ -3772,6 +3853,29 @@ class ClientLogic : public ci::IClientLogic
 				}
 				catch (...) {
 					ci::Log("ERROR:ClientLogic RemovePerk nullptr perk");
+				}
+			}
+		}
+		else if (funcName == "ShowSkympLogo")
+		{
+			ci::ShowSkympLogo();
+		}
+		else if (funcName == "HideSkympLogo")
+		{
+			ci::HideSkympLogo();
+		}
+		else if (funcName == "Activate")
+		{
+			if(arguments.size() != 1)
+				ci::Log("ERROR:ClientLogic Activate bad argc %d", (int32_t)arguments.size());
+			else
+			{
+				auto id = (uint32_t)atoll(arguments[0].data());
+				try {
+					objects.at(id)->Activate();
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic Activate failed");
 				}
 			}
 		}

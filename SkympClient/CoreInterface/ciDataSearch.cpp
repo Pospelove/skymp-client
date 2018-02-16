@@ -24,6 +24,127 @@ auto getLocation = [](TESObjectREFR *ref) {
 		return ref->GetWorldSpace()->formID;
 };
 
+auto getWeapSubcl = [](TESForm *form)->std::string {
+	auto weap = (TESObjectWEAP *)form;
+	if (weap != nullptr && weap->formType == FormType::Weapon)
+	{
+		enum { kType_TwoHandWarhammer = -1 }; // Where is Warhammer ?!
+
+		switch (weap->gameData.type)
+		{
+		case TESObjectWEAP::GameData::kType_Staff:
+		case TESObjectWEAP::GameData::kType_Staff2:
+			return "Staff"; // Not implemented in 0.15
+		case TESObjectWEAP::GameData::kType_Bow:
+		case TESObjectWEAP::GameData::kType_Bow2:
+			return "Bow";
+		case TESObjectWEAP::GameData::kType_CrossBow:
+		case TESObjectWEAP::GameData::kType_CBow:
+			return "CrossBow"; // Not implemented in 0.15 (and will not be added before 2.0 release :P)
+		case TESObjectWEAP::GameData::kType_OneHandMace:
+			return "Mace";
+		case TESObjectWEAP::GameData::kType_OneHandSword:
+			return "Sword";
+		case TESObjectWEAP::GameData::kType_OneHandAxe:
+			return "WarAxe";
+		case TESObjectWEAP::GameData::kType_OneHandDagger:
+			return "Dagger";
+		case TESObjectWEAP::GameData::kType_TwoHandSword:
+			return "Greatsword";
+		case TESObjectWEAP::GameData::kType_TwoHandAxe:
+			return "Battleaxe";
+		case kType_TwoHandWarhammer: // ???
+			return "Warhammer";
+		default:
+			break;
+		}
+	}
+	return "";
+};
+
+auto getArmorSubcl = [](TESForm *form)->std::string {
+	auto armor = (TESObjectARMO *)form;
+	if (armor != nullptr && armor->formType == FormType::Armor)
+	{
+		const auto slotMask = armor->GetSlotMask();
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Body)
+			return "Armor";
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Amulet)
+			return "Amulet";
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Ring)
+			return "Ring";
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Shield)
+			return "Shield";
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Hands || slotMask & TESObjectARMO::PartFlag::kPart_Forearms)
+			return "Gauntlets";
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Head
+			|| slotMask & TESObjectARMO::PartFlag::kPart_Hair
+			|| slotMask & TESObjectARMO::PartFlag::kPart_LongHair)
+			return "Helmet";
+		if (slotMask & TESObjectARMO::PartFlag::kPart_Feet)
+			return "Boots";
+	}
+	return "";
+};
+
+auto getFormClassAndSubclass = [](TESForm *form, std::string *outCl, std::string *outSubCl) {
+	std::string cl, subCl;
+	switch (form->formType)
+	{
+	case FormType::Ammo:
+		cl = "Ammo";
+		subCl = "";
+		break;
+	case FormType::Armor:
+		cl = "Armor";
+		subCl = getArmorSubcl(form);
+		break;
+	case FormType::Book:
+		cl = "Book"; // not implemented in 0.15
+		subCl = "";
+		break;
+	case FormType::Ingredient:
+		cl = "Ingredient";
+		subCl = "";
+		break;
+	case FormType::Key:
+		cl = "Key";
+		subCl = "";
+		break;
+	case FormType::Misc:
+		cl = "Misc";
+		if (form->IsGold())
+			subCl = "Gold";
+		else if (form->IsLockpick())
+			subCl = "Lockpick";
+		else
+			subCl = "Misc";
+		break;
+	case FormType::SoulGem:
+		cl = "SoulGem";
+		subCl = "";
+		break;
+	case FormType::Weapon:
+		cl = "Weapon";
+		subCl = getWeapSubcl(form);
+		break;
+	case FormType::Potion:
+		cl = "Potion";
+		if (((AlchemyItem *)form)->IsPoison())
+			subCl = "Poison";
+		else if (((AlchemyItem *)form)->IsFood())
+			subCl = "Food";
+		else
+			subCl = cl;
+		break;
+	default:
+		return;
+	}
+
+	*outCl = cl;
+	*outSubCl = subCl;
+};
+
 typedef UInt32(*_LookupActorValueByName)(const char * name);
 static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
 
@@ -60,7 +181,21 @@ namespace ci
 						return EventResult::kEvent_Continue;
 
 					if (evn->target->baseForm->formType != FormType::Door)
+					{
+						if (tpd1 != nullptr)
+						{
+							// undsfe sd call:
+							auto localPl = ci::LocalPlayer::GetSingleton();
+							auto ref = sd::FindClosestReferenceOfType(LookupFormByID(tpd1->baseID), localPl->GetPos().x, localPl->GetPos().y, localPl->GetPos().z, 512);
+							if (ref != nullptr)
+							{
+								evn->target = ref;
+								goto skipReturn;
+							}
+						}
 						return EventResult::kEvent_Continue;
+					}
+					skipReturn:
 
 					ci::DataSearch::TeleportDoorsData::TeleportDoor tpd;
 					tpd.baseID = evn->target->baseForm->formID;
@@ -218,11 +353,49 @@ void ci::DataSearch::RequestDoors(std::function<void(DoorData)> callback)
 	});
 }
 
+void ci::DataSearch::RequestActivators(std::function<void(ActivatorData)> callback)
+{
+	Private::StartUpdating();
+
+	auto f = [=](TESObjectREFR *ref) {
+		ActivatorData c;
+		c.baseID = ref->baseForm->formID;
+		c.locationID = getLocation(ref);
+		c.pos = cd::GetPosition(ref);
+		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
+		c.refID = ref->GetFormID();
+		if (c.refID >= 0xFF000000)
+			return;
+		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+		auto produceForm = DYNAMIC_CAST<TESProduceForm *, TESForm *>(ref->baseForm);
+		if (produceForm != nullptr && produceForm->produce == nullptr)
+			return;
+		callback(c);
+	};
+
+	const auto formTypes = {
+		FormType::Misc,
+		FormType::Weapon,
+		FormType::Armor,
+		FormType::Ingredient,
+		FormType::Potion,
+		FormType::SoulGem,
+		FormType::Ammo,
+		FormType::Book,
+		FormType::Key,
+		FormType::Flora,
+		FormType::Tree
+	};
+
+	for (auto formType : formTypes)
+		WorldCleaner::GetSingleton()->SetCallback(formType, f);
+}
+
 void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 {
 	Private::StartUpdating();
 
-	WorldCleaner::GetSingleton()->SetCallback(FormType::Misc, [=](TESObjectREFR *ref) {
+	auto f = [=](TESObjectREFR *ref) {
 		if (ref->formID > 0xFF000000)
 			return;
 		if (ref->baseForm->IsLockpick())
@@ -237,11 +410,29 @@ void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 		c.refID = ref->GetFormID();
 		c.value = ref->baseForm->GetGoldValue();
 		c.damage = 0;
-		c.cl = ci::ItemType::Class::Misc;
-		c.subCl = ci::ItemType::Subclass::MISC_Misc;
+		std::string cl, subCl;
+		getFormClassAndSubclass(ref->baseForm, &cl, &subCl);
+		c.cl = (ci::ItemType::Class)ItemClass(cl).GetID();
+		c.subCl = (ci::ItemType::Subclass)ItemSubclass(subCl).GetID();
 		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		callback(c);
-	});
+	};
+
+	const auto formTypes = {
+		FormType::Misc,
+		FormType::Weapon,
+		FormType::Armor,
+		FormType::Ingredient,
+		FormType::Potion,
+		FormType::SoulGem,
+		FormType::Ammo,
+		FormType::Book,
+		FormType::Key
+	};
+
+	for (auto formType : formTypes)
+		//WorldCleaner::GetSingleton()->SetCallback(formType, f)
+		;
 }
 
 void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
@@ -297,7 +488,9 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				{ FormType::Weapon, {0x000001F4, 0x0010FD5E}},
 				{ FormType::Potion, {0x0001895F, 0x0010D666}},
 				{ FormType::ConstructibleObject, {0x00000DD2, 0x0010FDF6}},
-				{ FormType::Perk, {0x000153CD, 0x0010FE04}}
+				{ FormType::Perk, {0x000153CD, 0x0010FE04}},
+				{ FormType::Flora, { 0x00000000, 0x01000000}}, // todo
+				{ FormType::Tree, { 0x00000000, 0x01000000}}, // todo
 			};
 
 			static auto quote = "\"";
@@ -412,69 +605,6 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 					break;
 				}
 				return res;
-			};
-			
-			static auto getArmorSubcl = [](TESForm *form)->std::string {
-				auto armor = (TESObjectARMO *)form;
-				if (armor != nullptr && armor->formType == FormType::Armor)
-				{
-					const auto slotMask = armor->GetSlotMask();
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Body)
-						return "Armor";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Amulet)
-						return "Amulet";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Ring)
-						return "Ring";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Shield)
-						return "Shield";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Hands || slotMask & TESObjectARMO::PartFlag::kPart_Forearms)
-						return "Gauntlets";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Head 
-						|| slotMask & TESObjectARMO::PartFlag::kPart_Hair 
-						|| slotMask & TESObjectARMO::PartFlag::kPart_LongHair)
-						return "Helmet";
-					if (slotMask & TESObjectARMO::PartFlag::kPart_Feet)
-						return "Boots";
-				}
-				return "";
-			};
-
-			static auto getWeapSubcl = [](TESForm *form)->std::string {
-				auto weap = (TESObjectWEAP *)form;
-				if (weap != nullptr && weap->formType == FormType::Weapon)
-				{
-					enum { kType_TwoHandWarhammer = -1 }; // Where is Warhammer ?!
-
-					switch (weap->gameData.type)
-					{
-					case TESObjectWEAP::GameData::kType_Staff:
-					case TESObjectWEAP::GameData::kType_Staff2:
-						return "Staff"; // Not implemented in 0.15
-					case TESObjectWEAP::GameData::kType_Bow:
-					case TESObjectWEAP::GameData::kType_Bow2:
-						return "Bow";
-					case TESObjectWEAP::GameData::kType_CrossBow:
-					case TESObjectWEAP::GameData::kType_CBow:
-						return "CrossBow"; // Not implemented in 0.15 (and will not be added before 2.0 release :P)
-					case TESObjectWEAP::GameData::kType_OneHandMace:
-						return "Mace";
-					case TESObjectWEAP::GameData::kType_OneHandSword:
-						return "Sword";
-					case TESObjectWEAP::GameData::kType_OneHandAxe:
-						return "WarAxe";
-					case TESObjectWEAP::GameData::kType_OneHandDagger:
-						return "Dagger";
-					case TESObjectWEAP::GameData::kType_TwoHandSword:
-						return "Greatsword";
-					case TESObjectWEAP::GameData::kType_TwoHandAxe:
-						return "Battleaxe";
-					case kType_TwoHandWarhammer: // ???
-						return "Warhammer";
-					default:
-						break;
-					}
-				}
-				return "";
 			};
 
 			static std::map<uint32_t, std::string> formIdents;
@@ -649,62 +779,17 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				auto form = LookupFormByID(id);
 				if (form == nullptr)
 					continue;
+				if (itemFormTypes.count(form->formType) == 0)
+					continue;
+
+				std::string cl, subCl;
+				getFormClassAndSubclass(form, &cl, &subCl);
 
 				uint8_t soulSize = 0, gemSize = 0;
-				std::string cl, subCl;
-
-				switch (form->formType)
+				if (form->formType == FormType::SoulGem)
 				{
-				case FormType::Ammo:
-					cl = "Ammo";
-					subCl = "";
-					break;
-				case FormType::Armor:
-					cl = "Armor";
-					subCl = getArmorSubcl(form);
-					break;
-				case FormType::Book:
-					cl = "Book"; // not implemented in 0.15
-					subCl = "";
-					break;
-				case FormType::Ingredient:
-					cl = "Ingredient";
-					subCl = "";
-					break;
-				case FormType::Key:
-					cl = "Key";
-					subCl = "";
-					break;
-				case FormType::Misc:
-					cl = "Misc";
-					if (form->IsGold())
-						subCl = "Gold";
-					else if (form->IsLockpick())
-						subCl = "Lockpick";
-					else
-						subCl = "Misc";
-					break;
-				case FormType::SoulGem:
 					soulSize = ((TESSoulGem *)form)->soulSize;
 					gemSize = ((TESSoulGem *)form)->gemSize;
-					cl = "SoulGem";
-					subCl = "";
-					break;
-				case FormType::Weapon:
-					cl = "Weapon";
-					subCl = getWeapSubcl(form);
-					break;
-				case FormType::Potion:
-					cl = "Potion";
-					if (((AlchemyItem *)form)->IsPoison())
-						subCl = "Poison";
-					else if (((AlchemyItem *)form)->IsFood())
-						subCl = "Food";
-					else
-						subCl = cl;
-					break;
-				default:
-					continue;
 				}
 
 				const std::string iden = getIdentifier(form);
@@ -892,6 +977,29 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				ss << quote << avName << quote << ", ";
 				ss << std::to_string(requiredSkillLevel) << "";
 				ss << " }," << std::endl;
+			}
+			ss << "nil }" << std::endl;
+
+			// Flora:
+			ss << std::endl;
+			ss << "local flora = {" << std::endl;
+			const auto &floraRange = ranges[FormType::Flora],
+				&treeRange = ranges[FormType::Tree];
+			for (auto id = min(treeRange.first, floraRange.first); id <= max(treeRange.second, floraRange.second); ++id)
+			{
+				auto form = LookupFormByID(id);
+				if (form == nullptr)
+					continue;
+				if (form->formType != FormType::Flora && form->formType != FormType::Tree)
+					continue;
+				auto prodForm = DYNAMIC_CAST<TESProduceForm *, TESForm *>(form);
+				if (prodForm != nullptr)
+				{
+					ss << "{ ";
+					ss << "0x" << form->formID << ", ";
+					ss << "0x" << (prodForm->produce ? prodForm->produce->GetFormID() : 0) << "";
+					ss << " }," << std::endl;
+				}
 			}
 			ss << "nil }" << std::endl;
 

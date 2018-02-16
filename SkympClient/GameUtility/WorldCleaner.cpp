@@ -135,35 +135,37 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		sd::SetDestroyed(ref, true);
 		sd::BlockActivation(ref, true);
 		return;
+	case FormType::ScrollItem:
+	case FormType::LeveledItem:
+	case FormType::Book:
+		sd::Delete(ref);
+		deleted = true;
+		return;
 	case FormType::Ammo:
 	case FormType::Ingredient:
-	case FormType::ScrollItem:
 	case FormType::Armor:
-	case FormType::Book:
 	case FormType::Misc:
 	case FormType::Weapon:
 	case FormType::Key:
 	case FormType::Potion:
 	case FormType::SoulGem:
-	case FormType::LeveledItem:
 		//case FormType::MovableStatic:
-		sd::Delete(ref);
-		deleted = true;
+		if (ref->formID < 0xFF000000)
+		{
+			sd::SetDestroyed(ref, true);
+			sd::BlockActivation(ref, true);
+			sd::SetMotionType(ref, 4, false);
+		}
+		else
+		{
+			sd::Delete(ref);
+			deleted = true;
+		}
 		return;
 	case FormType::Tree:
-		if (((TESObjectTREE *)baseForm)->produce)
-		{
-			sd::Delete(ref);
-			deleted = true;
-			return;
-		}
-		break;
 	case FormType::Flora:
-		if (((TESFlora *)baseForm)->produce)
-		{
-			sd::Delete(ref);
-			deleted = true;
-		}
+		sd::SetDestroyed(ref, true);
+		sd::BlockActivation(ref, true);
 		return;
 	case FormType::Container:
 		sd::SetActorOwner(ref, (TESNPC *)g_thePlayer->baseForm);

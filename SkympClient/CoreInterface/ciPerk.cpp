@@ -24,30 +24,50 @@ ci::Perk::Perk(uint32_t formID) : pimpl(new Impl)
 		throw ~0;
 	}
 
-	if (pimpl->perk->conditions.nodes != nullptr)
-	{
-		auto first = pimpl->perk->conditions.nodes;
-		decltype(first) second = nullptr;
-		if (first != nullptr)
+	try {
+		if (pimpl->perk->conditions.nodes != nullptr)
 		{
-			pimpl->requiredSkillLevelPtr = (float *)&first->comparisonValue;
-			second = first->next;
-			if (second != nullptr)
+			auto first = pimpl->perk->conditions.nodes;
+			decltype(first) second = nullptr;
+			if (first != nullptr)
 			{
-				auto form = (TESForm *)second->param1;
-				if (form != nullptr)
-					pimpl->requiredPerkID = form->formID;
+				pimpl->requiredSkillLevelPtr = (float *)&first->comparisonValue;
+				second = first->next;
+				if (second != nullptr)
+				{
+					auto form = (TESForm *)second->param1;
+					if (form != nullptr)
+						pimpl->requiredPerkID = form->formID;
+				}
+			}
+			if (pimpl->requiredSkillLevelPtr != nullptr && *pimpl->requiredSkillLevelPtr == 1.0f) // oops
+			{
+				if (second != nullptr)
+					pimpl->requiredSkillLevelPtr = (float *)&second->comparisonValue;
+				if (first != nullptr)
+				{
+					auto form = (TESForm *)first->param1;
+					if (form != nullptr)
+						pimpl->requiredPerkID = form->formID;
+				}
 			}
 		}
-		if (pimpl->requiredSkillLevelPtr != nullptr && *pimpl->requiredSkillLevelPtr == 1.0f) // oops
+	}
+	catch (...) {
+		if (pimpl->perk->conditions.nodes != nullptr)
 		{
-			if (second != nullptr)
-				pimpl->requiredSkillLevelPtr = (float *)&second->comparisonValue;
+			auto first = pimpl->perk->conditions.nodes;
+			decltype(first) second = nullptr;
 			if (first != nullptr)
 			{
 				auto form = (TESForm *)first->param1;
 				if (form != nullptr)
 					pimpl->requiredPerkID = form->formID;
+				second = first->next;
+				if (second != nullptr)
+				{
+					pimpl->requiredSkillLevelPtr = (float *)&second->comparisonValue;
+				}
 			}
 		}
 	}

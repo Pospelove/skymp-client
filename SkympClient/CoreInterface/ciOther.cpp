@@ -11,6 +11,8 @@
 
 #include "../Sync/AnimData.h"
 
+#include "../Overlay\Loadscreen.h"
+
 extern LockTimer closeCursorMenuLock;
 
 class CIAccess
@@ -46,7 +48,7 @@ namespace ci
 			});
 		}
 		else
-			sd::ExecuteConsoleCommand(const_cast<char*>(cmd.c_str()), nullptr);
+			sd::ExecuteConsoleCommand(const_cast<char*>(cmd.c_str()), sd::GetConsoleSelectedRef());
 	}
 
 	void ExecuteConsoleCommand(const std::wstring &consoleCmdString)
@@ -388,5 +390,17 @@ namespace ci
 			Utility::AddKeyword(kForm, keywordString);
 		else
 			ci::Log("ERROR:Other bad keyword form");
+	}
+
+	static std::shared_ptr<Loadscreen> ls;
+
+	void ShowSkympLogo()
+	{
+		ls.reset(new Loadscreen("MyGUI\\logo.png"));
+	}
+
+	void HideSkympLogo()
+	{
+		ls.reset();
 	}
 }

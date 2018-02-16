@@ -2313,6 +2313,7 @@ namespace ci
 						cd::SetPosition(ac, pimpl->movementData.pos);
 						sd::BlockActivation(actor, true);
 						sd::AllowPCDialogue(actor, false);
+						//sd::AllowPCDialogue(actor, true);
 
 						AnimData_::Register(actor);
 					}

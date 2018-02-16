@@ -864,8 +864,6 @@ void ci::LocalPlayer::UpdateAVData(const std::string &avName_, const AVData &avD
 	std::transform(avName_.begin(), avName_.end(), avName.begin(), ::tolower);
 
 	const bool isSkill = sskills.count(avName) != 0;
-	if (isSkill)
-		return;
 
 	if (avName == "level")
 	{
@@ -1832,7 +1830,8 @@ void ci::LocalPlayer::Update()
 	if (lastPerks != localPlPerks)
 	{
 		for (auto p : lastPerks)
-			sd::RemovePerk(g_thePlayer, (BGSPerk *)LookupFormByID(p->GetFormID()));
+			//sd::RemovePerk(g_thePlayer, (BGSPerk *)LookupFormByID(p->GetFormID()))
+			;
 		for (auto p : localPlPerks)
 			AddPerkWithRequirements(p);
 		lastPerks = localPlPerks;

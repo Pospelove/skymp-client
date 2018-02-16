@@ -97,4 +97,7 @@ namespace ci
 
 	void RemoveAllKeywords(uint32_t baseID);
 	void AddKeyword(uint32_t baseID, std::string keywordString);
+	
+	void ShowSkympLogo();
+	void HideSkympLogo();
 }

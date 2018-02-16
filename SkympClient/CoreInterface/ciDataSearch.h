@@ -48,6 +48,10 @@ namespace ci
 		{
 		};
 
+		struct ActivatorData : ReferenceData
+		{
+		};
+
 		struct ItemData : ReferenceData
 		{
 			uint32_t value = 0;
@@ -65,6 +69,7 @@ namespace ci
 		void RequestTeleportDoorsManual(std::function<void(TeleportDoorsData)> callback);
 		void RequestContainers(std::function<void(ContainerData)> callback);
 		void RequestDoors(std::function<void(DoorData)> callback);
+		void RequestActivators(std::function<void(ActivatorData)> callback);
 		void RequestItems(std::function<void(ItemData)> callback);
 		void RequestActors(std::function<void(ActorData)> callback);
 		void LuaCodegenStart(std::function<void()> onFinish = nullptr);
