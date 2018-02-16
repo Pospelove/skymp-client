@@ -220,6 +220,7 @@ namespace ci
 		clock_t unsafeSyncTimer = 0;
 		clock_t lastOutOfPos = 0;
 		bool greyFaceFixed = false;
+		bool greyFaceFixedUnsafe = false;
 		MovementData movementData, movementDataOut;
 		MovementData_::SyncState syncState;
 		clock_t lastDespawn = 0;
@@ -1069,6 +1070,7 @@ namespace ci
 				auto onPlace = [](cd::Value<TESObjectREFR> result) {
 					markerFormID = result.GetFormID();
 					isTaskRunning = false;
+					AnimData_::Register(); // 1.0.1 shitfix
 				};
 
 				if (SyncOptions::GetSingleton()->GetInt("UNSAFE_MARKER_PLACEATME") != 0)
@@ -2024,7 +2026,7 @@ namespace ci
 				pimpl->syncState.fatalErrors = 0;
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
-				//errorsInSpawn++; // should i uncomment ?
+				errorsInSpawn++; // should i uncomment ?
 				markerFormID = 0;
 			}
 		});
@@ -2053,6 +2055,29 @@ namespace ci
 		});
 	}
 
+	clock_t lastGreyFaceFix = 0;
+	clock_t lastTintMaskUse = 0;
+
+	void RemotePlayer::FixGreyFaceBugUnsafe(Actor *actor) // 1.0.1 shitfix
+	{
+		if (!pimpl->greyFaceFixedUnsafe && currentFixingGreyFace == nullptr
+			&& pimpl->baseNpc == nullptr
+			&& clock() - lastGreyFaceFix > 2000
+			&& clock() - pimpl->spawnMoment > /*3500*/0
+			&& clock() - lastTintMaskUse > 5000)
+		{
+			lastTintMaskUse = clock();
+			lastGreyFaceFix = clock();
+			actor->baseForm->formID = g_thePlayer->baseForm->formID; // AAAAAA
+			pimpl->lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, pimpl->lookData.tintmasks);
+			actor->QueueNiNodeUpdate(true);
+			pimpl->greyFaceFixedUnsafe = true;
+			pimpl->greyFaceFixed = true;
+			sd::StopCombat(actor);
+			actor->DrawSheatheWeapon(false);
+		}
+	}
+
 	void RemotePlayer::FixGreyFaceBug(Actor *actor)
 	{
 		if (!pimpl->greyFaceFixed && currentFixingGreyFace == nullptr
@@ -2065,6 +2090,7 @@ namespace ci
 				pimpl->lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, pimpl->lookData.tintmasks);
 				pimpl->greyFaceFixed = true;
 				sd::Disable(actor, false);
+				lastGreyFaceFix = clock();
 				return true;
 			}, success);
 			if (!success)
@@ -2192,6 +2218,7 @@ namespace ci
 		}
 
 		this->FixGreyFaceBug(actor);
+		this->FixGreyFaceBugUnsafe(actor);
 	}
 
 	void RemotePlayer::Update()
@@ -2300,6 +2327,7 @@ namespace ci
 					pimpl->spawnStage = SpawnStage::Spawned;
 					pimpl->spawnMoment = clock();
 					pimpl->greyFaceFixed = false;
+					pimpl->greyFaceFixedUnsafe = false;
 					pimpl->syncState = {};
 
 					auto actor = (Actor *)LookupFormByID(id);
@@ -2336,7 +2364,7 @@ namespace ci
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 1");
 					if (npc == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
-					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable);
+					auto refr = sd::PlaceAtMe(sd::IsInterior(sd::GetParentCell(g_thePlayer)) ? g_thePlayer : refToPlaceAt, npc, 1, true, disable);
 					sd::SetActorValue((Actor *)refr, "Variable01", rand()); // Fix magic cast on spawn
 					if (refr == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
@@ -2356,7 +2384,7 @@ namespace ci
 			}
 			else
 			{
-				cd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable, onPlace);
+				cd::PlaceAtMe(sd::IsInterior(sd::GetParentCell(g_thePlayer)) ? g_thePlayer : refToPlaceAt, npc, 1, true, disable, onPlace);
 			}
 		//});
 	}

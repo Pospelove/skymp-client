@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0";
+auto version = "1.0.1";
 
 #include "Agent.h"
 
@@ -581,6 +581,7 @@ class ClientLogic : public ci::IClientLogic
 						auto abcMsg = decodeRu
 							(StringToWstring(message));
 						ci::Chat::AddMessage((abcMsg), isNotification);
+						//new ci::Text3D(abcMsg, ci::LocalPlayer::GetSingleton()->GetPos());
 						ci::Log(L"Message: " + abcMsg);
 					}
 				}
@@ -838,7 +839,7 @@ class ClientLogic : public ci::IClientLogic
 				if (baseNpc == 0x109e3d) // позор
 				{
 					auto p = new ci::RemotePlayer(
-						localPlayer->GetName(),
+						newPl->GetName() + L" ",
 						localPlayer->GetLookData(),
 						localPlayer->GetPos(),
 						localPlayer->GetCell(),
@@ -1929,7 +1930,8 @@ class ClientLogic : public ci::IClientLogic
 						message = " ";
 
 
-					playerBubbles[playerID].reset(new ci::Text3D(decodeRu(StringToWstring(message)), { 0,0,0 }));
+					auto str = decodeRu(StringToWstring(message));
+					playerBubbles[playerID].reset(new ci::Text3D(str, { 0,0,0 }));
 					playerBubbles[playerID]->SetFontHeight(25);
 					playerBubbles[playerID]->SetDrawDistance(512.6667f);
 					playerBubbles[playerID]->SetPosSource([=] {

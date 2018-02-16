@@ -127,6 +127,7 @@ namespace ci
 		void ApplyEquipmentOther(Actor *actor);
 		void DespawnIfNeed(Actor *actor);
 		void FixGreyFaceBug(Actor *actor);
+		void FixGreyFaceBugUnsafe(Actor *actor);
 
 		void UpdateSpawned();
 
