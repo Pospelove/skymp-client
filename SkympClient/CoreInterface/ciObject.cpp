@@ -4,6 +4,7 @@
 #include "Skyrim/Events/ScriptEvent.h"
 #include "SKSE/SKSEEvents.h"
 #include "SKSE/PluginAPI.h"
+#include "Skyrim\Camera\PlayerCamera.h"
 
 class CIAccess
 {
@@ -122,7 +123,6 @@ struct ci::Object::Impl
 	float speed = 0;
 	clock_t every1000ms = 0;
 	NiPoint3 lastPos = { 0,0,0 };
-	clock_t lastCheck = 0;
 
 	bool isNative = false;
 	bool waitingForDespawn = false;
@@ -152,8 +152,10 @@ struct ci::Object::Impl
 
 		virtual	EventResult	ReceiveEvent(TESActivateEvent *evn, BSTEventSource<TESActivateEvent> * source) override
 		{
-			if (evn->caster == g_thePlayer)
+			//if (evn->caster == g_thePlayer)
+			if(evn->caster->baseForm->formType == FormType::NPC)
 			{
+				const auto casterRefID = evn->caster->formID;
 				std::lock_guard<dlf_mutex> l(gMutex);
 				if (allObjects.find(owner) == allObjects.end())
 					return EventResult::kEvent_Continue;
@@ -187,7 +189,7 @@ struct ci::Object::Impl
 					auto resendOnActivate = [=] {
 						SET_TIMER(0, [=] {
 							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-							onActivate(false);
+							onActivate(false, ci::LocalPlayer::GetSingleton());
 						});
 					};
 
@@ -208,7 +210,12 @@ struct ci::Object::Impl
 					owner->UpdateContainer();
 					std::thread([=] {
 						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-						onActivate(isOpening);
+						ci::IActor *srcActor = RemotePlayer::LookupByFormID(casterRefID);
+						if(casterRefID == g_thePlayer->formID)
+							srcActor = ci::LocalPlayer::GetSingleton();
+						if (srcActor == nullptr)
+							return;
+						onActivate(isOpening, srcActor);
 					}).detach();
 				}
 			}
@@ -578,7 +585,7 @@ void ci::Object::SetMotionType(int32_t type)
 		auto refID = ref->formID;
 		//SET_TIMER(100, [=] {
 			//auto ref = (TESObjectREFR *)LookupFormByID(refID);
-			if (ref != nullptr)
+			//if (ref != nullptr)
 			{
 				sd::SetMotionType(ref, type, true);
 				if (type == Motion_Dynamic)
@@ -742,11 +749,11 @@ void ci::Object::AddEventHandler(OnActivate onActivate)
 {
 	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 	auto prev = pimpl->onActivate;
-	pimpl->onActivate = [=] (bool a){
+	pimpl->onActivate = [=] (bool a, ci::IActor *a2){
 		if (prev != nullptr)
-			prev(a);
+			prev(a, a2);
 		if (onActivate != nullptr)
-			onActivate(a);
+			onActivate(a, a2);
 	};
 }
 
@@ -811,6 +818,64 @@ uint8_t ci::Object::GetLockLevel() const
 	return pimpl->lockLevel;
 }
 
+uint32_t ci::Object::GetRandomRefID(bool ignoreCamera)
+{
+	std::vector<uint32_t> refIDs;
+	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+		for (auto object : allObjects)
+		{
+			auto id = object->GetRefID();
+			auto ref = (TESObjectREFR *)LookupFormByID(id);
+			if (ref != nullptr)
+			{
+				auto pos = cd::GetPosition(ref);
+				if (ignoreCamera || (!PlayerCamera::GetSingleton()->IsInScreen(pos)
+					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,64 })
+					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,64,0 })
+					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 64,0,0 })
+					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,-64 })
+					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,-64,0 })
+					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ -64,0,0 })))
+				{
+					refIDs.push_back(id);
+				}
+			}
+		}
+	}
+	try {
+		return refIDs.at(rand() % refIDs.size());
+	}
+	catch (...) {
+		ErrorHandling::SendError("ERROR:Object GetRandomRefID()");
+		return 0x00000000;
+	}
+}
+
+uint32_t ci::Object::GetFarObject()
+{
+	uint32_t farRefID = 0;
+	float maxDistance = 0;
+	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+		for (auto object : allObjects)
+		{
+			auto id = object->GetRefID();
+			auto ref = (TESObjectREFR *)LookupFormByID(id);
+			if (ref != nullptr)
+			{
+				const auto d = (cd::GetPosition(ref) - ci::LocalPlayer::GetSingleton()->GetPos()).Length();
+				if (d > maxDistance)
+				{
+					maxDistance = d;
+					farRefID = ref->formID;
+				}
+			}
+		}
+	}
+	return farRefID;
+}
+
 void ci::Object::Update()
 {
 	auto calcUpdateRate = [](const ci::Object::Impl *pimpl) {
@@ -861,17 +926,6 @@ void ci::Object::Update()
 
 		if (ref != nullptr)
 		{
-			if(pimpl->motionType == Object::Motion_Keyframed)
-				if (clock() - pimpl->lastCheck > 1000 && (pimpl->pos - cd::GetPosition(ref)).Length() > 2.0)
-				{
-					pimpl->lastCheck = clock();
-					if (pimpl->lastCheck != 0)
-					{
-						this->SetPosition(pimpl->pos);
-						this->SetAngle(pimpl->rot);
-					}
-				}
-
 			SAFE_CALL("Object", [&] {
 				if (!ref->baseForm || ref->baseForm->formID != pimpl->baseID)
 					return this->ForceDespawn("Base form changed");

@@ -21,6 +21,7 @@ public:
 	}
 
 	static void UpdateAll();
+	static bool IsSimpleRef(uint32_t formID);
 
 private:
 	void Update();

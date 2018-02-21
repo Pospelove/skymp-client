@@ -92,6 +92,9 @@ namespace ci
 		void SetAttachedHorse(ci::IActor *horse);
 		bool HasAttachedHorse() const;
 
+		uint32_t GetFormID() const;
+		static RemotePlayer *LookupByFormID(uint32_t id);
+
 	private:
 
 		RemotePlayer(const IActor &); // Deprecated

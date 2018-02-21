@@ -11,6 +11,7 @@ namespace ci
 	class ItemType;
 	class Object;
 	class Spell;
+	class IActor;
 
 	struct HitEventData
 	{
@@ -32,7 +33,10 @@ namespace ci
 
 	public:
 
-		using OnActivate = std::function<void(bool)>;
+		using _IsOpening = bool;
+		using _Source = ci::IActor *;
+		using OnActivate = std::function<void(_IsOpening, _Source)>;
+
 		using OnContainerChanged = std::function<void(const ci::ItemType *, uint32_t, bool)>;
 		using OnMove = std::function<void()>;
 		using OnHit = std::function<void(const HitEventData &)>;
@@ -89,6 +93,9 @@ namespace ci
 			Motion_ThinBoxInertia,
 			Motion_Character,
 		};
+
+		static uint32_t GetRandomRefID(bool ignoreCamera);
+		static uint32_t GetFarObject();
 
 	private:
 		static void UpdateAll();

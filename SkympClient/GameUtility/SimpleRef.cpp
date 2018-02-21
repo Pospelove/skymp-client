@@ -61,6 +61,17 @@ void SimpleRef::UpdateAll()
 	});
 }
 
+bool SimpleRef::IsSimpleRef(uint32_t formID)
+{
+	std::lock_guard<dlf_mutex> l(gMutex);
+	for (auto ref : allSimpleRefs)
+	{
+		if (ref->GetFormID() == formID)
+			return true;
+	}
+	return false;
+}
+
 void SimpleRef::Update()
 {
 	SAFE_CALL("SimpleRef", [&] {

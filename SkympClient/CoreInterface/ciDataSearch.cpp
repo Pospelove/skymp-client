@@ -436,18 +436,36 @@ void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 		;
 }
 
+#include "../Sync/SyncOptions.h"
+#include "../GameUtility/SimpleRef.h"
+
 void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 {
 	Private::StartUpdating();
 
+	WorldCleaner::GetSingleton()->SetCallback(FormType::LeveledCharacter, [=](TESObjectREFR *ref) {
+		ci::Chat::AddMessage(L"fuck you todd");
+	});
+
 	WorldCleaner::GetSingleton()->SetCallback(FormType::NPC, [=](TESObjectREFR *ref) {
 		if (ref->IsActivationBlocked() && ref->formID > 0xFF000000)
 			return;
+		if (ref->baseForm->formID > 0xFF000000)
+			return;
 		if (sd::IsDisabled(ref) == true)
+			return;
+		if (ref->baseForm->formID == g_thePlayer->baseForm->formID)
 			return;
 		auto npc = (TESNPC *)ref->baseForm;
 		if (npc->TESActorBaseData::flags.unique == true)
 			return;
+		if (abs(cd::GetPosition(g_thePlayer).z - cd::GetPosition(ref).z) > 0.75 * abs(SyncOptions::GetSingleton()->GetFloat("GHOST_AXE_OFFSET_Z")))
+			return;
+		if (RemotePlayer::LookupByFormID(ref->GetFormID()) != nullptr)
+			return;
+		if (SimpleRef::IsSimpleRef(ref->GetFormID()))
+			return;
+
 		ActorData c;
 		c.baseID = ref->baseForm->formID;
 		c.locationID = getLocation(ref);

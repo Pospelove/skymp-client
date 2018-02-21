@@ -380,15 +380,15 @@ namespace ci
 			{
 				auto &pimpl = this->GetImpl();
 				std::lock_guard<dlf_mutex> l(pimpl->mutex);
-				uint32_t count;
-				try {
-					count = pimpl->inventory.at(item);
-				}
-				catch (...) {
-					count = 0;
-				}
-				if (count == 0)
-					ErrorHandling::SendError("WARN:RemotePlayer EquipItem()");
+				//uint32_t count;
+				//try {
+				//	count = pimpl->inventory.at(item);
+				//}
+				//catch (...) {
+				//	count = 0;
+				//}
+				//if (count == 0)
+				//	ErrorHandling::SendError("WARN:RemotePlayer EquipItem()");
 
 				if (item->GetClass() == ci::ItemType::Class::Armor)
 				{
@@ -896,6 +896,7 @@ namespace ci
 					{
 						if (sd::GetCombatTarget(actor) != combatTarget)
 						{
+							sd::ClearKeepOffsetFromActor(actor);
 							sd::StopCombat(actor);
 							sd::StartCombat(actor, combatTarget);
 						}
@@ -903,6 +904,7 @@ namespace ci
 				}
 				else
 				{
+					sd::PathToReference(actor, actor, 0.5);
 					if (sd::IsInCombat(actor))
 						sd::StopCombat(actor);
 				}
@@ -2174,9 +2176,14 @@ namespace ci
 			pimpl->engineTask();
 			pimpl->engineTask = nullptr;
 		}
-
-		pimpl->engine->EngineUpdateSpawned(actor);
-		pimpl->engine->EngineApplyFactions(actor);
+		
+		if (pimpl->engine != nullptr)
+		{
+			pimpl->engine->EngineUpdateSpawned(actor);
+			pimpl->engine->EngineApplyFactions(actor);
+		}
+		else
+			ErrorHandling::SendError("ERROR:RemotePlayer Nullptr engine");
 
 		this->UpdateNickname(actor);
 		this->UpdatePerks(actor);
@@ -2357,6 +2364,22 @@ namespace ci
 
 			const bool disable = (pimpl->baseNpc != nullptr);
 
+			if (sd::IsInterior(sd::GetParentCell(g_thePlayer)))
+			{
+				refToPlaceAt = g_thePlayer; // from 1.0.3
+			}
+			auto randomRefID = ci::Object::GetRandomRefID(false);
+			const bool isInterior = sd::GetParentCell(g_thePlayer) && sd::IsInterior(sd::GetParentCell(g_thePlayer));
+			if (isInterior)
+			{
+				randomRefID = ci::Object::GetFarObject();
+			}
+			const auto randomRef = (TESObjectREFR *)LookupFormByID(randomRefID);
+			if (randomRef != nullptr)
+			{
+				refToPlaceAt = randomRef;
+			}
+
 			if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
 			{
 				//SAFE_CALL("RemotePlayer", [&] {
@@ -2364,7 +2387,7 @@ namespace ci
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 1");
 					if (npc == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
-					auto refr = sd::PlaceAtMe(sd::IsInterior(sd::GetParentCell(g_thePlayer)) ? g_thePlayer : refToPlaceAt, npc, 1, true, disable);
+					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable);
 					sd::SetActorValue((Actor *)refr, "Variable01", rand()); // Fix magic cast on spawn
 					if (refr == nullptr)
 						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
@@ -2384,7 +2407,7 @@ namespace ci
 			}
 			else
 			{
-				cd::PlaceAtMe(sd::IsInterior(sd::GetParentCell(g_thePlayer)) ? g_thePlayer : refToPlaceAt, npc, 1, true, disable, onPlace);
+				cd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable, onPlace);
 			}
 		//});
 	}
@@ -2750,7 +2773,11 @@ namespace ci
 		{
 			auto npc = (TESNPC *)LookupFormByID(npcID);
 			if (!npc || npc->formType != FormType::NPC)
-				return ErrorHandling::SendError("ERROR:RemotePlayer SetBaseNPC() Bad NPC ID");
+			{
+				std::stringstream ss;
+				ss << "ERROR:RemotePlayer SetBaseNPC() Bad NPC ID " << std::hex << npcID;
+				return ErrorHandling::SendError("%s", ss.str().data());
+			}
 
 			{
 				static dlf_mutex npcMutex;
@@ -3047,6 +3074,23 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		return pimpl->syncState.myVehicleID != 0 && pimpl->syncState.myVehicleID != ~0;
+	}
+
+	uint32_t RemotePlayer::GetFormID() const
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		return pimpl->formID;
+	}
+
+	RemotePlayer *RemotePlayer::LookupByFormID(uint32_t id)
+	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+		for (auto p : allRemotePlayers)
+		{
+			if (p->GetFormID() == id)
+				return p;
+		}
+		return nullptr;
 	}
 
 	void RemotePlayer::SetHeight(float h)

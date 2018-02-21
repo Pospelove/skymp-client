@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.1";
+auto version = "1.0.5";
 
 #include "Agent.h"
 
@@ -1076,9 +1076,9 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(rot.y);
 			bsIn.Read(rot.z);
 
-			auto onActivate = [this, id](bool isOpen) {
+			auto onActivate = [this, id](bool isOpen, ci::IActor *source) {
 				try {
-					this->OnActivate(objects.at(id), isOpen);
+					this->OnActivate(objects.at(id), isOpen, source);
 				}
 				catch (...) {
 				}
@@ -2356,8 +2356,11 @@ class ClientLogic : public ci::IClientLogic
 			auto movementData = localPlayer->GetMovementData();
 			static clock_t cl = 0;
 			auto clNow = clock();
-			const int32_t delay =
-				movementData.runMode == ci::MovementData::RunMode::Standing ? 250 : 55;
+			float delay = 40 + players.size();
+			if (delay > 60)
+				delay = 60;
+			if (players.empty() || (players.size() == 1 && players.begin()->second == localPlayer))
+				delay = 1000;
 			if (cl + delay < clNow)
 			{
 				cl = clNow;
@@ -2455,13 +2458,15 @@ class ClientLogic : public ci::IClientLogic
 		}
 	}
 
-	void OnActivate(ci::Object *self, bool isOpen)
+	void OnActivate(ci::Object *self, bool isOpen, ci::IActor *source)
 	{
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_ACTIVATE);
 		const auto id = GetID(self);
+		const auto sourceId = GetID(source);
 		bsOut.Write(id);
-		bsOut.Write(isOpen);
+		bsOut.Write((uint8_t)isOpen);
+		bsOut.Write(sourceId);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 

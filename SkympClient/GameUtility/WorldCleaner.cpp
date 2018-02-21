@@ -212,7 +212,12 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	if (ref->formID >= 0xFF000000 &&
 		(ref->baseForm->formID <= 0xFF000000 || ref->baseForm->formID >= 0xFF00F000)) // To prevent water deletion
 	{
-		sd::Delete(ref);
+		if (this == nullptr)
+		{
+			ErrorHandling::SendError("ERROR:WorldCleaner nullptr wc");
+		}
+		else
+			sd::Delete(ref);
 	}
 }
 

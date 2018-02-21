@@ -862,10 +862,13 @@ private:
 		case ID_CONNECTION_REQUEST_ACCEPTED:
 			bsOut.Write(ID_HANDSHAKE);
 
-			wchar_t nicknameCStr[MAX_NICKNAME];
+			char nicknameCStr[MAX_NICKNAME];
 			if (net.nickname.size() > MAX_NICKNAME - 1)
 				net.nickname.resize(MAX_NICKNAME - 1);
-			std::memcpy(nicknameCStr, net.nickname.data(), sizeof(wchar_t) * net.nickname.size());
+			{
+				auto nickname = WstringToString(net.nickname);
+				std::memcpy(nicknameCStr, nickname.data(), sizeof(char) * net.nickname.size());
+			}
 			nicknameCStr[net.nickname.size()] = NULL;
 			nicknameCStr[MAX_NICKNAME - 1] = NULL;
 
