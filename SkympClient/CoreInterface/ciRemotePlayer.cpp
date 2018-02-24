@@ -718,7 +718,10 @@ namespace ci
 					&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
 					pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
 				{
-					MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
+					auto md = pimpl->movementData;
+					if (sd::IsInCombat(g_thePlayer) && sd::GetCombatTarget(g_thePlayer) != actor)
+						md.isWeapDrawn = true; // предотвращение эпилепсии
+					MovementData_::Apply(md, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
 
 					if (pimpl->afk)
 						sd::EnableAI(actor, false);
@@ -742,6 +745,16 @@ namespace ci
 
 		void EngineUpdateSpawned(Actor *actor) override
 		{
+			// Already locked
+			auto &pimpl = this->GetImpl();
+
+			const float confidence = pimpl->movementData.isWeapDrawn ? 4.0 : 0.0;
+			if (abs(sd::GetBaseActorValue(actor, "Confidence") - confidence) > 0.25)
+			{
+				sd::SetActorValue(actor, "Confidence", confidence);
+				sd::ForceActorValue(actor, "Confidence", confidence);
+			}
+
 			if (sd::IsInCombat(actor))
 			{
 				auto target = sd::GetCombatTarget(actor);
@@ -894,9 +907,9 @@ namespace ci
 					auto combatTarget = (Actor *)LookupFormByID(pimpl->combatTarget);
 					if (combatTarget != nullptr)
 					{
+						sd::ClearKeepOffsetFromActor(actor);
 						if (sd::GetCombatTarget(actor) != combatTarget)
 						{
-							sd::ClearKeepOffsetFromActor(actor);
 							sd::StopCombat(actor);
 							sd::StartCombat(actor, combatTarget);
 						}
@@ -2299,8 +2312,6 @@ namespace ci
 			auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
 
 				auto setAVsToDefault = [](Actor *actor) {
-					sd::SetActorValue(actor, "Confidence", 4.0);
-					sd::ForceActorValue(actor, "Confidence", 4.0);
 					sd::SetActorValue(actor, "Agression", 1.0);
 					sd::SetActorValue(actor, "attackdamagemult", 0.0);
 					sd::SetActorValue(actor, "Variable01", rand());

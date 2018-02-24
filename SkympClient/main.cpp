@@ -18,6 +18,7 @@
 
 #include "Skyrim/BSScript/BSScriptIFunctionArguments.h"
 #include "Skyrim/Events/ScriptEvent.h"
+#include "Skyrim\FileIO\TESDataHandler.h"
 
 LockTimer closeCursorMenuLock(1000);
 UInt32 g_SDThreadId = ~0;
@@ -369,6 +370,15 @@ public:
 								PauseDisabler::SetPauseDisabledInMenu(menu, false, safe);
 						}
 					} disablePause_;
+
+					static class LoadMods
+					{
+					public:
+						LoadMods()
+						{
+							//TESDataHandler::GetSingleton()->HotLoadPlugin("skymp_jump");
+						}
+					} loadMods_;
 
 					static bool onStartupCalled = false;
 					if (!onStartupCalled)

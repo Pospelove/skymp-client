@@ -13,6 +13,8 @@
 
 #include "../Overlay\Loadscreen.h"
 
+#include "Skyrim\FileIO\TESDataHandler.h"
+
 extern LockTimer closeCursorMenuLock;
 
 class CIAccess
@@ -70,6 +72,32 @@ namespace ci
 		ExecuteConsoleCommandImpl(WstringToString(consoleCmdString));
 	}
 
+	void HotLoadPlugin(const char *name)
+	{
+		static std::mutex m;
+		std::lock_guard<std::mutex> l(m);
+		TESDataHandler::GetSingleton()->HotLoadPlugin(name);
+		ci::Log("DBG:Other loaded %s.esp", name);
+	}
+
+	void HotLoadPlugin(const std::vector<char> &pluginBinary)
+	{	
+		static bool sranded = false;
+		if (!sranded)
+		{
+			sranded = true;
+			srand(108);
+		}
+		std::string randstr = "_skymp" + std::to_string(rand());
+		std::string file = (std::string)"Data/" + randstr + ".esp";
+		std::ofstream of(file);
+		for (auto ch : pluginBinary)
+			of << ch;
+		of.close();
+
+		ci::HotLoadPlugin((new std::string(randstr))->data());
+	}
+	
 	void DebugMoveFarFarAway()
 	{
 		SET_TIMER_LIGHT(1, [] {

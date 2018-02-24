@@ -14,6 +14,9 @@ namespace ci
 		CDScript = 1,
 	};
 
+	void HotLoadPlugin(const char *name);
+	void HotLoadPlugin(const std::vector<char> &pluginBinary);
+
 	void DebugMoveFarFarAway();
 
 	void ExecuteCommand(CommandType cmdType, const std::wstring &consoleCmdString);

@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.6";
+auto version = "1.0.7";
 
 #include "Agent.h"
 
@@ -533,6 +533,24 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read((uint16_t &)net.myID);
 			players[net.myID] = ci::LocalPlayer::GetSingleton();
 			net.fullyConnected = true;
+			{
+				uint64_t numPlugins = 0;
+				bsIn.Read(numPlugins);
+				for (auto i = decltype(numPlugins)(0); i != numPlugins; ++i)
+				{
+					uint64_t pluginSize = 0;
+					bsIn.Read(pluginSize);
+					std::vector<char> pluginBinray;
+					for (auto j = decltype(pluginSize)(0); j != pluginSize; ++j)
+					{
+						char ch = ' ';
+						bsIn.Read(ch);
+						pluginBinray.push_back(ch);
+					}
+					ci::Chat::AddMessage(L"Loading a plugin (" + std::to_wstring(pluginBinray.size()) + L" bytes)");
+					ci::HotLoadPlugin(pluginBinray);
+				}
+			}
 			break;
 		case ID_MESSAGE:
 		{
@@ -2360,7 +2378,7 @@ class ClientLogic : public ci::IClientLogic
 			if (delay > 60)
 				delay = 60;
 			if (players.empty() || (players.size() == 1 && players.begin()->second == localPlayer))
-				delay = 1000;
+				delay = 200;
 			if (cl + delay < clNow)
 			{
 				cl = clNow;
