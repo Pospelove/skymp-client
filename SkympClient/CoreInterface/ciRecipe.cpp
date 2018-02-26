@@ -27,7 +27,7 @@ namespace ci
 		{
 			auto kb = new KeywordBackup;
 			const uint32_t begin = 0x000DD992,
-				end = 0x0010C434 + 1;
+				end = 0x0010C434 + 1 +(0x01000000);
 			this->deletions.reserve(end - begin);
 			for (auto id = begin; id != end; ++id)
 			{
