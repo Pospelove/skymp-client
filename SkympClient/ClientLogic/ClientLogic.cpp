@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.9";
+auto version = "1.0.10";
 
 #include "Agent.h"
 
@@ -50,6 +50,7 @@ class ClientLogic : public ci::IClientLogic
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
 	std::map<uint16_t, uint32_t> lastFurniture;
 	bool tracehost = false;
+	uint32_t lastDialogID = ~0;
 
 	class Bot : public SkympAgent
 	{
@@ -1032,27 +1033,27 @@ class ClientLogic : public ci::IClientLogic
 			using T = uint16_t;
 			using Index = int32_t;
 			using DialogID = uint32_t;
-			if (packet->length > (1 * sizeof(RakNet::MessageID)) + sizeof(T))
+			//if (packet->length > (1 * sizeof(RakNet::MessageID)) + sizeof(T))
 			{
-				std::wstring title;
-				std::wstring text;
+				std::string title;
+				std::string text;
 				T characters;
 				T characters2;
 				bsIn.Read(characters);
 				bsIn.Read(characters2);
 
 
-				if (packet->length == sizeof(DialogID) + sizeof(Index) + sizeof(ci::Dialog::Style) + (1 * sizeof(RakNet::MessageID)) + 2 * sizeof(T) + sizeof(wchar_t) * characters + sizeof(wchar_t) * characters2)
+				//if (packet->length == sizeof(DialogID) + sizeof(Index) + sizeof(ci::Dialog::Style) + (1 * sizeof(RakNet::MessageID)) + 2 * sizeof(T) + sizeof(wchar_t) * characters + sizeof(wchar_t) * characters2)
 				{
 					for (size_t i = 0; i != characters; ++i)
 					{
-						wchar_t ch;
+						char ch;
 						bsIn.Read(ch);
 						title += ch;
 					}
 					for (size_t i = 0; i != characters2; ++i)
 					{
-						wchar_t ch;
+						char ch;
 						bsIn.Read(ch);
 						text += ch;
 					}
@@ -1069,7 +1070,8 @@ class ClientLogic : public ci::IClientLogic
 						break;
 					}
 
-					ci::Dialog::Show(decodeRu(title), style, decodeRu(text), defaultIndex, [=](ci::Dialog::Result result) {
+					lastDialogID = dialogID;
+					ci::Dialog::Show(decodeRu(StringToWstring(title)), style, decodeRu(StringToWstring(text)), defaultIndex, [=](ci::Dialog::Result result) {
 						this->OnDialogResponse(dialogID, result);
 					});
 				}
@@ -2619,6 +2621,20 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnUpdate() override
 	{
+		{
+			const auto now = ci::IsKeyPressed(VK_ESCAPE);
+			static bool was = false;
+			if (was != now)
+			{
+				was = now;
+				if (now)
+					if (ci::Dialog::Hide())
+					{
+						this->OnDialogResponse(lastDialogID, { L"", -1 });
+					}
+			}
+		}
+
 		// Freeze activators (fake items)
 		static clock_t lastCheck = 0;
 		if (clock() - lastCheck > 100)

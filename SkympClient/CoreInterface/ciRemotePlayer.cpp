@@ -2189,6 +2189,19 @@ namespace ci
 			pimpl->engineTask();
 			pimpl->engineTask = nullptr;
 		}
+
+		if (sd::IsDead(actor))
+		{
+			static std::set<Actor *> dead;
+			if (dead.count(actor) == 0)
+			{
+				dead.insert(actor);
+				auto s = WstringToString(this->GetName()) + " ";
+				auto fixedStr = new BSFixedString(s.data());
+				actor->SetDisplayName(*fixedStr, true);
+				sd::AllowPCDialogue(actor, true);
+			}
+		}
 		
 		if (pimpl->engine != nullptr)
 		{

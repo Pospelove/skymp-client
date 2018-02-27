@@ -333,6 +333,8 @@ void ci::DataSearch::RequestContainers(std::function<void(ContainerData)> callba
 		c.pos = cd::GetPosition(ref);
 		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
 		c.refID = ref->GetFormID();
+		if (c.refID > 0xFF000000)
+			return;
 		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		callback(c);
 	});

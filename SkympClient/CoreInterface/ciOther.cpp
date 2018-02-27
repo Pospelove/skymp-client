@@ -72,6 +72,12 @@ namespace ci
 		ExecuteConsoleCommandImpl(WstringToString(consoleCmdString));
 	}
 
+	bool IsKeyPressed(uint32_t vkcode)
+	{
+		// doesn't not require thread sync
+		return sd::GetKeyPressed((BYTE)vkcode, false);
+	}
+
 	void HotLoadPlugin(const char *name)
 	{
 		static std::mutex m;

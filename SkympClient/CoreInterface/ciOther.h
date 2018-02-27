@@ -14,6 +14,8 @@ namespace ci
 		CDScript = 1,
 	};
 
+	bool IsKeyPressed(uint32_t vkcode);
+
 	void HotLoadPlugin(const char *name);
 	void HotLoadPlugin(const std::vector<char> &pluginBinary);
 
