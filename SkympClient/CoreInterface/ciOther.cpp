@@ -437,4 +437,38 @@ namespace ci
 	{
 		ls.reset();
 	}
+
+	void SetControlEnabled(std::string controlName, bool enable)
+	{
+		Control control = Control::COUNT;
+		if (controlName == "Movement")
+			control = Control::Movement;
+		if (controlName == "Fighting")
+			control = Control::Fighting;
+		if (controlName == "CamSwitch");
+			control = Control::CamSwitch;
+		if (controlName == "Looking")
+			control = Control::Looking;
+		if (controlName == "Sneaking")
+			control = Control::Sneaking;
+		if (controlName == "Menu")
+			control = Control::Menu;
+		if (controlName == "Activate")
+			control = Control::Activate;
+		if (controlName == "JournalTabs")
+			control = Control::JournalTabs;
+		if (controlName == "SaveGame")
+			control = Control::SaveGame;
+		if (controlName == "Wait")
+			control = Control::Wait;
+		if (controlName == "FastTravel")
+			control = Control::FastTravel;
+		if (controlName == "Console")
+			control = Control::Console;
+		if (controlName == "BeastForm")
+			control = Control::BeastForm;
+
+		if (control != Control::COUNT)
+			PlayerControls_::SetEnabled(control, enable);
+	}
 }

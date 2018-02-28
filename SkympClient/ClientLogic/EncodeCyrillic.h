@@ -8,7 +8,7 @@
 inline std::string encodeRu(const std::wstring &ws)
 {
 	std::string res;
-	static const std::wstring abc = L"éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ";
+	static const std::wstring abc = L"éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ¸¨";
 	for (auto ch : ws)
 	{
 		auto szWas = res.size();
@@ -29,7 +29,7 @@ inline std::string encodeRu(const std::wstring &ws)
 inline std::string encodeRu(const std::string &s)
 {
 	std::string res;
-	static const std::string abc = "éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ";
+	static const std::string abc = "éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ¸¨";
 	for (auto ch : s)
 	{
 		auto szWas = res.size();
@@ -51,7 +51,7 @@ using str_t = std::wstring;
 
 inline str_t decodeRu(str_t str)
 {
-	static str_t abc = L"éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ";
+	static str_t abc = L"éöóêåíãøùçõúôûâàïğîëäæıÿ÷ñìèòüáşÉÖÓÊÅÍÃØÙÇÕÚÔÛÂÀÏĞÎËÄÆİß×ÑÌÈÒÜÁŞ¸¨";
 
 	auto replace = [](str_t s,
 		const str_t &toReplace,
@@ -69,6 +69,8 @@ inline str_t decodeRu(str_t str)
 		}
 		return s;
 	};
+
+	str = replace(str, CYRILLIC_PREFIX + std::to_wstring(65) + CYRILLIC_POSTFIX, L"e");
 
 	for (size_t i = 0; i != abc.size(); ++i)
 	{

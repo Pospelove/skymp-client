@@ -491,7 +491,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 	if (!started)
 	{
 		started = true;
-		std::thread([onFinish] {
+		SET_TIMER_LIGHT(1000, [onFinish] {
 
 			using Range = std::pair<uint32_t, uint32_t>;
 
@@ -512,6 +512,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				{ FormType::Perk, {0x000153CD, 0x0010FE04}},
 				{ FormType::Flora, { 0x00000000, 0x01000000}}, // todo
 				{ FormType::Tree, { 0x00000000, 0x01000000}}, // todo
+				{ FormType::Enchantment, {0x00000000, 0x01000000}} // todo
 			};
 
 			static auto quote = "\"";
@@ -641,7 +642,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 
 			struct EffectItem
 			{
-				std::string mgefIden;
+				uint32_t mgefID;
 				float mag, dur, area;
 			};
 			static auto getEffectItemList = [](TESForm *form) {
@@ -652,7 +653,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 					for (auto &efItemRaw : sp->effectItemList)
 					{
 						effectItemList.push_back({
-							formIdents[efItemRaw->mgef->GetFormID()],
+							efItemRaw->mgef->GetFormID(),
 							efItemRaw->magnitude,
 							efItemRaw->duration,
 							efItemRaw->area
@@ -770,8 +771,13 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 					ss << quote << iden << quote << ", ";
 					ss << "0x" << formID << ", ";
 					ss << cost;
+					bool isHostile = false;
+					if (sp->formType == FormType::Enchantment)
+						isHostile = sd::IsHostile((EnchantmentItem *)sp);
+					if (sp->formType == FormType::Spell)
+						isHostile = sd::IsHostile((SpellItem *)sp);
 					for (const auto &effectItem : effectItemList)
-						ss << ", " << "{ " << quote << effectItem.mgefIden << quote << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
+						ss << ", " << "{ " << "0x" << effectItem.mgefID << ", " << effectItem.mag * (isHostile ? -1 : 1) << ", " << effectItem.dur << ", " << effectItem.area << "} ";
 					ss << " }," << std::endl;
 				}
 			}
@@ -836,7 +842,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				ss << std::to_string(soulSize) << ", ";
 				ss << std::to_string(gemSize);
 				for (const auto &effectItem : effectItemList)
-					ss << ", " << "{ " << quote << effectItem.mgefIden << quote << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
+					ss << ", " << "{ " << "0x" << effectItem.mgefID << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
 				ss << " }," << std::endl;
 			}
 			ss << "nil }" << std::endl;
@@ -855,10 +861,13 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				if (recipe->formType != FormType::ConstructibleObject)
 					continue;
 
-				const auto keyword =
+				auto keyword =
 					((keywordBackup != nullptr && (*keywordBackup)[recipe] != nullptr )? (*keywordBackup)[recipe]->keyword : recipe->wbKeyword->keyword).operator const char *();
 				const auto createdObjectIden = getIdentifier(recipe->createdObject);
 				const auto numCreatedObjects = recipe->quantity;
+
+				if (std::string(keyword) == "CraftingCookpot")
+					keyword = "isCookingSpit";
 
 				ss << "{ ";
 				ss << quote << keyword << quote << ", ";
@@ -1030,6 +1039,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 			ss << "dsres.itemTypes = itemTypes" << std::endl;
 			ss << "dsres.recipes = recipes" << std::endl;
 			ss << "dsres.perks = perks" << std::endl;
+			ss << "dsres.flora = flora" << std::endl;
 			ss << "return dsres" << std::endl;
 
 			{
@@ -1044,6 +1054,6 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				onFinish();
 			}
 
-		}).detach();
+		});
 	}
 }

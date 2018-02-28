@@ -105,4 +105,6 @@ namespace ci
 	
 	void ShowSkympLogo();
 	void HideSkympLogo();
+
+	void SetControlEnabled(std::string controlName, bool enable);
 }

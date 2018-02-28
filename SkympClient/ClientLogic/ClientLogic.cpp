@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.10";
+auto version = "1.0.12";
 
 #include "Agent.h"
 
@@ -593,7 +593,7 @@ class ClientLogic : public ci::IClientLogic
 						ss >> str;
 						ss >> id;
 						keywords[id] = (str);
-						ci::Log("RegisterKeyword added");
+						ci::Log("RegisterKeyword %s", str.data());
 					}
 					else
 					{
@@ -3918,6 +3918,17 @@ class ClientLogic : public ci::IClientLogic
 				catch (...) {
 					ci::Log("ERROR:ClientLogic Activate failed");
 				}
+			}
+		}
+		else if (funcName == "SetControlEnabled")
+		{
+			if (arguments.size() != 2)
+				ci::Log("ERROR:ClientLogic SetControlEnabled bad argc %d", (int32_t)arguments.size());
+			else
+			{
+				const auto controlName = arguments[0];
+				const bool enable = atoi(arguments[1].data()) != 0;
+				ci::SetControlEnabled(controlName, enable);
 			}
 		}
 	}
