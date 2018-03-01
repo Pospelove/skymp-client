@@ -117,5 +117,19 @@ void cd::Context::Eval(std::string scriptString)
 	for (auto it = arguments.begin(); it != arguments.end(); ++it)
 		convertArg(*it);
 
+	// Custom cdscript functions:
+	if (className == "Game" && funcName == "SetRotationTo")
+	{
+		ErrorHandling::SendError("DBG:CDScript SetRotationTo called");
+		const uint32_t formID = (uint32_t)atoll(arguments[0].data.data());
+		SET_TIMER_LIGHT(0, [=] {
+			auto ref = (TESObjectREFR *)LookupFormByID(formID);
+			if (ref && ref->formType == FormType::Reference)
+			{
+				sd::SetAngle(g_thePlayer, 0, 0, sd::GetAngleZ(ref));
+			}
+		});
+	}
+
 	ExecImpl(true, new CostileCallbackVoid({},true), className, funcName, arguments);
 }

@@ -520,6 +520,7 @@ private:
 			};
 			for (auto &listItem : list)
 				_idByName[listItem.first] = listItem.second;
+			_nameByID.push_back("");
 			for (uint8_t id = 0; id != ItemSubclass::END; ++id)
 			{
 				for (auto &pair : _idByName)
