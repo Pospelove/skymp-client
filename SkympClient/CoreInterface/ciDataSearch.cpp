@@ -629,16 +629,29 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				return res;
 			};
 
-			static std::map<uint32_t, std::string> formIdents;
-
-			static auto getEnchantmentIden = [](TESForm *form)->std::string {
-				auto enchForm = DYNAMIC_CAST<TESEnchantableForm *, TESForm *>(form);
-				if (enchForm != nullptr && enchForm->enchantment != nullptr)
+			static auto getEnchID = [](TESForm *form)->uint32_t {
+				uint32_t enchID = 0;
+				switch (form->formType)
 				{
-					return formIdents[enchForm->enchantment->GetFormID()];
+				case FormType::Weapon:
+				{
+					auto weap = (TESObjectWEAP *)form;
+					if (weap->enchantment)
+						enchID = weap->enchantment->GetFormID();
+					break;
 				}
-				return "";
+				case FormType::Armor:
+				{
+					auto armo = (TESObjectARMO *)form;
+					if (armo->enchantment)
+						enchID = armo->enchantment->GetFormID();
+					break;
+				}
+				}
+				return enchID;
 			};
+
+			static std::map<uint32_t, std::string> formIdents;
 
 			struct EffectItem
 			{
@@ -825,7 +838,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				const uint32_t goldValue = getGoldValue(form);
 				const float damageArmorPoints = getDamageArmorPoints(form);
 				const std::string skill = getSkill(form);
-				const std::string enchIden = getEnchantmentIden(form);
+				const uint32_t enchID = getEnchID(form);
 				const std::list<EffectItem> effectItemList = getEffectItemList(form);
 
 				const auto clSubclResultStr = subCl.empty() ? (cl) : (cl + '.' + subCl);
@@ -838,7 +851,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				ss << std::to_string(goldValue) << ", ";
 				ss << damageArmorPoints << ", ";
 				ss << quote << skill << quote << ", ";
-				ss << quote << enchIden << quote << ", ";
+				ss << "0x" << enchID << ", ";
 				ss << std::to_string(soulSize) << ", ";
 				ss << std::to_string(gemSize);
 				for (const auto &effectItem : effectItemList)

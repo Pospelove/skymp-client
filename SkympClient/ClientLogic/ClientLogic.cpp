@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.13";
+auto version = "1.0.14";
 
 #include "Agent.h"
 
@@ -170,6 +170,21 @@ class ClientLogic : public ci::IClientLogic
 	std::map<std::wstring, std::shared_ptr<Bot>> bots;
 	std::list<Bot *> botss;
 
+	bool IsHorseBase(uint32_t baseNpc)
+	{
+		static const std::set<uint32_t> horseIds = {
+			0x00109E3D,
+			0x00109AB1,
+			0x00109E41,
+			0x00109E40,
+			0x00109E3E,
+			0x00097E1E,
+			0x0009CCD7,
+			0x0010BF90
+		};
+		return horseIds.count(baseNpc) != 0;
+	}
+
 	uint16_t GetID(const ci::IActor *player)
 	{
 		for (auto it = players.begin(); it != players.end(); ++it)
@@ -253,6 +268,8 @@ class ClientLogic : public ci::IClientLogic
 		clock_t createMoment = 0;
 
 		float lastSpeed = 0;
+
+		bool isHostable = true;
 	};
 	std::map<uint32_t, ObjectInfo> objectsInfo;
 
@@ -855,7 +872,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				baseNPCs[id] = baseNpc;
 				newPl->SetBaseNPC(baseNpc);
-				if (baseNpc == 0x109e3d) // позор
+				if (IsHorseBase(baseNpc)) // лошадиный позор
 				{
 					auto p = new ci::RemotePlayer(
 						newPl->GetName() + L" ",
@@ -1144,6 +1161,7 @@ class ClientLogic : public ci::IClientLogic
 			uint32_t id = 0;
 			NiPoint3 pos, rot;
 			uint32_t locationID;
+			uint8_t isHostable;
 			bsIn.Read(id);
 			bsIn.Read(pos.x);
 			bsIn.Read(pos.y);
@@ -1152,6 +1170,7 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(rot.y);
 			bsIn.Read(rot.z);
 			bsIn.Read(locationID);
+			bsIn.Read(isHostable);
 			try {
 				auto obj = objects.at(id);
 				if (objectsInfo[id].hostID != net.myID)
@@ -1174,6 +1193,22 @@ class ClientLogic : public ci::IClientLogic
 					}
 				}
 				obj->SetLocation(locationID);
+
+				objectsInfo[id].isHostable = isHostable;
+				if (isHostable == false)
+				{
+					obj->SetMotionType(ci::Object::Motion_Keyframed);
+					for (auto ms : { 100, 200, 300, 500 })
+					{
+						ci::SetTimer(ms, [=] {
+							try {
+								objects.at(id)->SetMotionType(ci::Object::Motion_Keyframed);
+							}
+							catch (...) {
+							}
+						});
+					}
+				}
 			}
 			catch (...) {
 			}
@@ -1522,7 +1557,7 @@ class ClientLogic : public ci::IClientLogic
 							if (playerID == net.myID)
 							{
 								const std::string skillName = { avName.begin() + 1, avName.end() - 3 };
-								const uint8_t skillPoints = avData.base + avData.modifier;
+								const uint8_t skillPoints = uint8_t(avData.base + avData.modifier);
 								localPlayer->SetSkillPointsPercent(skillName, skillPoints);
 							}
 						}
@@ -2376,7 +2411,7 @@ class ClientLogic : public ci::IClientLogic
 			auto movementData = localPlayer->GetMovementData();
 			static clock_t cl = 0;
 			auto clNow = clock();
-			float delay = 40 + players.size();
+			float delay = 40 + (float)players.size();
 			if (delay > 60)
 				delay = 60;
 			if (players.empty() || (players.size() == 1 && players.begin()->second == localPlayer))
@@ -3402,6 +3437,8 @@ class ClientLogic : public ci::IClientLogic
 			auto &info = objectsInfo[id];
 			if (info.type != Type::Item)
 				continue;
+			if (info.isHostable == false)
+				continue;
 
 			enum : uint16_t {
 				INVALID_HOST_ID = (uint16_t)~0,
@@ -3877,7 +3914,7 @@ class ClientLogic : public ci::IClientLogic
 					ci::Log("ERROR:ClientLogic AddPerk nullptr perk");
 				else
 				{
-					perk->SetRequiredSkillLevel(requiredSkillLevel);
+					perk->SetRequiredSkillLevel((float)requiredSkillLevel);
 					localPlayer->AddPerk(perk);
 				}
 			}
