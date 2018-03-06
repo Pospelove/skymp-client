@@ -3100,6 +3100,12 @@ namespace ci
 		return pimpl->syncState.myVehicleID != 0 && pimpl->syncState.myVehicleID != ~0;
 	}
 
+	void RemotePlayer::Respawn()
+	{
+		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		this->ForceDespawn(L"ClientLogic");
+	}
+
 	uint32_t RemotePlayer::GetFormID() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);

@@ -121,6 +121,7 @@ clock_t lastIncrementSkill = 0;
 std::set<const ci::Perk *> localPlPerks;
 std::vector<BGSPerk *> allPerks;
 std::set<BGSPerk *> rawPerksWas;
+bool localPlSpeedmultFixed = false;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -1769,6 +1770,15 @@ void ci::LocalPlayer::RemoveAllPerks()
 	localPlPerks.clear();
 }
 
+void ci::LocalPlayer::SetSpeedmult(float val)
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	localPlSpeedmultFixed = true;
+	SET_TIMER_LIGHT(0, [=] {
+		sd::ForceActorValue(g_thePlayer, "Speedmult", val);
+	});
+}
+
 typedef UInt32(*_LookupActorValueByName)(const char * name);
 static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
 
@@ -2237,7 +2247,8 @@ void ci::LocalPlayer::Update()
 	// UPD2: Добавлен вызов при переключении camera mode для исправления некорректной внешности
 	// UPD3: Попробую раскомментить, а то какая-то х*йня творится с внешнностью иногда
 	// UPD4: Сделаю, чтобы во время прыжка он это не выполнял
-	/*static int32_t fixes = 0;
+	// UPD5: Это было закоменченно долгие месяцы, а теперь возвращается уже в 1.0.17!
+	static int32_t fixes = 0;
 	if (fixes < 0)
 		fixes = 0;
 	SAFE_CALL("LocalPlayer", [&] {
@@ -2268,7 +2279,7 @@ void ci::LocalPlayer::Update()
 				}
 			}
 		}
-	});*/
+	});
 
 	SAFE_CALL("LocalPlayer", [&] {
 		auto movDataPtr = task.movDataPtr; // Делаем копию movDataPtr, ибо DoTeleport_OT() вызовет task = {} в случае удачного выполнения
@@ -2298,7 +2309,7 @@ void ci::LocalPlayer::Update()
 	else
 		kkk = 1.21;
 	static float defaultSpeedmultWas = 100.0;
-	static float defaultSpeedmult = 100.0;
+	static const float defaultSpeedmult = 100;
 	static bool combPressedWas = 0;
 
 	float newSpeedmult = defaultSpeedmult;
@@ -2323,7 +2334,7 @@ void ci::LocalPlayer::Update()
 		};
 		static std::array<bool, 5> prWas;
 		static clock_t lastSpeedmultUpdate1 = 0;
-		if (pr != prWas && lastSpeedmultUpdate1 + 200 < clock())
+		if (localPlSpeedmultFixed == false && pr != prWas && lastSpeedmultUpdate1 + 200 < clock())
 		{
 			lastSpeedmultUpdate1 = clock();
 			sd::ForceActorValue(g_thePlayer, "Speedmult", newSpeedmult);
@@ -2332,7 +2343,7 @@ void ci::LocalPlayer::Update()
 		}
 
 		static clock_t lastSpeedmultUpdate = 0;
-		if (lastSpeedmultUpdate + 166 < clock())
+		if (localPlSpeedmultFixed == false && lastSpeedmultUpdate + 166 < clock())
 		{
 			if (defaultSpeedmultWas != defaultSpeedmult || wasDiagonale != isDiagonale || isRunningWas != isRunning || movData.direction != localPlMovementData.direction)
 			{

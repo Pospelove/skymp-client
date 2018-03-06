@@ -91,6 +91,7 @@ namespace ci
 		bool IsSpawned() const;
 		void SetAttachedHorse(ci::IActor *horse);
 		bool HasAttachedHorse() const;
+		void Respawn();
 
 		uint32_t GetFormID() const;
 		static RemotePlayer *LookupByFormID(uint32_t id);

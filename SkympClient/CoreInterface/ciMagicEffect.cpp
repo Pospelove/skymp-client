@@ -2,6 +2,7 @@
 #include "CoreInterface.h"
 
 #define IS_011_TEST
+#undef IS_011_TEST
 
 namespace ci
 {

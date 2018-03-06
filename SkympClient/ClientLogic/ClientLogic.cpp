@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.14";
+auto version = "1.0.17";
 
 #include "Agent.h"
 
@@ -616,9 +616,16 @@ class ClientLogic : public ci::IClientLogic
 					{
 						auto abcMsg = decodeRu
 							(StringToWstring(message));
-						ci::Chat::AddMessage((abcMsg), isNotification);
-						//new ci::Text3D(abcMsg, ci::LocalPlayer::GetSingleton()->GetPos());
-						ci::Log(L"Message: " + abcMsg);
+						if (message.find("Learn perk") == 0)
+						{
+							ci::Log(L"A new perk learned");
+						}
+						else
+						{
+							ci::Chat::AddMessage((abcMsg), isNotification);
+							//new ci::Text3D(abcMsg, ci::LocalPlayer::GetSingleton()->GetPos());
+							ci::Log(L"Message: " + abcMsg);
+						}
 					}
 				}
 			}
@@ -832,6 +839,21 @@ class ClientLogic : public ci::IClientLogic
 
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
 				try {
+					const bool h2h = eventData.spell == nullptr && eventData.weapon == nullptr;
+					if (h2h)
+					{
+						const auto closestAc = FindClosestActor(players.at(id)->GetPos(), [=](ci::IActor *ac) { return ac != players.at(id); });
+						if((closestAc->GetPos() - players.at(id)->GetPos()).Length() > 256)
+						{
+							auto rem = dynamic_cast<ci::RemotePlayer *>(players.at(id));
+							if (rem != nullptr)
+							{
+								ci::Log("ERROR:ClientLogic bad h2h hit (is it invisible gnome?)");
+								rem->Respawn();
+							}
+						}
+					}
+
 					auto source = players.at((uint16_t)atoi(eventData.hitSrcMark.data()));
 					if (eventData.hitSrcMark.empty())
 					{
@@ -1231,7 +1253,13 @@ class ClientLogic : public ci::IClientLogic
 			}
 
 			try {
-				objects.at(id)->SetName(decodeRu(StringToWstring(name)));
+				auto name1 = decodeRu(StringToWstring(name));
+				if (name1.find(L'<') != name1.npos)
+				{
+					ci::Log("ERROR:ClientLogic bad object name");
+					name1 = L" ";
+				}
+				objects.at(id)->SetName(name1);
 			}
 			catch (...) {
 			}
@@ -1379,7 +1407,8 @@ class ClientLogic : public ci::IClientLogic
 				for (auto kID : keywords)
 				{
 					ci::RemoveAllKeywords(objects.at(id)->GetBase());
-					ci::AddKeyword(objects.at(id)->GetBase(), this->keywords[kID]);
+					const auto keywordStr = this->keywords[kID];
+					ci::AddKeyword(objects.at(id)->GetBase(), keywordStr);
 
 					if (this->keywords[kID].empty())
 						ci::Log("ERROR:ClientLogic id_object_keywords keyword not found");
@@ -3039,6 +3068,20 @@ class ClientLogic : public ci::IClientLogic
 			else
 				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
 		}
+		else if (cmdText == L"//s" && cmdText == L"//setspeedmult")
+		{
+			if (arguments.empty())
+				return;
+			if (dataSearchEnabled)
+			{
+				const auto str = WstringToString(arguments[0]);
+				const auto sm = atoi(str.data());
+				ci::LocalPlayer::GetSingleton()->SetSpeedmult(sm);
+				ci::Chat::AddMessage(L"#BEBEBE" L"Set Speedmult to " + std::to_wstring(sm));
+			}
+			else
+				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
+		}
 		else if (cmdText == L"//d" || cmdText == L"//a")
 		{
 			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.19");
@@ -3167,7 +3210,11 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//clone")
 		{
-			auto onHit = [](const ci::HitEventData &eventData) {
+			static uint32_t counter = 0;
+			const auto id = counter++;
+			static std::map<uint32_t, ci::IActor *> testPlayers;
+
+			auto onHit = [this, id](const ci::HitEventData &eventData) {
 				std::wstring msg;
 				if (eventData.spell != nullptr)
 					msg = (L"#BEBEBE" L"Debug: Magic Hit");
@@ -3176,6 +3223,26 @@ class ClientLogic : public ci::IClientLogic
 				else
 					msg = (L"#BEBEBE" L"Debug: H2H Hit");
 				ci::Chat::AddMessage(msg + L" " + StringToWstring(eventData.hitSrcMark));
+
+				try {
+					const bool h2h = eventData.spell == nullptr && eventData.weapon == nullptr;
+					if (h2h)
+					{
+						const auto closestAc = FindClosestActor(testPlayers.at(id)->GetPos(), [=](ci::IActor *ac) { return ac != testPlayers.at(id); });
+						if ((closestAc->GetPos() - testPlayers.at(id)->GetPos()).Length() > 256)
+						{
+							auto rem = dynamic_cast<ci::RemotePlayer *>(testPlayers.at(id));
+							if (rem != nullptr)
+							{
+								ci::Log("ERROR:ClientLogic TEST bad h2h hit (is it invisible gnome?)");
+								rem->Respawn();
+							}
+						}
+					}
+				}
+				catch (...) {
+					ci::Log("ERROR:ClientLogic TEST player not found");
+				}
 			};
 
 			auto p = new ci::RemotePlayer(
@@ -3185,6 +3252,7 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->GetCell(), 
 				localPlayer->GetWorldSpace(), 
 				onHit);
+			testPlayers[id] = p;
 			if (arguments.size() == 1 && arguments[0] == L"horse")
 				p->SetBaseNPC(0x00109E3D);
 

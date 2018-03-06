@@ -512,7 +512,8 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				{ FormType::Perk, {0x000153CD, 0x0010FE04}},
 				{ FormType::Flora, { 0x00000000, 0x01000000}}, // todo
 				{ FormType::Tree, { 0x00000000, 0x01000000}}, // todo
-				{ FormType::Enchantment, {0x00000000, 0x01000000}} // todo
+				{ FormType::Enchantment, {0x00000000, 0x01000000}}, // todo
+				{ FormType::NPC,{ 0x00000000, 0x01000000 } } //todo
 			};
 
 			static auto quote = "\"";
@@ -842,6 +843,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				const std::list<EffectItem> effectItemList = getEffectItemList(form);
 
 				const auto clSubclResultStr = subCl.empty() ? (cl) : (cl + '.' + subCl);
+				const bool isHostile = clSubclResultStr == "Potion.Poison";
 
 				ss << "{ ";
 				ss << quote << iden << quote << ", ";
@@ -855,7 +857,7 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				ss << std::to_string(soulSize) << ", ";
 				ss << std::to_string(gemSize);
 				for (const auto &effectItem : effectItemList)
-					ss << ", " << "{ " << "0x" << effectItem.mgefID << ", " << effectItem.mag << ", " << effectItem.dur << ", " << effectItem.area << "} ";
+					ss << ", " << "{ " << "0x" << effectItem.mgefID << ", " << effectItem.mag * (isHostile ? -1 : 1) << ", " << effectItem.dur << ", " << effectItem.area << "} ";
 				ss << " }," << std::endl;
 			}
 			ss << "nil }" << std::endl;
@@ -1046,6 +1048,41 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 			}
 			ss << "nil }" << std::endl;
 
+			// NPC:
+			ss << std::endl;
+			ss << "local npc = {" << std::endl;
+			const auto &npcRange = ranges[FormType::NPC];
+			for (auto id = npcRange.first; id <= npcRange.second; ++id)
+			{
+				auto form = LookupFormByID(id);
+				if (form == nullptr)
+					continue;
+				if (form->formType != FormType::NPC)
+					continue;
+				ss << "{ ";
+				ss << "0x" << form->formID << ", ";
+				ss << quote << getIdentifier(form) << quote << ", ";
+
+				auto npc = (TESNPC *)form;
+
+				ss << quote << getIdentifier(npc->GetRace()) << quote << "";
+
+				ss << ", " << "{ ";
+				bool isBegin = true;
+				for (auto it = npc->entries; it != npc->entries + npc->numEntries; ++it)
+				{
+					auto entry = *it;
+					if (!isBegin)
+						ss << ", ";
+					ss << "[" << quote << getIdentifier(entry->form) << quote << "]" << " = " << std::to_string(entry->count);
+					isBegin = false;
+				}
+				ss << " }";
+
+				ss << " }," << std::endl;
+			}
+			ss << "nil }" << std::endl;
+
 			ss << "local dsres = {}" << std::endl;
 			ss << "dsres.effects = effects" << std::endl;
 			ss << "dsres.magic = magic" << std::endl;
@@ -1053,7 +1090,8 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 			ss << "dsres.recipes = recipes" << std::endl;
 			ss << "dsres.perks = perks" << std::endl;
 			ss << "dsres.flora = flora" << std::endl;
-			ss << "return dsres" << std::endl;
+			ss << "dsres.npc = npc" << std::endl;
+			ss << "return dsres" << " -- DO NOT DUMP WITH STREAMED IN FURNITURE!" << std::endl;
 
 			{
 				std::ofstream file("AAA_DATASEARCH_LOCAL_RESULTS.lua");

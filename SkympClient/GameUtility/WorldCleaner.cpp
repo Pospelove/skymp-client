@@ -193,6 +193,11 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		break;
 	}
 
+	if (ref->baseForm->formID == 0x0001C0C3) // cart
+	{
+		sd::SetMotionType(ref, 4, true);//keyframed
+	}
+
 	if (deleted != true && ref->baseForm->formType != FormType::Static)
 	{
 		dict.insert(ref->formID);

@@ -332,7 +332,7 @@ namespace Equipment_
 							const cd::Value<Actor> cdActor = actor;
 
 							auto f = [=] {
-								for (int32_t j = 0; j != 25; ++j)
+								for (int32_t j = 0; j != /*2*/5; ++j)
 									cd::EquipSpell(cdActor, (SpellItem *)form, !i);
 								return cdActor.operator Actor *() == nullptr
 									|| sd::GetEquippedSpell(cdActor, 0) == form
