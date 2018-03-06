@@ -3068,7 +3068,7 @@ class ClientLogic : public ci::IClientLogic
 			else
 				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
 		}
-		else if (cmdText == L"//s" && cmdText == L"//setspeedmult")
+		else if (cmdText == L"//s" || cmdText == L"//setspeedmult")
 		{
 			if (arguments.empty())
 				return;
