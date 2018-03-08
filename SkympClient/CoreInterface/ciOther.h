@@ -107,4 +107,7 @@ namespace ci
 	void HideSkympLogo();
 
 	void SetControlEnabled(std::string controlName, bool enable);
+
+	void SetDetectionEnabled(bool enable);
+	bool IsDetectionEnabled();
 }

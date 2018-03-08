@@ -757,7 +757,8 @@ namespace MovementData_
 				{
 					if (myFox->baseForm->formType == FormType::NPC
 						&& sd::GetEquippedSpell(ac, 1) == nullptr && sd::GetEquippedSpell(ac, 0) == nullptr)
-						sd::StartCombat(ac, (Actor *)myFox);
+						sd::StartCombat(ac, (Actor *)myFox)
+						;
 				}
 				else
 				{
@@ -766,7 +767,8 @@ namespace MovementData_
 					auto ghostAxe = (Actor *)LookupFormByID(ghostAxeID);
 					if (ghostAxe != nullptr)
 						if (sd::GetEquippedSpell(ac, 1) == nullptr && sd::GetEquippedSpell(ac, 0) == nullptr)
-							sd::StartCombat(ac, ghostAxe);
+							sd::StartCombat(ac, ghostAxe)
+							;
 				}
 				//ac->DrawSheatheWeapon(true);
 			}

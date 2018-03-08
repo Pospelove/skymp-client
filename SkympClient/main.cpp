@@ -33,6 +33,10 @@ void dummy()
 
 void other_thread(void *);
 
+void DrawSheatheWeapon()
+{
+}
+
 class SkympClientDll : public SKSEPlugin
 {
 public:
@@ -75,6 +79,9 @@ public:
 
 	void OnScriptDragonLoaded()
 	{
+		Actor;
+		//SafeWrite32(0x006B2050, (DWORD)&DrawSheatheWeapon);
+
 		try {
 			auto &logic = ci::IClientLogic::clientLogic;
 			if (logic)

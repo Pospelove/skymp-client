@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.20";
+auto version = "1.0.21";
 
 #include "Agent.h"
 
@@ -687,6 +687,9 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_MOVEMENT:
 		{
+			ci::SetDetectionEnabled(hostedPlayers.empty() == false);
+			//ci::Chat::AddMessage(std::to_wstring(ci::IsDetectionEnabled()));
+
 			uint16_t playerid = ~0;
 			bsIn.Read(playerid);
 			ci::MovementData movData;

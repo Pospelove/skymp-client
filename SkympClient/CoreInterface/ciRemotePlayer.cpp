@@ -719,8 +719,8 @@ namespace ci
 					pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
 				{
 					auto md = pimpl->movementData;
-					if (sd::IsInCombat(g_thePlayer) && sd::GetCombatTarget(g_thePlayer) != actor)
-						md.isWeapDrawn = true; // предотвращение эпилепсии
+					//if (sd::IsInCombat(g_thePlayer) && sd::GetCombatTarget(g_thePlayer) != actor)
+					//	md.isWeapDrawn = true; // предотвращение эпилепсии
 					MovementData_::Apply(md, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
 
 					if (pimpl->afk)
@@ -745,8 +745,11 @@ namespace ci
 
 		void EngineUpdateSpawned(Actor *actor) override
 		{
+
 			// Already locked
 			auto &pimpl = this->GetImpl();
+
+			//sd::SetActorValue(actor, "Agression", pimpl->movementData.isWeapDrawn ? 1.0 : 0.0);
 
 			const float confidence = pimpl->movementData.isWeapDrawn ? 4.0 : 0.0;
 			if (abs(sd::GetBaseActorValue(actor, "Confidence") - confidence) > 0.25)
@@ -882,6 +885,8 @@ namespace ci
 
 		void EngineUpdateSpawned(Actor *actor) override
 		{
+			//sd::SetActorValue(actor, "Agression", 1.0);
+
 			// Already locked
 			auto &pimpl = this->GetImpl();
 
@@ -2141,6 +2146,49 @@ namespace ci
 		auto actor = (Actor *)LookupFormByID(pimpl->formID);
 		if (!actor)
 			return this->ForceDespawn(L"Despawned: Unloaded by the game");
+
+
+		static auto getIdentifier = [](TESForm *form) {
+			if (form == nullptr)
+				return std::string{};
+			std::string iden = form->GetName();
+			if (iden.empty())
+			{
+				auto tesFullName = DYNAMIC_CAST<TESFullName *, TESForm *>(form);
+				if (tesFullName != nullptr)
+					iden = tesFullName->GetFullName();
+			}
+			if (iden.empty())
+			{
+				auto refr = DYNAMIC_CAST<TESObjectREFR *, TESForm *>(form);
+				if (refr != nullptr)
+				{
+					auto xTextData = refr->extraData.GetByType<ExtraTextDisplayData>();
+					if (xTextData != nullptr)
+						iden = xTextData->name.c_str();
+				}
+			}
+			if (iden.empty())
+			{
+				std::stringstream idss;
+				idss << std::hex;
+				idss << form->GetFormID();
+				iden = idss.str();
+			}
+			for (size_t i = 0; i != iden.size(); ++i)
+			{
+				if (iden[i] == *"\"")
+					iden[i] = *"'";
+			}
+			return iden;
+		};
+		auto ct = sd::GetCombatTarget(actor);
+		std::string target = "None";
+		if (ct != nullptr)
+		{
+			target = getIdentifier(ct->baseForm);
+		}
+		//ci::Chat::AddMessage(this->GetName() + L"'s combat target is " + StringToWstring(target));
 
 		bool brk = false;
 		SAFE_CALL("RemotePlayer", [&] {
