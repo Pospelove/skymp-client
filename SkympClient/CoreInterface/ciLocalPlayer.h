@@ -62,6 +62,7 @@ namespace ci
 		void IncrementSkill(const std::string &skillName);
 		void RemoveAllPerks();
 		void SetSpeedmult(float value);
+		uint32_t GetLocation() const;
 
 		using _Power = float;
 		ci::Signal<void(_Power)> onPlayerBowShot;

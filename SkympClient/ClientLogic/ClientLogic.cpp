@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.17";
+auto version = "1.0.20";
 
 #include "Agent.h"
 
@@ -1348,7 +1348,7 @@ class ClientLogic : public ci::IClientLogic
 				case Type::Door:
 					object->SetOpen(isOpen);
 					object->SetDestroyed(destroyed);
-					object->BlockActivation(true);
+					object->BlockActivation(FALSE);
 					break;
 				case Type::TeleportDoor:
 					object->SetOpen(isOpen);
@@ -1357,8 +1357,8 @@ class ClientLogic : public ci::IClientLogic
 					case 0x31897:
 					case 0x351EB:
 					case 0x180D8:
-						object->SetDestroyed(true);
-						object->BlockActivation(true);
+						object->SetDestroyed(FALSE);
+						object->BlockActivation(FALSE);
 						break;
 					default:
 						object->SetDestroyed(destroyed);
@@ -2457,6 +2457,10 @@ class ClientLogic : public ci::IClientLogic
 						bsOut.Write(ID_UPDATE_MOVEMENT);
 						Serialize(bsOut, movement);
 						bsOut.Write(movementOwner);
+						if (movementOwner == net.myID)
+							bsOut.Write(localPlayer->GetLocation());
+						else
+							bsOut.Write(uint32_t(-1));
 						net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
 					};
 

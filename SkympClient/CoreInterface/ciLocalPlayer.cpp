@@ -122,6 +122,7 @@ std::set<const ci::Perk *> localPlPerks;
 std::vector<BGSPerk *> allPerks;
 std::set<BGSPerk *> rawPerksWas;
 bool localPlSpeedmultFixed = false;
+uint32_t localPlLocationID = -1;
 
 std::map<const ci::ItemType *, uint32_t> inventory;
 std::set<SpellItem *> spellList;
@@ -1779,6 +1780,12 @@ void ci::LocalPlayer::SetSpeedmult(float val)
 	});
 }
 
+uint32_t ci::LocalPlayer::GetLocation() const
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	return localPlLocationID;
+}
+
 typedef UInt32(*_LookupActorValueByName)(const char * name);
 static const _LookupActorValueByName LookupActorValueByName = (_LookupActorValueByName)0x005AD5F0;
 
@@ -1795,6 +1802,18 @@ void AddPerkWithRequirements(const ci::Perk *p)
 void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
+
+	// Update location id
+	auto getLocation = [](TESObjectREFR *ref) {
+		auto interior = sd::GetParentCell(ref);
+		if (interior && interior->IsInterior() == false)
+			interior = nullptr;
+		if (interior != nullptr)
+			return interior->formID;
+		else
+			return ref->GetWorldSpace()->formID;
+	};
+	localPlLocationID = getLocation(g_thePlayer);
 
 	// Detect perk select
 	if (allPerks.empty())

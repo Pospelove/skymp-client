@@ -110,6 +110,15 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		return;
 	if (this->IsFormProtected(refID) || this->IsFormProtected(baseFormID))
 		return;
+	switch (baseFormID)
+	{
+	case 0x31897:
+	case 0x351EB:
+	case 0x180D8:
+		return;
+	default:
+		break;
+	}
 
 	if (callbacks[formType] != nullptr)
 	{
@@ -174,10 +183,10 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		sd::SetDestroyed(ref, true);
 		break;
 	case FormType::Door:
-		sd::Lock(ref, false, false);
-		sd::SetOpen(ref, true);
-		sd::BlockActivation(ref, true);
-		sd::SetDestroyed(ref, true);
+		//sd::Lock(ref, false, false);
+		//sd::SetOpen(ref, true);
+		//sd::BlockActivation(ref, true);
+		//sd::SetDestroyed(ref, true);
 		//sd::PrintNote("Deal with door %08x", ref->formID);
 		break;
 	case FormType::Furniture:
