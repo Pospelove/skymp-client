@@ -754,8 +754,8 @@ namespace ci
 			const float confidence = pimpl->movementData.isWeapDrawn ? 4.0 : 0.0;
 			if (abs(sd::GetBaseActorValue(actor, "Confidence") - confidence) > 0.25)
 			{
-				sd::SetActorValue(actor, "Confidence", confidence);
-				sd::ForceActorValue(actor, "Confidence", confidence);
+				///sd::SetActorValue(actor, "Confidence", confidence);
+				///sd::ForceActorValue(actor, "Confidence", confidence);
 			}
 
 			if (sd::IsInCombat(actor))
@@ -904,8 +904,8 @@ namespace ci
 				this->lastCombatUpdate = clock();
 
 				const float newVal = pimpl->combatTarget != 0 ? 4.0f : 0.0f;
-				sd::SetActorValue(actor, "Confidence", newVal);
-				sd::ForceActorValue(actor, "Confidence", newVal);
+				///sd::SetActorValue(actor, "Confidence", newVal);
+				///sd::ForceActorValue(actor, "Confidence", newVal);
 
 				if (pimpl->combatTarget != 0)
 				{
@@ -2373,7 +2373,7 @@ namespace ci
 			auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
 
 				auto setAVsToDefault = [](Actor *actor) {
-					sd::SetActorValue(actor, "Agression", 1.0);
+					sd::SetActorValue(actor, "Agression", 0.0);
 					sd::SetActorValue(actor, "attackdamagemult", 0.0);
 					sd::SetActorValue(actor, "Variable01", rand());
 					sd::SetActorValue(actor, "MagicResist", 99);

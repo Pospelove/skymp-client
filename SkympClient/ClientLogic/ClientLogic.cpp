@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.21";
+auto version = "1.0.23";
 
 #include "Agent.h"
 
@@ -284,7 +284,7 @@ class ClientLogic : public ci::IClientLogic
 	struct
 	{
 		RakNet::RakPeerInterface *peer = nullptr;
-		RakNet::SocketDescriptor socket;
+		RakNet::SocketDescriptor socket[10];
 		std::string password, host, hardcodedPassword;
 		std::wstring nickname;
 		uint16_t port = 0;
@@ -439,7 +439,7 @@ class ClientLogic : public ci::IClientLogic
 	{
 		net = {};
 		net.peer = RakNet::RakPeerInterface::GetInstance();
-		net.peer->Startup(1, &net.socket, 1);
+		net.peer->Startup(22, net.socket, 10);
 		net.password = password;
 		net.nickname = nickname;
 		net.host = host;

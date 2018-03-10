@@ -1079,6 +1079,9 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 				}
 				ss << " }";
 
+
+				ss << ", " << (int32_t)sd::IsUnique(npc);
+
 				ss << " }," << std::endl;
 			}
 			ss << "nil }" << std::endl;
