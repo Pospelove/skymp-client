@@ -107,7 +107,7 @@ namespace sd
 		DO NOT CHANGE ANYTHING BELOW FOR ANY MEANS
 	*/
 
-#define SCRIPT_DRAGON "ScriptDragon.dll" 
+#define SCRIPT_DRAGON "Data/Scripts/Costile2_Thread.pex"
 
 	void DragonPluginInit(HMODULE hModule)
 	{
