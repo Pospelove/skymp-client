@@ -2588,6 +2588,7 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(itemTypeID);
 		bsOut.Write(count);
 		bsOut.Write((uint32_t)isAdd);
+		bsOut.Write(GetID(self));
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
 	}
 
