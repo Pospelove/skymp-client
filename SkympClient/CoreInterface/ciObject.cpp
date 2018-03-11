@@ -1062,7 +1062,7 @@ void ci::Object::UpdateAll()
 {
 	std::lock_guard<dlf_mutex> l(gMutex);
 
-	ci::Chat::AddMessage(std::to_wstring(allObjects.size()));
+	//ci::Chat::AddMessage(std::to_wstring(allObjects.size()));
 
 	SAFE_CALL("Object", [&] {
 		std::for_each(allObjects.begin(), allObjects.end(), [](ci::Object *object) {

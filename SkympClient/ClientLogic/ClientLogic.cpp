@@ -2464,6 +2464,7 @@ class ClientLogic : public ci::IClientLogic
 							bsOut.Write(localPlayer->GetLocation());
 						else
 							bsOut.Write(uint32_t(-1));
+						bsOut.Write((uint32_t)unreliable);
 						net.peer->Send(&bsOut, HIGH_PRIORITY, unreliable, NULL, net.remote, false);
 					};
 

@@ -2569,7 +2569,7 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(gMutex);
 
-		ci::Chat::AddMessage(std::to_wstring(allRemotePlayers.size()));
+		//ci::Chat::AddMessage(std::to_wstring(allRemotePlayers.size()));
 
 		SAFE_CALL("RemotePlayer", [&] {
 			*Impl::RemotePlayerKnownItems() = knownItems;
