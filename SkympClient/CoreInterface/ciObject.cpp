@@ -16,6 +16,7 @@ public:
 
 dlf_mutex gMutex;
 std::set<ci::Object *> allObjects;
+std::function<void()> traceTask = nullptr;
 
 extern std::map<const ci::ItemType *, uint32_t> inventory;
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
@@ -876,6 +877,18 @@ uint32_t ci::Object::GetFarObject()
 	return farRefID;
 }
 
+void ci::Object::SetTracing(bool trace)
+{
+	std::lock_guard<dlf_mutex> l(gMutex);
+	
+	static std::function<void()> f = [] {
+		std::lock_guard<dlf_mutex> l(gMutex);
+		ci::Chat::AddMessage(L"allObjects size is " + std::to_wstring(allObjects.size()));
+	};
+
+	traceTask = trace ? f : nullptr;
+}
+
 void ci::Object::Update()
 {
 	auto calcUpdateRate = [](const ci::Object::Impl *pimpl) {
@@ -1062,7 +1075,8 @@ void ci::Object::UpdateAll()
 {
 	std::lock_guard<dlf_mutex> l(gMutex);
 
-	//ci::Chat::AddMessage(std::to_wstring(allObjects.size()));
+	if (traceTask)
+		traceTask();
 
 	SAFE_CALL("Object", [&] {
 		std::for_each(allObjects.begin(), allObjects.end(), [](ci::Object *object) {

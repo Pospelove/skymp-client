@@ -117,6 +117,13 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 
 	if (this->IsFormProtected(refID) || this->IsFormProtected(baseFormID))
 		return;
+	
+	static std::set<uint32_t> coolGuys = {
+		0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169// Летающие насекомые
+	};
+	if (coolGuys.count(baseFormID))
+		return;
+
 	switch (baseFormID)
 	{
 	case 0x31897:
@@ -222,7 +229,7 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 
 	static const std::set<UInt32> toDel = {
 		//891015, 891013, 891011, 891009, 891007, 891003, 891005, 464980, 1050496,	// Алтари
-		0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169,	// Летающие насекомые
+		//0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169,	// Летающие насекомые
 		0x10581f, 0x105824,															// Птицы
 		0xad0cc, 0xd337f, 0x106d28, 0x106d29, 0x106d2A, 0x106d2B, 0x106d2C,			// Рыбы
 		0xe1fb2, 0xb6fb9, 0x89a8a, 0xe2ff9, 0xb6fcb,								// Корни нирна, корзины с яйцами (оригмы?)

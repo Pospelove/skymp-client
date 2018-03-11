@@ -95,6 +95,7 @@ namespace ci
 
 		uint32_t GetFormID() const;
 		static RemotePlayer *LookupByFormID(uint32_t id);
+		static void SetTracing(bool trace);
 
 	private:
 

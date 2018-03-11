@@ -232,15 +232,15 @@ namespace ci
 		OnHit onHit = nullptr;
 		OnActivate onActivate = nullptr;
 		std::map<std::string, ci::AVData> avData;
-		Object *myPseudoFox = nullptr;
-		Object *dispenser = nullptr;
+		ci::Object *myPseudoFox = nullptr;
+		ci::Object *dispenser = nullptr;
 		float height = 1;
 		bool isMagicAttackStarted[2];
 		const void *visualMagicEffect = nullptr;
 		std::map<int32_t, std::unique_ptr<SimpleRef>> gnomes;
 		bool broken = false;
 		std::function<void(Actor *)> posTask, angleTask;
-		std::unique_ptr<Object> pathToTarget;
+		std::unique_ptr<ci::Object> pathToTarget;
 		float pathingSpeedmult = 100;
 		TESNPC *baseNpc = nullptr;
 		std::string mark;
@@ -802,7 +802,7 @@ namespace ci
 		{
 			auto &pimpl = this->GetImpl();
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->pathToTarget.reset(new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, this->GetParent()->GetLocationID(), { 0,0,0 }, { 0,0,0 }));
+			pimpl->pathToTarget.reset();
 		}
 
 		~RPEngineIO() override
@@ -959,6 +959,7 @@ namespace ci
 {
 	RemotePlayer *CreateGhostAxe();
 	std::set<RemotePlayer *> allRemotePlayers;
+	std::function<void()> traceTask = nullptr;
 	RemotePlayer *ghostAxe = nullptr;
 	RemotePlayer *currentSpawning = nullptr;
 	uint32_t currentSpawningBaseID = 0;
@@ -2569,7 +2570,8 @@ namespace ci
 	{
 		std::lock_guard<dlf_mutex> l(gMutex);
 
-		//ci::Chat::AddMessage(std::to_wstring(allRemotePlayers.size()));
+		if (traceTask)
+			traceTask();
 
 		SAFE_CALL("RemotePlayer", [&] {
 			*Impl::RemotePlayerKnownItems() = knownItems;
@@ -2809,7 +2811,8 @@ namespace ci
 
 			return ErrorHandling::SendError("ERROR:RemotePlayer Unknown engine %s", engineName.data());
 		};
-		pimpl->engineTask = engineTask;
+		//pimpl->engineTask = engineTask; //crash time is < 1min
+		engineTask(); // crash time with 100 chickens in whiterun is > 1min
 	}
 
 	std::string RemotePlayer::GetEngine() const
@@ -2821,6 +2824,10 @@ namespace ci
 	void RemotePlayer::PathTo(const NiPoint3 &pos, bool walking)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
+		if (pimpl->pathToTarget == nullptr)
+		{
+			pimpl->pathToTarget.reset(new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, this->GetLocationID(), { 0,0,0 }, { 0,0,0 }));
+		}
 		if (pimpl->pathToTarget != nullptr)
 		{
 			pimpl->pathToTarget->SetPosition(pos);
@@ -3176,6 +3183,18 @@ namespace ci
 				return p;
 		}
 		return nullptr;
+	}
+
+	void RemotePlayer::SetTracing(bool trace)
+	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+
+		static std::function<void()> f = [] {
+			std::lock_guard<dlf_mutex> l(gMutex);
+			ci::Chat::AddMessage(L"allRemotePlayers size is " + std::to_wstring(allRemotePlayers.size()));
+		};
+
+		traceTask = trace ? f : nullptr;
 	}
 
 	void RemotePlayer::SetHeight(float h)

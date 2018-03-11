@@ -96,6 +96,7 @@ namespace ci
 
 		static uint32_t GetRandomRefID(bool ignoreCamera);
 		static uint32_t GetFarObject();
+		static void SetTracing(bool trace);
 
 	private:
 		static void UpdateAll();

@@ -2947,6 +2947,13 @@ class ClientLogic : public ci::IClientLogic
 
 			ci::Chat::AddMessage(L"#bebebe>> World point saved to " + StringToWstring(file));
 		}
+		else if (cmdText == L"//stat")
+		{
+			static bool tr = true;
+			ci::RemotePlayer::SetTracing(tr);
+			ci::Object::SetTracing(tr);
+			tr = !tr;
+		}
 		else if (cmdText == L"//worldspaces")
 		{
 			ci::ExecuteCommand(ci::CommandType::Console, L"skymp worldspaces");

@@ -45,7 +45,7 @@ Options ReadOptions(const char *cfgFile)
 void WriteDefaultOptions(const char *cfgFile)
 {
 	auto s = "; ci::RemotePlayer\n"
-		"DRAW_DISTANCE = 7002\n"
+		"DRAW_DISTANCE = 3500\n"
 		"NICKNAME_DISTANCE = 512\n"
 		"GHOST_AXE_OFFSET_Z = 2048\n"
 		"GHOST_AXE_UPDATE_RATE = 750\n"
