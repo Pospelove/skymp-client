@@ -915,10 +915,11 @@ void ci::Object::Update()
 		SAFE_CALL("Object", [&] {
 			if (markerFormID && localPlCell
 				&& NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() < GetRespawnRadius(isInterior)
-				&& (pimpl->locationID == worldSpaceID || pimpl->locationID == localPlCell->formID))
+				//&& (pimpl->locationID == worldSpaceID || pimpl->locationID == localPlCell->formID)
+				)
 			{
 				auto marker = (TESObjectREFR *)LookupFormByID(markerFormID);
-				if (marker && marker->formType == FormType::Reference && (cd::GetPosition(marker) - ci::LocalPlayer::GetSingleton()->GetPos()).Length() > 1000)
+				if (marker && marker->formType == FormType::Reference && (cd::GetPosition(marker) - ci::LocalPlayer::GetSingleton()->GetPos()).Length() > 256)
 				{
 					this->ForceSpawn();
 				}
@@ -1132,10 +1133,22 @@ void ci::Object::ForceSpawn()
 			std::lock_guard<dlf_mutex> l(gMutex);
 			if (allObjects.find(this) == allObjects.end())
 				return;
+			std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 
 			auto at = (TESObjectREFR *)LookupFormByID(markerFormID);
 			if (!at)
-				at = g_thePlayer;
+			{
+				auto atId = ci::Object::GetFarObject();
+				at = (TESObjectREFR *)LookupFormByID(atId);
+				if (at && at->formType != FormType::Reference)
+					at = nullptr;
+			}
+			if (!at)
+			{
+				//at = g_thePlayer;
+				pimpl->spawnStage = SpawnStage::NonSpawned;
+				return;
+			}
 			auto baseForm = LookupFormByID(pimpl->baseID);
 			if (!baseForm)
 			{
