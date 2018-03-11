@@ -2353,6 +2353,9 @@ namespace ci
 			if (pimpl->spawnStage != SpawnStage::NonSpawned)
 				return;
 
+			if (this->GetAVData("Health").percentage <= 0.0)
+				return;
+
 			this->DestroyGnomes();
 			pimpl->spawnStage = SpawnStage::Spawning;
 

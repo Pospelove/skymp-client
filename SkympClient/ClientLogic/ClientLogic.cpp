@@ -688,10 +688,10 @@ class ClientLogic : public ci::IClientLogic
 		case ID_PLAYER_MOVEMENT:
 		{
 			ci::SetDetectionEnabled(hostedPlayers.empty() == false);
-			//ci::Chat::AddMessage(std::to_wstring(ci::IsDetectionEnabled()));
 
 			uint16_t playerid = ~0;
 			bsIn.Read(playerid);
+			ci::Chat::AddMessage(L"movement" + std::to_wstring(playerid));
 			ci::MovementData movData;
 			Deserialize(bsIn, movData);
 			uint8_t enabled;
@@ -819,6 +819,7 @@ class ClientLogic : public ci::IClientLogic
 			Deserialize(bsIn, look);
 			bsIn.Read(baseNpc);
 			bsIn.Read(id);
+			ci::Chat::AddMessage(std::to_wstring(id));
 			Deserialize(bsIn, movement);
 			{
 				ci::LookData _;
@@ -925,6 +926,7 @@ class ClientLogic : public ci::IClientLogic
 		{
 			uint16_t id = ~0;
 			bsIn.Read(id);
+			ci::Chat::AddMessage(L"destroy " + std::to_wstring(id));
 			auto it = players.find(id);
 			if (it != players.end())
 			{
