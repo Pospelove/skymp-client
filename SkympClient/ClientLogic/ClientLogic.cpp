@@ -51,6 +51,7 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint16_t, uint32_t> lastFurniture;
 	bool tracehost = false;
 	uint32_t lastDialogID = ~0;
+	PacketReliability unreliable = PacketReliability::UNRELIABLE;
 
 	class Bot : public SkympAgent
 	{
@@ -501,7 +502,7 @@ class ClientLogic : public ci::IClientLogic
 			bsOut.Write(passwordCStr, MAX_PASSWORD + 1);
 
 			Sleep(200);
-			ci::Chat::AddMessage(L"Found the server. Handshaking...");
+			ci::Chat::AddMessage(L"Loading...");
 
 			net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, packet->systemAddress, false);
 			break;
@@ -2463,7 +2464,7 @@ class ClientLogic : public ci::IClientLogic
 							bsOut.Write(localPlayer->GetLocation());
 						else
 							bsOut.Write(uint32_t(-1));
-						net.peer->Send(&bsOut, HIGH_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+						net.peer->Send(&bsOut, HIGH_PRIORITY, unreliable, NULL, net.remote, false);
 					};
 
 					sendMovement(net.myID, movementData);
@@ -2531,6 +2532,14 @@ class ClientLogic : public ci::IClientLogic
 		}
 
 		auto name = StringToWstring(g_config[CONFIG_NAME]);
+
+		if (g_config[CONFIG_TCP_ONLY] == "true")
+		{
+			ci::Chat::AddMessage(L"Switch reliability...");
+			Sleep(500);
+			unreliable = PacketReliability::RELIABLE;
+			ci::Chat::AddMessage(L"Done");
+		}
 
 		if (name != L"")
 		{
@@ -3558,7 +3567,7 @@ class ClientLogic : public ci::IClientLogic
 				bsOut.Write(rot.z);
 				const bool isGrabbed = object->IsGrabbed();
 				bsOut.Write(isGrabbed);
-				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, unreliable, NULL, net.remote, false);
 			}
 
 			info.lastSpeed = (object->GetSpeed() + info.lastSpeed) / 2;
@@ -3602,7 +3611,7 @@ class ClientLogic : public ci::IClientLogic
 		bsOut.Write(ID_ANIMATION_EVENT_HIT);
 		bsOut.Write(animID);
 		bsOut.Write(source);
-		net.peer->Send(&bsOut, LOW_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+		net.peer->Send(&bsOut, LOW_PRIORITY, unreliable, NULL, net.remote, false);
 	}
 
 	void UpdateCombat()
@@ -3643,7 +3652,7 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(p);
 					currentAVsOnServer[avID] = p;
 				}
-				net.peer->Send(&bsOut, MEDIUM_PRIORITY, UNRELIABLE, NULL, net.remote, false);
+				net.peer->Send(&bsOut, MEDIUM_PRIORITY, unreliable, NULL, net.remote, false);
 			}
 		}
 	}

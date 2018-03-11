@@ -904,8 +904,10 @@ namespace ci
 				this->lastCombatUpdate = clock();
 
 				const float newVal = pimpl->combatTarget != 0 ? 4.0f : 0.0f;
-				///sd::SetActorValue(actor, "Confidence", newVal);
-				///sd::ForceActorValue(actor, "Confidence", newVal);
+				sd::SetActorValue(actor, "Confidence", newVal);
+				sd::ForceActorValue(actor, "Confidence", newVal);
+				sd::SetActorValue(actor, "Agression", 1.0);
+				sd::ForceActorValue(actor, "Agression", 1.0);
 
 				if (pimpl->combatTarget != 0)
 				{
@@ -2565,6 +2567,10 @@ namespace ci
 
 	void RemotePlayer::UpdateAll()
 	{
+		std::lock_guard<dlf_mutex> l(gMutex);
+
+		ci::Chat::AddMessage(std::to_wstring(allRemotePlayers.size()));
+
 		SAFE_CALL("RemotePlayer", [&] {
 			*Impl::RemotePlayerKnownItems() = knownItems;
 			*Impl::RemotePlayerKnownSpells() = knownSpells;
@@ -2573,8 +2579,6 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			UpdatePlaceAtMeMarker();
 		});
-
-		std::lock_guard<dlf_mutex> l(gMutex);
 
 		SAFE_CALL("RemotePlayer", [&] {
 			if (currentSpawning != nullptr && allRemotePlayers.find(currentSpawning) == allRemotePlayers.end())

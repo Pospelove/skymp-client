@@ -8,6 +8,7 @@ std::unordered_map<std::string, std::string> g_config;
 #define CONFIG_IP std::string("server_ip")
 #define CONFIG_PORT std::string("server_port")
 #define CONFIG_SERVER_PASSWORD std::string("server_password")
+#define CONFIG_TCP_ONLY std::string("tcp_only")
 
 const auto cfgFile = "skymp_config.ini";
 
