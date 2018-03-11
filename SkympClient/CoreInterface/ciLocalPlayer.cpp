@@ -30,36 +30,11 @@ void MoveTo(uint32_t markerRefID)
 
 	if (SyncOptions::GetSingleton()->GetInt("MUTE_SOUND_ON_TP") != FALSE)
 	{
-		auto setVolume = [](DWORD v) {
-			WAVEFORMATEX    wfx = { 0 };
-
-			wfx.wFormatTag = WAVE_FORMAT_PCM;
-			wfx.cbSize = 0;
-			wfx.nChannels = 1;
-			wfx.nSamplesPerSec = 1000;
-			wfx.wBitsPerSample = 16;
-			wfx.nBlockAlign = wfx.wBitsPerSample / 8;
-			wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
-
-			auto hEvent = CreateEvent(0, TRUE, FALSE, 0);
-			if (hEvent)
-			{
-				HWAVEOUT out;
-				waveOutOpen(&out,
-					WAVE_MAPPER,
-					&wfx,
-					(DWORD)0,
-					(DWORD)GetModuleHandle(NULL),
-					CALLBACK_NULL);
-				waveOutSetVolume(out, v);
-			}
-		};
-
-		setVolume(0);
+		ci::SetVolume(0);
 
 		SET_TIMER(0, [=] {
 			SET_TIMER(1500, [=] {
-				setVolume(-1);
+				ci::SetVolume(-1);
 			});
 		});
 	}

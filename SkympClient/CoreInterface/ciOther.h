@@ -6,6 +6,8 @@
 
 namespace ci
 {
+	void SetVolume(unsigned long volume);
+
 	std::wstring GetDateString();
 
 	enum class CommandType : uint8_t

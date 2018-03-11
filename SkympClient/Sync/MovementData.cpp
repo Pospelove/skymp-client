@@ -159,30 +159,33 @@ namespace MovementData_
 		static std::string lastAE;
 		std::transform(animEventName.begin(), animEventName.end(), animEventName.begin(), ::tolower);
 
-		if (animEventName == "jumpup")
-			currentPCJumpStage = JumpStage::Jumping;
-		else if (animEventName == "jumpfall")
-			currentPCJumpStage = JumpStage::Falling;
-		else if (animEventName == "jumpdown")
+		if (src == g_thePlayer)
 		{
-			if (lastAE != animEventName)
+			if (animEventName == "jumpup")
+				currentPCJumpStage = JumpStage::Jumping;
+			else if (animEventName == "jumpfall")
+				currentPCJumpStage = JumpStage::Falling;
+			else if (animEventName == "jumpdown")
 			{
-				SET_TIMER(200, [] {
-					if (currentPCJumpStage != JumpStage::Jumping)
-						currentPCJumpStage = JumpStage::Landed;
-				});
+				if (lastAE != animEventName)
+				{
+					SET_TIMER(200, [] {
+						if (currentPCJumpStage != JumpStage::Jumping)
+							currentPCJumpStage = JumpStage::Landed;
+					});
+				}
 			}
+			else if (animEventName == "tailcombatidle")
+				weapDrawStart = clock();
+			else if (animEventName == "blockstartout")
+				isPCBlocking = true;
+			else  if (animEventName == "blockstop")
+				isPCBlocking = false;
+			else  if (animEventName == "weaponswing")
+				lastAnySwing = clock();
+			else if (animEventName == "weaponleftswing")
+				lastAnySwing = clock();
 		}
-		else if (animEventName == "tailcombatidle")
-			weapDrawStart = clock();
-		else if (animEventName == "blockstartout")
-			isPCBlocking = true;
-		else  if (animEventName == "blockstop")
-			isPCBlocking = false;
-		else  if (animEventName == "weaponswing")
-			lastAnySwing = clock();
-		else if (animEventName == "weaponleftswing")
-			lastAnySwing = clock();
 
 		AnimData_OnAnimationEvent(src, animEventName);
 

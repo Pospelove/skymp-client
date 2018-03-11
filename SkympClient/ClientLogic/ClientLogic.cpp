@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.24";
+auto version = "1.0.26";
 
 #include "Agent.h"
 
@@ -2514,6 +2514,8 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnStartup() override
 	{
+		ci::SetVolume(-1);
+
 		for (int32_t i = 0; i != 1024; ++i)
 			this->lastUpdateByServer[i] = NULL;
 
