@@ -750,7 +750,7 @@ namespace MovementData_
 			syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
 			cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
 
-			auto val = md.isWeapDrawn == false ? 0.0f : 0.0f;
+			auto val = md.isWeapDrawn == false ? 4.0f : 0.0f;
 			if (sd::GetActorValue(ac, "Confidence") != val)
 				sd::SetActorValue(ac, "Confidence", val);
 			if (md.isWeapDrawn)
