@@ -3238,6 +3238,7 @@ namespace ci
 			{
 				timer = clock() + SyncOptions::GetSingleton()->GetInt("GHOST_AXE_UPDATE_RATE");
 				cd::TranslateTo(actor, movData.pos.x, movData.pos.y, movData.pos.z, 0, 0, 0, 100000.0, 4.0);
+				sd::ForceActorValue(actor, "Confidence", 0);
 				if (sd::GetBaseActorValue(actor, "Invisibility") == 0)
 				{
 					this->aiEnabled = true;

@@ -243,7 +243,7 @@ namespace MovementData_
 		bool animBInJumpState = false;
 		actor->GetAnimationVariableBool(fsBInJumpState, animBInJumpState);
 		result.isInJumpState = animBInJumpState;
-		result.isWeapDrawn = actor->IsWeaponDrawn() || (actor == g_thePlayer && weapDrawStart + 250 > clock());
+		result.isWeapDrawn = actor->IsWeaponDrawn()/* || (actor == g_thePlayer && weapDrawStart + 250 > clock())*/;
 
 		result.isFirstPerson = actor != g_thePlayer || PlayerCamera::GetSingleton()->IsFirstPerson();
 
@@ -739,6 +739,14 @@ namespace MovementData_
 
 	void ApplyCombat(ci::MovementData md, Actor *ac, SyncState &syncStatus, const Config &config, uint32_t ghostAxeID)
 	{
+		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn)
+		{
+			cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
+		}
+
+		return;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply || syncStatus.updateWeapDrawnTimer < clock())
 		{
 			if (md.isWeapDrawn != syncStatus.last.isWeapDrawn)
@@ -750,9 +758,9 @@ namespace MovementData_
 			syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
 			cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
 
-			auto val = md.isWeapDrawn == false ? 4.0f : 0.0f;
-			if (sd::GetActorValue(ac, "Confidence") != val)
-				sd::SetActorValue(ac, "Confidence", val);
+			auto val = md.isWeapDrawn ? 0.0f : 0.0f;
+			sd::SetActorValue(ac, "Confidence", val);
+			sd::ForceActorValue(ac, "Confidence", val);
 			if (md.isWeapDrawn)
 			{
 				auto myFox = (TESObjectREFR *)LookupFormByID(syncStatus.myFoxID);
