@@ -204,6 +204,8 @@ namespace ci
 			isMagicAttackStarted[0] = isMagicAttackStarted[1] = false;
 		}
 
+		bool usl1, usl2, usl3, usl4, usl5;
+
 		dlf_mutex mutex;
 		FormID formID = 0;
 		std::wstring name;
@@ -1569,14 +1571,33 @@ namespace ci
 			if (firstSpawnAttempt == nullptr)
 				firstSpawnAttempt = new clock_t{ clock() };
 
-			if (*firstSpawnAttempt + 2333 < clock()
-				&& NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() < GetRespawnRadius(isInterior)
-				&& (pimpl->currentNonExteriorCell == CellUtil::GetParentNonExteriorCell(g_thePlayer) || pimpl->currentNonExteriorCell == nullptr)
-				&& pimpl->worldSpaceID == worldSpaceID
-				&& markerFormID)
+			pimpl->usl1 = *firstSpawnAttempt + 2333 < clock();
+			pimpl->usl2 = NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() < GetRespawnRadius(isInterior);
+			pimpl->usl3 = (pimpl->currentNonExteriorCell == CellUtil::GetParentNonExteriorCell(g_thePlayer) || pimpl->currentNonExteriorCell == nullptr);
+			pimpl->usl4 = pimpl->worldSpaceID == worldSpaceID;
+			pimpl->usl5 = markerFormID;
+
+
+			//ci::Log(pimpl->name + L"1");
+
+			if (pimpl->usl1
+				&& pimpl->usl2
+				&& pimpl->usl3
+				&& pimpl->usl4
+				&& pimpl->usl5)
 			{
+				//ci::Log(pimpl->name + L"2");
+
+				if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
+				{
+					currentSpawning = nullptr;
+					currentSpawningBaseID = 0;
+					ci::Log("WARN:RemotePlayer bad currentSpawning");
+				}
+
 				if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
 				{
+					//ci::Log(pimpl->name + L"3");
 					currentSpawning = this;
 					lastForceSpawn = clock();
 					auto npc = this->AllocateNPC();
@@ -1587,6 +1608,7 @@ namespace ci
 					currentSpawningBaseID = npc->GetFormID();
 					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 					SAFE_CALL("RemotePlayer", [&] {
+						//ci::Log(pimpl->name + L"4");
 						this->ForceSpawn(npc);
 					});
 					return;
@@ -2342,6 +2364,7 @@ namespace ci
 
 	void RemotePlayer::ForceSpawn(TESNPC *npc)
 	{
+		//ci::Log(pimpl->name + L"5");
 		const bool isDerived = this->IsDerived(); // Do not move IsDerived() call to SET_TIMER_LIGHT !
 
 		//SAFE_CALL("RemotePlayer", [&] {
@@ -2350,14 +2373,19 @@ namespace ci
 				ErrorHandling::SendError("ERROR:RemotePlayer Null NPC");
 				return;
 			}
+			//ci::Log(pimpl->name + L"6");
 
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 			if (pimpl->spawnStage != SpawnStage::NonSpawned)
 				return;
 
+			//ci::Log(pimpl->name + L"7");
+
 			if (this->GetAVData("Health").percentage <= 0.0)
 				return;
+
+			//ci::Log(pimpl->name + L"8");
 
 			this->DestroyGnomes();
 			pimpl->spawnStage = SpawnStage::Spawning;
@@ -2375,6 +2403,8 @@ namespace ci
 				if (!refToPlaceAt)
 					refToPlaceAt = g_thePlayer;
 			}
+
+			//ci::Log(pimpl->name + L"9");
 
 			auto onPlace = [=](cd::Value<TESObjectREFR> ac) {
 
