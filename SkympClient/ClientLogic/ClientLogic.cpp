@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.27";
+auto version = "1.0.28";
 
 #include "Agent.h"
 
@@ -509,7 +509,7 @@ class ClientLogic : public ci::IClientLogic
 		case ID_ALREADY_CONNECTED:
 			ci::Chat::AddMessage(L"Already connected");
 			Sleep(250);
-			this->ConnectToServer(net.host, net.port, net.hardcodedPassword, net.password, net.nickname);
+			this->ConnectToServer(g_config[CONFIG_IP], net.port, net.hardcodedPassword, net.password, net.nickname);
 			break;
 		case ID_DISCONNECTION_NOTIFICATION:
 			if (net.fullyConnected)
