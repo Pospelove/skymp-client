@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.28c";
+auto version = "1.0.28";
 
 #include "Agent.h"
 
@@ -29,7 +29,6 @@ class ClientLogic : public ci::IClientLogic
 	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
 	ci::LookData ld;
 	std::map<uint16_t, ci::IActor *> players;
-	std::map<uint16_t, clock_t> ctorMoment;
 	std::set<uint16_t> werewolfs;
 	std::map<uint16_t, std::shared_ptr<ci::Text3D>> playerBubbles;
 	std::map<uint32_t, ci::Object *> objects;
@@ -712,17 +711,6 @@ class ClientLogic : public ci::IClientLogic
 					if (hostedPlayers.count(playerid) == 0)
 					{
 						player->ApplyMovementData(movData);
-						auto remPl = dynamic_cast<ci::RemotePlayer *>(player);
-						if (remPl && !remPl->IsSpawned())
-						{
-							if (clock() - ctorMoment[playerid] > 29000)
-							{
-								ci::Log("FATAL:ClientLogic Bad Spawn");
-								ci::SetTimer(2000, [] {
-									std::exit(0);
-								});
-							}
-						}
 					}
 				}
 				player->SetCell(localPlayer->GetCell());
@@ -902,7 +890,6 @@ class ClientLogic : public ci::IClientLogic
 			newPl->SetMark(std::to_string(id));
 			players[id] = newPl;
 			lastFurniture[id] = 0;
-			ctorMoment[id] = clock();
 
 			//uint32_t baseNpc = 0;
 			//bsIn.Read(baseNpc);
@@ -2048,19 +2035,6 @@ class ClientLogic : public ci::IClientLogic
 						if ((size_t)playerBubbles[playerID].get() == addr)
 							playerBubbles[playerID] = nullptr;
 					});
-					try {
-						auto rem = dynamic_cast<ci::RemotePlayer *>(players.at(playerID));
-						if (rem && rem->IsSpawned() == false)
-						{
-							if (clock() - ctorMoment[playerID] > 5000)
-							{
-								ci::Log("ERROR:ClientLogic 3dtext bad pos source");
-								playerBubbles[playerID].reset();
-							}
-						}
-					}
-					catch (...) {
-					}
 				}
 			}
 			break;
