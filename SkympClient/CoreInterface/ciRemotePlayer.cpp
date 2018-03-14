@@ -1578,7 +1578,7 @@ namespace ci
 			pimpl->usl5 = markerFormID;
 
 
-			//ci::Log(pimpl->name + L"1");
+			ci::Chat::AddMessage(pimpl->name + L"1");
 
 			if (pimpl->usl1
 				&& pimpl->usl2
@@ -1586,7 +1586,7 @@ namespace ci
 				&& pimpl->usl4
 				&& pimpl->usl5)
 			{
-				//ci::Log(pimpl->name + L"2");
+				ci::Chat::AddMessage(pimpl->name + L"2");
 
 				if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
 				{
@@ -1597,7 +1597,7 @@ namespace ci
 
 				if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
 				{
-					//ci::Log(pimpl->name + L"3");
+					ci::Chat::AddMessage(pimpl->name + L"3");
 					currentSpawning = this;
 					lastForceSpawn = clock();
 					auto npc = this->AllocateNPC();
@@ -1608,7 +1608,7 @@ namespace ci
 					currentSpawningBaseID = npc->GetFormID();
 					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 					SAFE_CALL("RemotePlayer", [&] {
-						//ci::Log(pimpl->name + L"4");
+						ci::Chat::AddMessage(pimpl->name + L"4");
 						this->ForceSpawn(npc);
 					});
 					return;
@@ -2171,6 +2171,15 @@ namespace ci
 		auto actor = (Actor *)LookupFormByID(pimpl->formID);
 		if (!actor)
 			return this->ForceDespawn(L"Despawned: Unloaded by the game");
+		else
+		{
+			auto myCell = sd::GetParentCell(g_thePlayer);
+			auto actorCell = sd::GetParentCell(actor);
+			if (myCell && myCell->IsInterior() && myCell != actorCell)
+			{
+				return this->ForceDespawn(L"Despawned: Cell changed (1.0.28e)");
+			}
+		}
 
 
 		static auto getIdentifier = [](TESForm *form) {
@@ -2522,6 +2531,8 @@ namespace ci
 
 	void RemotePlayer::ForceDespawn(const wchar_t *reason)
 	{
+		ci::Log(L"DBG:RemotePlayer ForceDespawn " + std::wstring(reason));
+
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 		if (pimpl->spawnStage == SpawnStage::Spawned ||
