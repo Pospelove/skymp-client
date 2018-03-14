@@ -1578,7 +1578,7 @@ namespace ci
 			pimpl->usl5 = markerFormID;
 
 
-			ci::Chat::AddMessage(pimpl->name + L"1");
+			//ci::Chat::AddMessage(pimpl->name + L"1");
 
 			if (pimpl->usl1
 				&& pimpl->usl2
@@ -1586,7 +1586,7 @@ namespace ci
 				&& pimpl->usl4
 				&& pimpl->usl5)
 			{
-				ci::Chat::AddMessage(pimpl->name + L"2");
+				//ci::Chat::AddMessage(pimpl->name + L"2");
 
 				if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
 				{
@@ -1597,7 +1597,7 @@ namespace ci
 
 				if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
 				{
-					ci::Chat::AddMessage(pimpl->name + L"3");
+					//ci::Chat::AddMessage(pimpl->name + L"3");
 					currentSpawning = this;
 					lastForceSpawn = clock();
 					auto npc = this->AllocateNPC();
@@ -1608,7 +1608,7 @@ namespace ci
 					currentSpawningBaseID = npc->GetFormID();
 					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 					SAFE_CALL("RemotePlayer", [&] {
-						ci::Chat::AddMessage(pimpl->name + L"4");
+						//ci::Chat::AddMessage(pimpl->name + L"4");
 						this->ForceSpawn(npc);
 					});
 					return;
