@@ -694,6 +694,10 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(playerid);
 			ci::MovementData movData;
 			Deserialize(bsIn, movData);
+
+			if (abs(movData.pos.x - 2 * 1000 * 1000 * 1000) < 10 * 1000 * 1000) // go to Player::RepeatRegisterMove() in server source to learn more
+				break;
+
 			uint8_t enabled;
 			uint32_t locationID;
 			bsIn.Read(enabled);
