@@ -695,8 +695,23 @@ class ClientLogic : public ci::IClientLogic
 			ci::MovementData movData;
 			Deserialize(bsIn, movData);
 
-			if (abs(movData.pos.x - 2 * 1000 * 1000 * 1000) < 10 * 1000 * 1000) // go to Player::RepeatRegisterMove() in server source to learn more
-				break;
+			static std::map<uint16_t, ci::MovementData> lastMovement;
+
+			// go to Player::RepeatRegisterMove() in server source to learn more
+
+			/*ci::Chat::AddMessage(
+				std::to_wstring(
+					(lastMovement[playerid].pos - movData.pos).Length()
+				)
+			);*/
+			if (lastMovement.count(playerid) != 0
+				&& (lastMovement[playerid].pos - movData.pos).Length() > 1000000000.0)
+			{
+				//ci::Chat::AddMessage(L"castStage");
+				lastMovement[playerid] = movData;
+				return;
+			}
+			lastMovement[playerid] = movData;
 
 			uint8_t enabled;
 			uint32_t locationID;

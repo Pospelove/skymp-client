@@ -739,55 +739,35 @@ namespace MovementData_
 
 	void ApplyCombat(ci::MovementData md, Actor *ac, SyncState &syncStatus, const Config &config, uint32_t ghostAxeID)
 	{
-		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn)
+		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply/* || syncStatus.updateWeapDrawnTimer < clock()*/)
 		{
-			cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
-		}
-
-		return;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply || syncStatus.updateWeapDrawnTimer < clock())
-		{
-			if (md.isWeapDrawn != syncStatus.last.isWeapDrawn)
-			{
-				syncStatus.shotsRecordStart = 0;
-				syncStatus.numShots = 0;
-			}
-
 			syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
+
 			cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");
 
-			auto val = md.isWeapDrawn ? 0.0f : 0.0f;
+			auto val = md.isWeapDrawn ? 4.0f : 0.0f;
 			sd::SetActorValue(ac, "Confidence", val);
 			sd::ForceActorValue(ac, "Confidence", val);
-			if (md.isWeapDrawn)
-			{
-				auto myFox = (TESObjectREFR *)LookupFormByID(syncStatus.myFoxID);
-				if (myFox != nullptr && syncStatus.aiDrivenBowSync)
-				{
-					if (myFox->baseForm->formType == FormType::NPC
-						&& sd::GetEquippedSpell(ac, 1) == nullptr && sd::GetEquippedSpell(ac, 0) == nullptr)
-						sd::StartCombat(ac, (Actor *)myFox)
-						;
-				}
-				else
-				{
-					if (sd::GetCombatTarget(ac) == myFox)
-						sd::StopCombat(ac);
-					auto ghostAxe = (Actor *)LookupFormByID(ghostAxeID);
-					if (ghostAxe != nullptr)
-						if (sd::GetEquippedSpell(ac, 1) == nullptr && sd::GetEquippedSpell(ac, 0) == nullptr)
-							sd::StartCombat(ac, ghostAxe)
-							;
-				}
-				ac->DrawSheatheWeapon(true);
-			}
+
+			auto val1 = md.isWeapDrawn ? 1.0f : 0.0f;
+			sd::SetActorValue(ac, "variable10", val1);
+			sd::ForceActorValue(ac, "variable10", val1);
+
+			auto ghostAxe = (Actor *)LookupFormByID(ghostAxeID);
+			if (md.isWeapDrawn && ghostAxe != nullptr && sd::GetEquippedSpell(ac, 1) == nullptr && sd::GetEquippedSpell(ac, 0) == nullptr)
+				sd::StartCombat(ac, ghostAxe);
 			else
 			{
+				sd::StopCombat(ghostAxe);
 				sd::StopCombat(ac);
-				ac->DrawSheatheWeapon(false);
 			}
+
+			ac->DrawSheatheWeapon(md.isWeapDrawn);
+		}
+		if (sd::GetCombatTarget(ac) == g_thePlayer)
+		{
+			sd::StopCombat(ac);
+			syncStatus.updateWeapDrawnTimer = clock() - 1;
 		}
 	}
 

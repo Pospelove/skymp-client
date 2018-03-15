@@ -47,7 +47,7 @@ void WriteDefaultOptions(const char *cfgFile)
 	auto s = "; ci::RemotePlayer\n"
 		"DRAW_DISTANCE = 3500\n"
 		"NICKNAME_DISTANCE = 750\n"
-		"GHOST_AXE_OFFSET_Z = 2048\n"
+		"GHOST_AXE_OFFSET_Z = 1024\n"
 		"GHOST_AXE_UPDATE_RATE = 750\n"
 		"MAX_HARDSYNCED_PLAYERS = 1000\n"
 		"MAX_PLAYERS_SYNCED_SAFE = 0\n"
