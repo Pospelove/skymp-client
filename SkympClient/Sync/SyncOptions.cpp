@@ -165,3 +165,9 @@ std::string SyncOptions::GetString(std::string o) const
 	std::lock_guard<dlf_mutex> l(pimpl->m);
 	return pimpl->options[o];
 }
+
+void SyncOptions::Set(std::string o, std::string val)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->m);
+	pimpl->options[o] = val;
+}

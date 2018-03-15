@@ -243,7 +243,7 @@ namespace MovementData_
 		bool animBInJumpState = false;
 		actor->GetAnimationVariableBool(fsBInJumpState, animBInJumpState);
 		result.isInJumpState = animBInJumpState;
-		result.isWeapDrawn = actor->IsWeaponDrawn()/* || (actor == g_thePlayer && weapDrawStart + 250 > clock())*/;
+		result.isWeapDrawn = actor->IsWeaponDrawn() || (actor == g_thePlayer && weapDrawStart + 250 > clock());
 
 		result.isFirstPerson = actor != g_thePlayer || PlayerCamera::GetSingleton()->IsFirstPerson();
 
@@ -739,6 +739,7 @@ namespace MovementData_
 
 	void ApplyCombat(ci::MovementData md, Actor *ac, SyncState &syncStatus, const Config &config, uint32_t ghostAxeID)
 	{
+		// Вылетоопасность
 		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply/* || syncStatus.updateWeapDrawnTimer < clock()*/)
 		{
 			syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
@@ -762,7 +763,7 @@ namespace MovementData_
 				sd::StopCombat(ac);
 			}
 
-			ac->DrawSheatheWeapon(md.isWeapDrawn);
+			//ac->DrawSheatheWeapon(md.isWeapDrawn); // Краш из-за этого вызова?
 		}
 		if (sd::GetCombatTarget(ac) == g_thePlayer)
 		{

@@ -2222,7 +2222,7 @@ namespace ci
 		{
 			target = getIdentifier(ct->baseForm);
 		}
-		ci::Chat::AddMessage(this->GetName() + L"'s combat target is " + StringToWstring(target));
+		//ci::Chat::AddMessage(this->GetName() + L"'s combat target is " + StringToWstring(target));
 
 		bool brk = false;
 		SAFE_CALL("RemotePlayer", [&] {

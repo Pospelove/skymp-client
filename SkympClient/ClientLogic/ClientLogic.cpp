@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.28";
+auto version = "1.0.29";
 
 #include "Agent.h"
 
@@ -694,25 +694,6 @@ class ClientLogic : public ci::IClientLogic
 			bsIn.Read(playerid);
 			ci::MovementData movData;
 			Deserialize(bsIn, movData);
-
-			static std::map<uint16_t, ci::MovementData> lastMovement;
-
-			// go to Player::RepeatRegisterMove() in server source to learn more
-
-			/*ci::Chat::AddMessage(
-				std::to_wstring(
-					(lastMovement[playerid].pos - movData.pos).Length()
-				)
-			);*/
-			if (lastMovement.count(playerid) != 0
-				&& (lastMovement[playerid].pos - movData.pos).Length() > 1000000000.0)
-			{
-				//ci::Chat::AddMessage(L"castStage");
-				lastMovement[playerid] = movData;
-				return;
-			}
-			lastMovement[playerid] = movData;
-
 			uint8_t enabled;
 			uint32_t locationID;
 			bsIn.Read(enabled);
@@ -926,7 +907,7 @@ class ClientLogic : public ci::IClientLogic
 						localPlayer->GetWorldSpace(),
 						onHit, "",
 						onActivate);
-					p->SetBaseNPC(0x00109E3D);
+					p->SetBaseNPC(baseNpc);
 					p->SetMark(std::to_string(id));
 					delete players[id];
 					players[id] = p;
@@ -2552,6 +2533,10 @@ class ClientLogic : public ci::IClientLogic
 			return;
 		}
 
+		const auto drawDistance = g_config[CONFIG_DRAW_DISTANCE];
+		if (drawDistance.empty() == false && atoi(drawDistance.data()) != 0)
+			ci::SetSyncOption("DRAW_DISTANCE", drawDistance);
+
 		auto name = StringToWstring(g_config[CONFIG_NAME]);
 
 		if (g_config[CONFIG_TCP_ONLY] == "true")
@@ -2914,7 +2899,7 @@ class ClientLogic : public ci::IClientLogic
 		static std::map<ci::RemotePlayer *, NiPoint3> offsets;
 		static bool traceHorseMovement = false;
 
-		if (cmdText == L"/q")
+		if (cmdText == L"/q" || cmdText == L"//q")
 		{
 			if (net.peer != nullptr)
 			{
@@ -2966,6 +2951,17 @@ class ClientLogic : public ci::IClientLogic
 			ofs << std::endl;
 
 			ci::Chat::AddMessage(L"#bebebe>> World point saved to " + StringToWstring(file));
+		}
+		else if (cmdText == L"//mute")
+		{
+			static bool mute = true;
+			ci::SetVolume(mute ? 0 : -1);
+			mute = !mute;
+		}
+		else if (cmdText == L"//syncopt" || cmdText == L"//so")
+		{
+			ci::SetSyncOption(WstringToString(arguments[0]), WstringToString(arguments[1]));
+			ci::Chat::AddMessage((L"#BEBEBE" L"Set ") + arguments[0] + L" to " + arguments[1]);
 		}
 		else if (cmdText == L"//stat")
 		{

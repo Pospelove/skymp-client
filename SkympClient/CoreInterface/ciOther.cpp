@@ -10,6 +10,7 @@
 #include "../Costile/CDScript.h"
 
 #include "../Sync/AnimData.h"
+#include "../Sync/SyncOptions.h"
 
 #include "../Overlay\Loadscreen.h"
 
@@ -27,6 +28,13 @@ public:
 
 namespace ci
 {
+	void SetSyncOption(std::string o, std::string val)
+	{
+		// threadsafe
+		static auto so = SyncOptions::GetSingleton();
+		so->Set(o, val);
+	}
+
 	void SetVolume(unsigned long volume)
 	{
 		auto setVolume = [](DWORD v) {
