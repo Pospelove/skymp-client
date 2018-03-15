@@ -108,7 +108,7 @@ void WriteDefaultOptions(const char *cfgFile)
 		"Normal.negligibleTime = 100\n"
 		"Normal.headtrackingDisabled = 1\n"
 		"Light.smartAngle = 1\n"
-		"Light.weapDrawnUpdateRate = 11000\n"
+		"Light.weapDrawnUpdateRate = 11000000\n"
 		"Light.positionUpdateRate = 400\n"
 		"Light.sneakingUpdateRate = 11000\n"
 		"Light.blockingUpdateRate = 11000\n"
