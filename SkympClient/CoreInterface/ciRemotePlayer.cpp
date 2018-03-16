@@ -212,6 +212,8 @@ namespace ci
 		std::unique_ptr<ci::Text3D> nicknameLabel;
 		std::unique_ptr<ci::IRemotePlayerEngine> engine;
 		bool nicknameEnabled = true;
+		bool hasLOS = true;
+		clock_t lastLosCheck = 0;
 		LookData lookData;
 		ILookSynchronizer *lookSync = ILookSynchronizer::GetV17();
 		TESObjectCELL *currentNonExteriorCell = nullptr;
@@ -250,8 +252,6 @@ namespace ci
 		std::function<void()> engineTask = nullptr;
 		bool fullySpawned = false;
 		std::set<const ci::Perk *> perks;
-		bool hasLOS = true;
-		clock_t lastLOSCheckCall = 0;
 
 		struct Equipment
 		{
@@ -1600,24 +1600,29 @@ namespace ci
 				if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
 				{
 					//ci::Chat::AddMessage(pimpl->name + L"3");
-					currentSpawning = this;
-					lastForceSpawn = clock();
+
 					auto npc = this->AllocateNPC();
 					if (pimpl->baseNpc != nullptr)
 					{
 						npc->race = pimpl->baseNpc->GetRace();
 					}
-					currentSpawningBaseID = npc->GetFormID();
-					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
-					SAFE_CALL("RemotePlayer", [&] {
-						//ci::Chat::AddMessage(pimpl->name + L"4");
+
+					bool successfullForceSpawn;
+
+					try {
 						this->ForceSpawn(npc);
-						if (pimpl->spawnStage == SpawnStage::NonSpawned)
-						{
-							currentSpawning = nullptr;
-							currentSpawningBaseID = NULL;
-						}
-					});
+						successfullForceSpawn = (pimpl->spawnStage != SpawnStage::NonSpawned);
+					}
+					catch (...) {
+						successfullForceSpawn = false;
+					}
+					if (successfullForceSpawn)
+					{
+						currentSpawning = this;
+						lastForceSpawn = clock();
+						currentSpawningBaseID = npc->GetFormID();
+						WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
+					}
 					return;
 				}
 			}
@@ -2178,7 +2183,7 @@ namespace ci
 		auto actor = (Actor *)LookupFormByID(pimpl->formID);
 		if (!actor)
 			return this->ForceDespawn(L"Despawned: Unloaded by the game");
-		else
+
 		{
 			if (clock() - pimpl->spawnMoment > 2500
 				&& sd::Is3DLoaded(actor) == false)
@@ -2194,10 +2199,10 @@ namespace ci
 			}
 		}
 
-		if (clock() - pimpl->lastLOSCheckCall > 700)
+		if (clock() - pimpl->lastLosCheck > 300)
 		{
 			pimpl->hasLOS = sd::HasLOS(g_thePlayer, actor);
-			pimpl->lastLOSCheckCall = clock();
+			pimpl->lastLosCheck = clock();
 		}
 
 		static auto getIdentifier = [](TESForm *form) {
@@ -2255,10 +2260,11 @@ namespace ci
 					&& ((currentRace->formID != WerewolfRace && currentRace->formID != this->pimpl->lookData.raceID) || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
 					&& this->pimpl->lookData.isEmpty() == false)
 				{
-					auto lookData = this->pimpl->lookData;
+					/*auto lookData = this->pimpl->lookData;
 					this->pimpl->lookData = {};
 					this->ApplyLookData(lookData);
-					brk = true;
+					brk = true;*/
+					// Зачем вообще нужен был этот костыль???
 				}
 			}
 		});
@@ -3199,9 +3205,9 @@ namespace ci
 
 	float RemotePlayer::GetNicknameDrawDistance() const
 	{
-		return pimpl->movementData.isSneaking ?
-			+SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE_SNEAKING") :
-			+SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE");
+		if (pimpl->movementData.isSneaking)
+			return SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE_SNEAKING");
+		return SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE");
 	}
 
 	bool RemotePlayer::IsSpawned() const
