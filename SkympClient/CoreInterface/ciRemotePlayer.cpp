@@ -341,9 +341,12 @@ namespace ci
 			auto &pimpl = this->GetImpl();
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
-			pimpl->lookData = lookData;
-			if (pimpl->spawnStage == SpawnStage::Spawned && this->GetParent()->IsDerived() == false)
-				this->GetParent()->ForceDespawn(L"Despawned: LookData updated");
+			if (pimpl->lookData != lookData)
+			{
+				pimpl->lookData = lookData;
+				if (pimpl->spawnStage == SpawnStage::Spawned && this->GetParent()->IsDerived() == false)
+					this->GetParent()->ForceDespawn(L"Despawned: LookData updated");
+			}
 		}
 
 		void UseFurniture(const Object *target, bool withAnim) override
@@ -1588,11 +1591,17 @@ namespace ci
 			{
 				//ci::Chat::AddMessage(pimpl->name + L"2");
 
-				if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
+				/*if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
 				{
 					currentSpawning = nullptr;
 					currentSpawningBaseID = 0;
 					ci::Log("WARN:RemotePlayer bad currentSpawning");
+				}*/
+
+
+				if (currentSpawning != nullptr)
+				{
+
 				}
 
 				if (currentSpawning == nullptr && currentSpawningBaseID == NULL)
@@ -1609,7 +1618,13 @@ namespace ci
 					WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, true);
 					SAFE_CALL("RemotePlayer", [&] {
 						//ci::Chat::AddMessage(pimpl->name + L"4");
-						this->ForceSpawn(npc);
+						const bool success = this->ForceSpawn(npc);
+						if (!success)
+						{
+							currentSpawning = nullptr;
+							currentSpawningBaseID = 0;
+						}
+						//this->Spawn(npc);
 					});
 					return;
 				}
@@ -2231,7 +2246,8 @@ namespace ci
 		//ci::Chat::AddMessage(this->GetName() + L"'s combat target is " + StringToWstring(target));
 
 		bool brk = false;
-		SAFE_CALL("RemotePlayer", [&] {
+		// goes to respawn player every single second!
+		/*SAFE_CALL("RemotePlayer", [&] {
 			if (pimpl->baseNpc == nullptr)
 			{
 				const auto currentRace = sd::GetRace(actor);
@@ -2239,17 +2255,23 @@ namespace ci
 					WerewolfRace = 0x000CDD84,
 				};
 
-				if (pimpl->spawnMoment + 1000 < clock()
-					&& ((currentRace->formID != WerewolfRace && currentRace->formID != this->pimpl->lookData.raceID) || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options))
-					&& this->pimpl->lookData.isEmpty() == false)
+				const bool usl1 = pimpl->spawnMoment + 1000 < clock(),
+					usl2 = ((currentRace->formID != WerewolfRace && currentRace->formID != this->pimpl->lookData.raceID) || 0 != memcmp(((TESNPC *)actor->baseForm)->faceMorph->option, &this->pimpl->lookData.options[0], sizeof LookData().options)),
+					usl3 = this->pimpl->lookData.isEmpty() == false;
+				
+
+				if (usl1
+					&& usl2
+					&& usl3)
 				{
+					ci::Chat::AddMessage(L"Что за хуйнина! " + std::to_wstring(usl1) + std::to_wstring(usl2) + std::to_wstring(usl3));
 					auto lookData = this->pimpl->lookData;
 					this->pimpl->lookData = {};
 					this->ApplyLookData(lookData);
 					brk = true;
 				}
 			}
-		});
+		});*/
 		if (brk)
 			return;
 
@@ -2352,14 +2374,17 @@ namespace ci
 			switch (spawnStage)
 			{
 			case SpawnStage::NonSpawned:
+				//ci::Chat::AddMessage(L"NonSpawned " + this->GetName());
 				this->UpdateNonSpawned();
 				break;
 
 			case SpawnStage::Spawning:
+				//ci::Chat::AddMessage(L"Spawning " + this->GetName());
 				this->UpdateSpawning();
 				break;
 
 			case SpawnStage::Spawned:
+				//ci::Chat::AddMessage(L"Spawned" + this->GetName());
 				this->UpdateSpawned();
 				break;
 			}
@@ -2377,7 +2402,7 @@ namespace ci
 			return this->ForceDespawn(L"Despawned: Window isn't active");
 	}
 
-	void RemotePlayer::ForceSpawn(TESNPC *npc)
+	bool RemotePlayer::ForceSpawn(TESNPC *npc)
 	{
 		//ci::Log(pimpl->name + L"5");
 		const bool isDerived = this->IsDerived(); // Do not move IsDerived() call to SET_TIMER_LIGHT !
@@ -2386,19 +2411,21 @@ namespace ci
 			if (npc == nullptr)
 			{
 				ErrorHandling::SendError("ERROR:RemotePlayer Null NPC");
-				return;
+				return false;
 			}
 			//ci::Log(pimpl->name + L"6");
 
 			std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 			if (pimpl->spawnStage != SpawnStage::NonSpawned)
-				return;
+				return false;
 
 			//ci::Log(pimpl->name + L"7");
 
-			if (this->GetAVData("Health").percentage <= 0.0)
-				return;
+			auto percentage = this->GetAVData("Health").percentage;
+			//ci::Chat::AddMessage(std::to_wstring(percentage) + L" " + this->GetName());
+			if (percentage <= 0.0)
+				return false;
 
 			//ci::Log(pimpl->name + L"8");
 
@@ -2506,14 +2533,23 @@ namespace ci
 			if (SyncOptions::GetSingleton()->GetInt("UNSAFE_PLACEATME") != 0)
 			{
 				//SAFE_CALL("RemotePlayer", [&] {
-					if (refToPlaceAt == nullptr)
-						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 1");
-					if (npc == nullptr)
-						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
+				if (refToPlaceAt == nullptr)
+				{
+					ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 1");
+					return false;
+				}
+				if (npc == nullptr)
+				{
+					ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 2");
+					return false;
+				}
 					auto refr = sd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable);
 					sd::SetActorValue((Actor *)refr, "Variable01", rand()); // Fix magic cast on spawn
 					if (refr == nullptr)
-						return ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
+					{
+						ErrorHandling::SendError("ERORR:RemotePlayer ForceSpawn() bad argument 3");
+						return false;
+					}
 
 
 					cd::Value<TESObjectREFR> cdRefr;
@@ -2533,6 +2569,7 @@ namespace ci
 				cd::PlaceAtMe(refToPlaceAt, npc, 1, true, disable, onPlace);
 			}
 		//});
+			return true;
 	}
 
 	void RemotePlayer::ForceDespawn(const wchar_t *reason)
