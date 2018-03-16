@@ -139,7 +139,7 @@ namespace ci
 		void Update();
 		void Update_OT();
 
-		bool ForceSpawn(TESNPC *npc);
+		void ForceSpawn(TESNPC *npc);
 		void ForceDespawn(const wchar_t *reason = L"");
 
 		int32_t GetSyncMode() const;
