@@ -739,9 +739,17 @@ namespace MovementData_
 
 	void ApplyCombat(ci::MovementData md, Actor *ac, SyncState &syncStatus, const Config &config, uint32_t ghostAxeID)
 	{
+		static std::map<Actor *, clock_t> lastCheck;
+
+		if (lastCheck.size() > 1000)
+			lastCheck.clear();
+
 		// Вылетоопасность
-		if (md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply/* || syncStatus.updateWeapDrawnTimer < clock()*/)
+		if ((md.isWeapDrawn != ac->IsWeaponDrawn() && clock() - lastCheck[ac] > 1000)
+			|| md.isWeapDrawn != syncStatus.last.isWeapDrawn || syncStatus.isFirstNormalApply/* || syncStatus.updateWeapDrawnTimer < clock()*/)
 		{
+			lastCheck[ac] = clock();
+
 			syncStatus.updateWeapDrawnTimer = clock() + config.weapDrawnUpdateRate;
 
 			cd::SendAnimationEvent(ac, md.isWeapDrawn ? "Skymp_StartCombat" : "Skymp_StopCombat");

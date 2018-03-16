@@ -2173,6 +2173,12 @@ namespace ci
 			return this->ForceDespawn(L"Despawned: Unloaded by the game");
 		else
 		{
+			if (clock() - pimpl->spawnMoment > 2500
+				&& sd::Is3DLoaded(actor) == false)
+			{
+				return this->ForceDespawn(L"Despawned: 3D isn't loaded (1.0.30)");
+			}
+
 			auto myCell = sd::GetParentCell(g_thePlayer);
 			auto actorCell = sd::GetParentCell(actor);
 			if (myCell && myCell->IsInterior() && myCell != actorCell)

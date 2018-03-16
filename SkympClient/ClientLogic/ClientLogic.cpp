@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.29";
+auto version = "1.0.30";
 
 #include "Agent.h"
 
@@ -3079,6 +3079,8 @@ class ClientLogic : public ci::IClientLogic
 				auto m = localPlayer->GetMovementData();
 				m.pos += offsets[p];
 				p->ApplyMovementData(m);
+				p->SetCell(localPlayer->GetCell());
+				p->SetWorldSpace(localPlayer->GetWorldSpace());
 
 				int32_t clearVisualEffect = 0;
 				for(int32_t i = 1; i >= 0; --i)
