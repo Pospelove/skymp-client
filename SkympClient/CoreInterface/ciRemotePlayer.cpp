@@ -212,6 +212,8 @@ namespace ci
 		std::unique_ptr<ci::Text3D> nicknameLabel;
 		std::unique_ptr<ci::IRemotePlayerEngine> engine;
 		bool nicknameEnabled = true;
+		bool hasLOS = false;
+		clock_t lastHasLOSCall = 0;
 		LookData lookData;
 		ILookSynchronizer *lookSync = ILookSynchronizer::GetV17();
 		TESObjectCELL *currentNonExteriorCell = nullptr;
@@ -1726,10 +1728,10 @@ namespace ci
 					nicknamePos += {0, 0, 22};
 				}
 
-				if (pimpl->nicknameLabel == nullptr && pimpl->nicknameEnabled)
+				if (pimpl->nicknameLabel == nullptr && pimpl->nicknameEnabled && pimpl->hasLOS)
 					pimpl->nicknameLabel.reset(new ci::Text3D(this->GetName(), nicknamePos));
 
-				if (pimpl->nicknameLabel != nullptr && !pimpl->nicknameEnabled)
+				if (pimpl->nicknameLabel != nullptr && (!pimpl->nicknameEnabled || !pimpl->hasLOS))
 					pimpl->nicknameLabel.reset();
 
 
@@ -2200,6 +2202,12 @@ namespace ci
 			{
 				return this->ForceDespawn(L"Despawned: Cell changed (1.0.28e)");
 			}
+		}
+
+		if (clock() - pimpl->lastHasLOSCall > 700)
+		{
+			pimpl->hasLOS = sd::HasLOS(g_thePlayer, actor);
+			pimpl->lastHasLOSCall = clock();
 		}
 
 
@@ -3224,7 +3232,9 @@ namespace ci
 
 	float RemotePlayer::GetNicknameDrawDistance() const
 	{
-		return SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE");
+		return pimpl->movementData.isSneaking ? 
+			SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE_SNEAKING") : 
+			SyncOptions::GetSingleton()->GetFloat("NICKNAME_DISTANCE");
 	}
 
 	bool RemotePlayer::IsSpawned() const
