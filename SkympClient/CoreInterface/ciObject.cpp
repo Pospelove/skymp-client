@@ -919,9 +919,13 @@ void ci::Object::Update()
 				)
 			{
 				auto marker = (TESObjectREFR *)LookupFormByID(markerFormID);
-				if (marker && marker->formType == FormType::Reference && (cd::GetPosition(marker) - ci::LocalPlayer::GetSingleton()->GetPos()).Length() > 256)
+				if (marker && marker->formType == FormType::Reference)
 				{
-					this->ForceSpawn();
+					const auto markerPos = cd::GetPosition(marker);
+					if ((markerPos - ci::LocalPlayer::GetSingleton()->GetPos()).Length() > 96)
+						this->ForceSpawn();
+					else
+						sd::TranslateTo(marker, markerPos.x, markerPos.y, markerPos.z + 2048, 0, 0, 0, 10000.0, 0.0);
 				}
 			}
 		});
