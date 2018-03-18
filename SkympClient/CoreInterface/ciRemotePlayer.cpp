@@ -910,30 +910,36 @@ namespace ci
 				const float newVal = pimpl->combatTarget != 0 ? 4.0f : 0.0f;
 				sd::SetActorValue(actor, "Confidence", newVal);
 				sd::ForceActorValue(actor, "Confidence", newVal);
-				sd::SetActorValue(actor, "Agression", 1.0);
-				sd::ForceActorValue(actor, "Agression", 1.0);
 
+				//ci::Chat::AddMessage(std::to_wstring(pimpl->combatTarget));
 				if (pimpl->combatTarget != 0)
 				{
 					auto combatTarget = (Actor *)LookupFormByID(pimpl->combatTarget);
 					if (combatTarget != nullptr)
 					{
 						sd::ClearKeepOffsetFromActor(actor);
-						if (sd::GetCombatTarget(actor) != combatTarget)
+						if (sd::GetCombatTarget(actor) != combatTarget && sd::HasLOS(actor, combatTarget))
 						{
 							sd::StopCombat(actor);
 							sd::StartCombat(actor, combatTarget);
 						}
+						sd::SetActorValue(actor, "Agression", 4.0);
+						sd::ForceActorValue(actor, "Agression", 4.0);
+					}
+					else
+					{
+						sd::SetActorValue(actor, "Agression", 0.0);
+						sd::ForceActorValue(actor, "Agression", 0.0);
 					}
 				}
 				else
 				{
+					sd::SetActorValue(actor, "Agression", 0.0);
+					sd::ForceActorValue(actor, "Agression", 0.0);
 					sd::PathToReference(actor, actor, 0.5);
 					if (sd::IsInCombat(actor))
 						sd::StopCombat(actor);
 				}
-				sd::SetActorValue(actor, "Aggression", 0.0f);
-				sd::ForceActorValue(actor, "Aggression", 0.0f);
 			}
 
 			TESObjectREFR *const target = pimpl->pathToTarget ? (TESObjectREFR *)LookupFormByID(ObjectAccess::GetObjectRefID(pimpl->pathToTarget.get())) : nullptr;

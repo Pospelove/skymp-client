@@ -688,8 +688,6 @@ class ClientLogic : public ci::IClientLogic
 		}
 		case ID_PLAYER_MOVEMENT:
 		{
-			//ci::SetDetectionEnabled(hostedPlayers.empty() == false);
-
 			uint16_t playerid = ~0;
 			bsIn.Read(playerid);
 			ci::MovementData movData;

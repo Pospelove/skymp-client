@@ -1778,6 +1778,9 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+	// Shitfix of enabled fast traveling
+	sd::EnableFastTravel(false);
+
 	// Update location id
 	auto getLocation = [](TESObjectREFR *ref) {
 		auto interior = sd::GetParentCell(ref);

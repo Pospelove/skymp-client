@@ -508,20 +508,4 @@ namespace ci
 		if (control != Control::COUNT)
 			PlayerControls_::SetEnabled(control, enable);
 	}
-
-	bool isDetectionEnabled = true;
-
-	void SetDetectionEnabled(bool enable)
-	{
-		if (enable != isDetectionEnabled)
-		{
-			ci::ExecuteCommand(ci::CommandType::Console, "toggledetection");
-			isDetectionEnabled = enable;
-		}
-	}
-
-	bool IsDetectionEnabled()
-	{
-		return isDetectionEnabled;
-	}
 }
