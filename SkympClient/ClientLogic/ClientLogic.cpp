@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.30";
+auto version = "1.0.31";
 
 #include "Agent.h"
 
@@ -2537,6 +2537,10 @@ class ClientLogic : public ci::IClientLogic
 		if (drawDistance.empty() == false && atoi(drawDistance.data()) != 0)
 			ci::SetSyncOption("DRAW_DISTANCE", drawDistance);
 
+		const auto fov = g_config[CONFIG_FOV];
+		if (fov.empty() == false && atoi(fov.data()) != 0)
+			ci::ExecuteCommand(ci::CommandType::Console, "fov " + fov);
+
 		auto name = StringToWstring(g_config[CONFIG_NAME]);
 
 		if (g_config[CONFIG_TCP_ONLY] == "true")
@@ -2720,6 +2724,23 @@ class ClientLogic : public ci::IClientLogic
 					{
 						this->OnDialogResponse(lastDialogID, { L"", -1 });
 					}
+			}
+		}
+		{
+			const auto now = ci::IsKeyPressed(VK_F5);
+			static bool was = false;
+			if (was != now)
+			{
+				was = now;
+				if (now)
+				{
+					for (auto &pair : players)
+					{
+						auto pl = dynamic_cast<ci::RemotePlayer *>(pair.second);
+						if (pl && pl->GetEngine() != "RPEngineIO")
+							pl->Respawn();
+					}
+				}
 			}
 		}
 
@@ -2957,6 +2978,15 @@ class ClientLogic : public ci::IClientLogic
 			static bool mute = true;
 			ci::SetVolume(mute ? 0 : -1);
 			mute = !mute;
+		}
+		else if (cmdText == L"//fov")
+		{
+			static int32_t fov = 0;
+			const int32_t fovNow = _wtoi(arguments[0].data());
+			if (fov != fovNow)
+			{
+				ci::ExecuteCommand(ci::CommandType::Console, "fov " + std::to_string(fovNow));
+			}
 		}
 		else if (cmdText == L"//syncopt" || cmdText == L"//so")
 		{

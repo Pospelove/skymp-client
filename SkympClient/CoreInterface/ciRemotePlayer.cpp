@@ -2306,6 +2306,14 @@ namespace ci
 				auto fixedStr = new BSFixedString(s.data());
 				actor->SetDisplayName(*fixedStr, true);
 				sd::AllowPCDialogue(actor, true);
+
+				// Prevent local weap drop
+				for (int32_t i = 0; i <= 1; ++i)
+				{
+					auto weap = sd::GetEquippedWeapon(actor, i != 0);
+					if (weap)
+						sd::UnequipItem(actor, weap, true, true);
+				}
 			}
 		}
 
