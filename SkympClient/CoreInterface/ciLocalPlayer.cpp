@@ -1569,6 +1569,8 @@ bool UpdateLockpicking()
 	return result;
 }
 
+bool isWaitingForResurrect = false;
+
 class DeathHandler
 {
 public:
@@ -1617,18 +1619,28 @@ public:
 		{
 			if (isDead)
 				this->OnDeath();
+			else
+			{
+				if (isWaitingForResurrect)
+				{
+					sd::DamageActorValue(g_thePlayer, "Health", 9999);
+				}
+			}
 			this->wasDead = isDead;
 		}
 
 		if (sd::IsBleedingOut(g_thePlayer))
 		{
+			g_thePlayer->DrawSheatheWeapon(false);
 			sd::ForceFirstPerson();
 		}
 	}
 
 	void OnDeath()
 	{
+		isWaitingForResurrect = true;
 		SetControlsEnabled(false);
+		sd::SetActorValue(g_thePlayer, "Invisibility", 100);
 	}
 
 private:
@@ -1642,7 +1654,9 @@ void ci::LocalPlayer::Resurrect()
 
 		if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
 		{
+			isWaitingForResurrect = false;
 			DeathHandler::SetControlsEnabled(true);
+			sd::SetActorValue(g_thePlayer, "Invisibility", 0);
 		}
 		if (sd::IsDead(g_thePlayer) || sd::GetActorValue(g_thePlayer, "Health") == 0)
 		{
@@ -2245,7 +2259,8 @@ void ci::LocalPlayer::Update()
 	// UPD3: Попробую раскомментить, а то какая-то х*йня творится с внешнностью иногда
 	// UPD4: Сделаю, чтобы во время прыжка он это не выполнял
 	// UPD5: Это было закоменченно долгие месяцы, а теперь возвращается уже в 1.0.17!
-	static int32_t fixes = 0;
+	// UPD6: Ломает редактор персонажа. снова под коммент
+	/*static int32_t fixes = 0;
 	if (fixes < 0)
 		fixes = 0;
 	SAFE_CALL("LocalPlayer", [&] {
@@ -2276,7 +2291,7 @@ void ci::LocalPlayer::Update()
 				}
 			}
 		}
-	});
+	});*/
 
 	SAFE_CALL("LocalPlayer", [&] {
 		auto movDataPtr = task.movDataPtr; // Делаем копию movDataPtr, ибо DoTeleport_OT() вызовет task = {} в случае удачного выполнения

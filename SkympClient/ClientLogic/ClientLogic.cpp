@@ -3472,7 +3472,7 @@ class ClientLogic : public ci::IClientLogic
 			RakNet::BitStream bs;
 			Serialize(bs, newLook);
 			Deserialize(bs, newLook);
-			localPlayer->ApplyLookData(newLook);
+			//localPlayer->ApplyLookData(newLook);
 
 		});
 	}
