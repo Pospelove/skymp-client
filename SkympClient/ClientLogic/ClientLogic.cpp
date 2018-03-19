@@ -2709,8 +2709,38 @@ class ClientLogic : public ci::IClientLogic
 	ci::Signal<void()> testUpd;
 	std::list<std::function<void()>> fns;
 
+	void RespawnPlayers()
+	{
+		if (ci::IsLoadScreenOpen())
+		{
+			ci::SetTimer(1000, [this] {
+				this->RespawnPlayers();
+			});
+		}
+		else
+		{
+			ci::SetTimer(2500, [this] {
+				ci::Chat::AddMessage(L"Respawning players");
+				for (auto &pair : players)
+				{
+					auto pl = dynamic_cast<ci::RemotePlayer *>(pair.second);
+					if (pl)
+						pl->Respawn();
+				}
+			});
+		}
+	}
+
 	void OnUpdate() override
 	{
+		static uint32_t loc = 0;
+		const uint32_t newLoc = localPlayer->GetCell();
+		if (loc != newLoc)
+		{
+			this->RespawnPlayers();
+			loc = newLoc;
+		}
+
 		{
 			const auto now = ci::IsKeyPressed(VK_ESCAPE);
 			static bool was = false;

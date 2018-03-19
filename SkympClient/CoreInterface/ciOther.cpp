@@ -232,7 +232,7 @@ namespace ci
 
 	bool IsLoadScreenOpen()
 	{
-		auto menuManager = MenuManager::GetSingleton();
+		static auto menuManager = MenuManager::GetSingleton();
 		static BSFixedString *fsLoadingMenuPtr = new BSFixedString("Loading Menu");
 		return menuManager->IsMenuOpen(*fsLoadingMenuPtr);
 	}
