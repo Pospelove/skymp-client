@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.31";
+auto version = "1.0.32";
 
 #include "Agent.h"
 
@@ -170,6 +170,13 @@ class ClientLogic : public ci::IClientLogic
 
 	std::map<std::wstring, std::shared_ptr<Bot>> bots;
 	std::list<Bot *> botss;
+
+	bool IsRussianTranslate()
+	{
+		return g_config[CONFIG_TRANSLATE] == "RU" 
+			|| g_config[CONFIG_TRANSLATE] == "Ru" 
+			|| g_config[CONFIG_TRANSLATE] == "ru";
+	}
 
 	bool IsHorseBase(uint32_t baseNpc)
 	{
@@ -501,15 +508,15 @@ class ClientLogic : public ci::IClientLogic
 				bsOut.Write(nicknameCStr[i]);
 			bsOut.Write(passwordCStr, MAX_PASSWORD + 1);
 
-			Sleep(200);
+			Sleep(1);
 			ci::Chat::AddMessage(L"Loading...");
 
 			net.peer->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, NULL, packet->systemAddress, false);
 			break;
 		case ID_ALREADY_CONNECTED:
 			ci::Chat::AddMessage(L"Already connected");
-			Sleep(250);
-			this->ConnectToServer(g_config[CONFIG_IP], net.port, net.hardcodedPassword, net.password, net.nickname);
+			Sleep(50);
+			this->ConnectToServer(g_config[CONFIG_IP], net.port, version, net.password, StringToWstring(g_config[CONFIG_NAME]));
 			break;
 		case ID_DISCONNECTION_NOTIFICATION:
 			if (net.fullyConnected)
@@ -534,20 +541,51 @@ class ClientLogic : public ci::IClientLogic
 			net.peer->Connect(net.host.data(), net.port, net.hardcodedPassword.data(), net.hardcodedPassword.size());
 			break;
 		case ID_INVALID_PASSWORD:
-			ci::Chat::AddMessage(L"Incompatible client version");
+			if (IsRussianTranslate())
+			{
+				ci::Chat::AddMessage(L"Ваш клиент устарел.");
+				ci::Chat::AddMessage(L"Пожалуйста, установите новую версию клиента, чтобы иметь возможность подключиться к данному серверу.");
+				ci::Chat::AddMessage(L"Используйте /q, чтобы выйти.");
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"Incompatible client version");
+				ci::Chat::AddMessage(L"/q to exit");
+			}
 			break;
 		case ID_WRONG_PASS:
-			ci::Chat::AddMessage(L"Wrong password (" + StringToWstring(net.password) + L")");
+			if (IsRussianTranslate())
+			{
+				ci::Chat::AddMessage(L"Неправильный пароль (" + StringToWstring(net.password) + L")");
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"Wrong password (" + StringToWstring(net.password) + L")");
+			}
 			break;
 		case ID_NAME_INVALID:
-			ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9 and _");
+			if (IsRussianTranslate())
+			{
+				ci::Chat::AddMessage(L"Имя может содержать только символы A-Z, a-z, 0-9 и _");
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9 and _");
+			}
 			break;
 		case ID_NAME_ALREADY_USED:
-			ci::Chat::AddMessage(L"Player " + net.nickname + L" is already connected to the server");
+			if (IsRussianTranslate())
+			{
+				ci::Chat::AddMessage(L"Игрок " + net.nickname + L" уже есть на сервере.");
+			}
+			else
+			{
+				ci::Chat::AddMessage(L"Player " + net.nickname + L" is already connected to the server");
+			}
 			break;
 		case ID_WELCOME:
-			ci::Chat::AddMessage(L"Successful handshake.");
-			Sleep(200);
+			//ci::Chat::AddMessage(L"Successful handshake.");
+			Sleep(1);
 			ci::Chat::AddMessage(L"Connected.");
 			bsIn.Read((uint16_t &)net.myID);
 			players[net.myID] = ci::LocalPlayer::GetSingleton();
@@ -2563,7 +2601,10 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else
 		{
-			ci::Chat::AddMessage(L"Press T and type your name");
+			if (IsRussianTranslate())
+				ci::Chat::AddMessage(L"Нажмите T и введите Ваш никнейм");
+			else
+				ci::Chat::AddMessage(L"Press T and type your name");
 		}
 	}
 
@@ -2720,7 +2761,6 @@ class ClientLogic : public ci::IClientLogic
 		else
 		{
 			ci::SetTimer(2500, [this] {
-				ci::Chat::AddMessage(L"Respawning players");
 				for (auto &pair : players)
 				{
 					auto pl = dynamic_cast<ci::RemotePlayer *>(pair.second);
@@ -2916,12 +2956,13 @@ class ClientLogic : public ci::IClientLogic
 		if (!this->haveName)
 		{
 			this->haveName = true;
+			g_config[CONFIG_NAME] = WstringToString(text);
 			this->ConnectToServer(
 				g_config[CONFIG_IP],
 				std::atoi(g_config[CONFIG_PORT].data()),
 				version,
 				g_config[CONFIG_SERVER_PASSWORD],
-				text);
+				StringToWstring(g_config[CONFIG_NAME]));
 			localPlayer->SetName(text);
 			PrintStartupInfo();
 			return;
