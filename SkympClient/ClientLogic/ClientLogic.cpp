@@ -544,7 +544,7 @@ class ClientLogic : public ci::IClientLogic
 			if (IsRussianTranslate())
 			{
 				ci::Chat::AddMessage(L"Ваш клиент устарел.");
-				ci::Chat::AddMessage(L"Пожалуйста, установите новую версию клиента, чтобы иметь возможность подключиться к данному серверу.");
+				ci::Chat::AddMessage(L"Пожалуйста, установите новую версию клиента.");
 				ci::Chat::AddMessage(L"Используйте /q, чтобы выйти.");
 			}
 			else
