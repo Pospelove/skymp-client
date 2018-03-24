@@ -516,7 +516,7 @@ class ClientLogic : public ci::IClientLogic
 		case ID_ALREADY_CONNECTED:
 			ci::Chat::AddMessage(L"Already connected");
 			Sleep(50);
-			this->ConnectToServer(g_config[CONFIG_IP], net.port, version, net.password, StringToWstring(g_config[CONFIG_NAME]));
+			this->ConnectToServer(g_config[CONFIG_IP], std::atoi(g_config[CONFIG_PORT].data()), version, g_config[CONFIG_SERVER_PASSWORD], StringToWstring(g_config[CONFIG_NAME]));
 			break;
 		case ID_DISCONNECTION_NOTIFICATION:
 			if (net.fullyConnected)
