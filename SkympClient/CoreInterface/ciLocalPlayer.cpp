@@ -1792,6 +1792,23 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+	{
+		static bool init = false;
+		if (!init)
+		{
+			class Sink : public BSTEventSink<TESLoadGameEvent>
+			{
+			public:
+				virtual	EventResult	ReceiveEvent(TESLoadGameEvent * evn, BSTEventSource<TESLoadGameEvent> * source)
+				{
+					std::exit(0);
+				}
+			};
+			static Sink sink;
+			g_loadGameEventSource.AddEventSink(&sink);
+		}
+	}
+
 	// Shitfix of enabled fast traveling
 	sd::EnableFastTravel(false);
 
