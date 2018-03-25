@@ -1614,7 +1614,10 @@ public:
 
 	void Update()
 	{
-		const bool isDead = sd::GetActorValue(g_thePlayer, "Health") == 0;
+		ci::Chat::AddMessage(std::to_wstring(isWaitingForResurrect));
+
+		const bool isDead = sd::GetActorValue(g_thePlayer, "Health") == 0 || sd::IsBleedingOut(g_thePlayer);
+
 		if (isDead != this->wasDead)
 		{
 			if (isDead)
@@ -1640,7 +1643,7 @@ public:
 	{
 		isWaitingForResurrect = true;
 		SetControlsEnabled(false);
-		sd::SetActorValue(g_thePlayer, "Invisibility", 100);
+		//sd::SetActorValue(g_thePlayer, "Invisibility", 100);
 	}
 
 private:
@@ -1656,7 +1659,7 @@ void ci::LocalPlayer::Resurrect()
 		{
 			isWaitingForResurrect = false;
 			DeathHandler::SetControlsEnabled(true);
-			sd::SetActorValue(g_thePlayer, "Invisibility", 0);
+			//sd::SetActorValue(g_thePlayer, "Invisibility", 0);
 		}
 		if (sd::IsDead(g_thePlayer) || sd::GetActorValue(g_thePlayer, "Health") == 0)
 		{
@@ -1792,6 +1795,7 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+	// Block save loading
 	{
 		static bool init = false;
 		if (!init)
