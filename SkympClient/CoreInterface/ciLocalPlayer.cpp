@@ -1614,7 +1614,6 @@ public:
 
 	void Update()
 	{
-		ci::Chat::AddMessage(std::to_wstring(isWaitingForResurrect));
 
 		const bool isDead = sd::GetActorValue(g_thePlayer, "Health") == 0 || sd::IsBleedingOut(g_thePlayer);
 

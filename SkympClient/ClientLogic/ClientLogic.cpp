@@ -702,7 +702,7 @@ class ClientLogic : public ci::IClientLogic
 
 			std::stringstream ss;
 			ss << in.pos.x << " " << in.pos.y << " " << in.pos.z << " " << in.angleZ << " " << in.cellOrWorldspace;
-			ci::Chat::AddMessage(StringToWstring(ss.str()));
+			//ci::Chat::AddMessage(StringToWstring(ss.str()));
 
 			lastLocation = in.cellOrWorldspace;
 
