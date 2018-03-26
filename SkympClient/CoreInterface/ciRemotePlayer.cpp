@@ -2209,6 +2209,14 @@ namespace ci
 		{
 			pimpl->hasLOS = sd::HasLOS(g_thePlayer, actor);
 			pimpl->lastLosCheck = clock();
+
+			const bool posInScreen = PlayerCamera::GetSingleton()->IsInScreen(this->GetPos())
+				&& PlayerCamera::GetSingleton()->IsInScreen(this->GetPos() += {0, 0, 128});
+
+			if (posInScreen && !pimpl->hasLOS)
+			{
+				return this->ForceDespawn(L"Despawned: No LOS (1.0.33)");
+			}
 		}
 
 		static auto getIdentifier = [](TESForm *form) {

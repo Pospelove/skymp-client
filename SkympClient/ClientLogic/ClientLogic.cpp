@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.32";
+auto version = "1.0.33";
 
 #include "Agent.h"
 
@@ -2754,37 +2754,8 @@ class ClientLogic : public ci::IClientLogic
 	ci::Signal<void()> testUpd;
 	std::list<std::function<void()>> fns;
 
-	void RespawnPlayers()
-	{
-		if (ci::IsLoadScreenOpen())
-		{
-			ci::SetTimer(1000, [this] {
-				this->RespawnPlayers();
-			});
-		}
-		else
-		{
-			ci::SetTimer(2500, [this] {
-				for (auto &pair : players)
-				{
-					auto pl = dynamic_cast<ci::RemotePlayer *>(pair.second);
-					if (pl)
-						pl->Respawn();
-				}
-			});
-		}
-	}
-
 	void OnUpdate() override
 	{
-		static uint32_t loc = 0;
-		const uint32_t newLoc = localPlayer->GetCell();
-		if (loc != newLoc)
-		{
-			this->RespawnPlayers();
-			loc = newLoc;
-		}
-
 		{
 			const auto now = ci::IsKeyPressed(VK_ESCAPE);
 			static bool was = false;
@@ -2798,6 +2769,7 @@ class ClientLogic : public ci::IClientLogic
 					}
 			}
 		}
+
 		{
 			const auto now = ci::IsKeyPressed(VK_F5);
 			static bool was = false;
