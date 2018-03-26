@@ -2434,12 +2434,7 @@ class ClientLogic : public ci::IClientLogic
 					return;
 
 				remPl->SetNicknameVisible(false);
-				try {
-					remPl->SetCombatTarget(players.at(combatTarget));
-				}
-				catch (...) {
-					remPl->SetCombatTarget(nullptr);
-				}
+				remPl->SetCombatTarget(combatTarget == 65535 ? nullptr : localPlayer); // shitfix of npc stuck
 				
 				std::string engine;
 
