@@ -2329,7 +2329,9 @@ namespace ci
 				{
 					auto weap = sd::GetEquippedWeapon(actor, i != 0);
 					if (weap)
-						sd::UnequipItem(actor, weap, true, true);
+					{
+						sd::RemoveItem(actor, weap, -1, true, nullptr);
+					}
 				}
 			}
 		}
