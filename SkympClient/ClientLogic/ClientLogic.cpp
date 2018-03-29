@@ -882,13 +882,15 @@ class ClientLogic : public ci::IClientLogic
 
 			auto onHit = [this, id](const ci::HitEventData &eventData) {
 				try {
+					auto pl = players.at(id);
+
 					const bool h2h = eventData.spell == nullptr && eventData.weapon == nullptr;
 					if (h2h)
 					{
-						const auto closestAc = FindClosestActor(players.at(id)->GetPos(), [=](ci::IActor *ac) { return ac != players.at(id); });
-						if((closestAc->GetPos() - players.at(id)->GetPos()).Length() > 256)
+						const auto closestAc = FindClosestActor(pl->GetPos(), [=](ci::IActor *ac) { return ac != pl; });
+						if((closestAc->GetPos() - pl->GetPos()).Length() > 256)
 						{
-							auto rem = dynamic_cast<ci::RemotePlayer *>(players.at(id));
+							auto rem = dynamic_cast<ci::RemotePlayer *>(pl);
 							if (rem != nullptr)
 							{
 								ci::Log("ERROR:ClientLogic bad h2h hit (is it invisible gnome?)");
@@ -897,18 +899,26 @@ class ClientLogic : public ci::IClientLogic
 						}
 					}
 
-					auto source = players.at((uint16_t)atoi(eventData.hitSrcMark.data()));
+					auto source = (ci::IActor *)nullptr;
 					if (eventData.hitSrcMark.empty())
 					{
 						source = players.at(net.myID);
 						if (tracehost)
 							ci::Chat::AddMessage(L"#BEBEBEEmpty Hit Mark. Probably LocalPlayer.");
 					}
+					else
+					{
+						source = players.at((uint16_t)atoi(eventData.hitSrcMark.data()));
+					}
 					if (tracehost)
 						ci::Chat::AddMessage(L"#BEBEBEHit Mark = " + StringToWstring(eventData.hitSrcMark));
-					this->OnHit(players.at(id), source, eventData);
+					this->OnHit(pl, source, eventData);
+				}
+				catch (const std::exception &e) {
+					ci::Log(L"ERROR:ClientLogic OnHit() " + StringToWstring("Something gone wrong " + (std::string)e.what()));
 				}
 				catch (...) {
+					ci::Log(L"ERROR:ClientLogic OnHit() Something gone wrong");
 				}
 			};
 
@@ -3080,7 +3090,7 @@ class ClientLogic : public ci::IClientLogic
 		}
 		else if (cmdText == L"//testld_spawn")
 		{
-			new ci::RemotePlayer(L"TestPlayer", testLookData, localPlayer->GetPos(), localPlayer->GetCell(), localPlayer->GetWorldSpace());
+			new ci::RemotePlayer(L"TestPlayer", testLookData, localPlayer->GetPos(), localPlayer->GetCell(), localPlayer->GetWorldSpace(), nullptr, "RPEngineInput", nullptr);
 			ci::Chat::AddMessage(L"testld_spawn");
 			ci::Chat::AddMessage(L"[Test] TintMasks count = " + std::to_wstring(testLookData.tintmasks.size()));
 		}
@@ -3394,7 +3404,7 @@ class ClientLogic : public ci::IClientLogic
 				localPlayer->GetPos(), 
 				localPlayer->GetCell(), 
 				localPlayer->GetWorldSpace(), 
-				onHit);
+				onHit, "RPEngineInput", nullptr);
 			testPlayers[id] = p;
 			if (arguments.size() == 1 && arguments[0] == L"horse")
 				p->SetBaseNPC(0x00109E3D);

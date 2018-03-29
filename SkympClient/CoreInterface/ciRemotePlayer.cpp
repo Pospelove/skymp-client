@@ -1445,11 +1445,6 @@ namespace ci
 		this->UpdateAVData("invisibility", avData);
 	}
 
-	RemotePlayer::RemotePlayer(const IActor &src) :
-		RemotePlayer(src.GetName(), src.GetLookData(), src.GetPos(), src.GetCell(), src.GetWorldSpace())
-	{
-	}
-
 	RemotePlayer::~RemotePlayer()
 	{
 		std::lock_guard<dlf_mutex> l(gMutex);
@@ -1658,7 +1653,7 @@ namespace ci
 			pimpl->spawnStage = SpawnStage::NonSpawned;
 
 			allRemotePlayers.erase(this);
-			new (this) RemotePlayer(this->GetName(), this->GetLookData(), this->GetPos(), this->GetCell(), this->GetWorldSpace());
+			new (this) RemotePlayer(this->GetName(), this->GetLookData(), this->GetPos(), this->GetCell(), this->GetWorldSpace(), pimpl->onHit, this->GetEngine(), pimpl->onActivate);
 		}
 	}
 
@@ -3314,7 +3309,7 @@ namespace ci
 	class GhostAxe : public RemotePlayer
 	{
 	public:
-		GhostAxe() : RemotePlayer(L"Ghost Axe", {}, {}, NULL, NULL)
+		GhostAxe() : RemotePlayer(L"Ghost Axe", {}, {}, NULL, NULL, nullptr, "RPEngineInput", nullptr)
 		{
 		}
 

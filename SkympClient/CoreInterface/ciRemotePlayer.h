@@ -23,9 +23,9 @@ namespace ci
 			NiPoint3 spawnPoint,
 			uint32_t cellID,
 			uint32_t worldSpaceID,
-			OnHit onHit = nullptr,
-			const std::string &engineName = "RPEngineInput",
-			OnActivate onActivate = nullptr);
+			OnHit onHit,
+			const std::string &engineName,
+			OnActivate onActivate);
 
 		virtual ~RemotePlayer() override;
 
@@ -98,11 +98,6 @@ namespace ci
 		static void SetTracing(bool trace);
 
 	private:
-
-		RemotePlayer(const IActor &); // Deprecated
-
-		RemotePlayer(const RemotePlayer &src) : RemotePlayer((IActor &)src) {} // Deprecated
-
 		static void UpdateAll();
 		static void UpdateAll_OT();
 		static void UpdateWorldSpell();
