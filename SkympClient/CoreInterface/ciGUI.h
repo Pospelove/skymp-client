@@ -42,7 +42,10 @@ namespace ci
 
 		void SetText(std::wstring str);
 		void SetPos(const NiPoint3 &pos);
+
 		void SetPosSource(std::function<NiPoint3()> fn);
+		void SetTextSource(std::function<std::wstring()> fn);
+
 		void SetFontHeight(uint32_t height);
 
 		std::wstring GetText() const;

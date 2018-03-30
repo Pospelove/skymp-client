@@ -127,12 +127,37 @@ void ci::Text3D::SetPos(const NiPoint3 &pos)
 void ci::Text3D::SetPosSource(std::function<NiPoint3()> fn)
 {
 	SET_TIMER_LIGHT(5, [=] {
+
+		NiPoint3 fnRes;
+		{
+			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+			fnRes = fn();
+		}
+
 		std::lock_guard<dlf_mutex> l(textsM);
 		if (texts.find(this) == texts.end())
 			return;
 		std::lock_guard<dlf_mutex> l1(pimpl->label.m);
-		this->SetPos(fn());
+		this->SetPos(fnRes);
 		this->SetPosSource(fn);
+	});
+}
+
+void ci::Text3D::SetTextSource(std::function<std::wstring()> fn)
+{
+	SET_TIMER_LIGHT(200, [=] {
+		std::wstring fnRes;
+		{
+			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+			fnRes = fn();
+		}
+
+		std::lock_guard<dlf_mutex> l(textsM);
+		if (texts.find(this) == texts.end())
+			return;
+		std::lock_guard<dlf_mutex> l1(pimpl->label.m);
+		this->SetText(fnRes);
+		this->SetTextSource(fn);
 	});
 }
 

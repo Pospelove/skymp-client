@@ -753,8 +753,17 @@ class ClientLogic : public ci::IClientLogic
 						player->ApplyMovementData(movData);
 					}
 				}
-				player->SetCell(localPlayer->GetCell());
-				player->SetWorldSpace(localPlayer->GetWorldSpace());
+
+				if (locationID == localPlayer->GetLocation())
+				{
+					player->SetCell(localPlayer->GetCell());
+					player->SetWorldSpace(localPlayer->GetWorldSpace());
+				}
+				else
+				{
+					player->SetCell(~0);
+					player->SetWorldSpace(~0);
+				}
 
 				auto rPlayer = dynamic_cast<ci::RemotePlayer *>(player);
 				if (rPlayer != nullptr)
@@ -2782,13 +2791,13 @@ class ClientLogic : public ci::IClientLogic
 
 	void OnUpdate() override
 	{
-		static uint32_t loc = 0;
+		/*static uint32_t loc = 0;
 		const uint32_t newLoc = localPlayer->GetCell();
 		if (loc != newLoc)
 		{
 			this->RespawnPlayers();
 			loc = newLoc;
-		}
+		}*/
 
 		{
 			const auto now = ci::IsKeyPressed(VK_ESCAPE);
@@ -3272,6 +3281,34 @@ class ClientLogic : public ci::IClientLogic
 				p->SetWerewolf(ww, false);
 			}
 			localPlayer->SetWerewolf(ww, false);
+		}
+		else if (cmdText == L"//players")
+		{
+			static auto text3d = new ci::Text3D(L"", { 0,0,0 });
+			static bool enabled = false;
+			enabled = !enabled;
+
+			if (enabled)
+			{
+				text3d->SetTextSource([this] {
+					std::wstring text;
+					for (auto &pair : players)
+					{
+						text += pair.second->GetName();
+						text += L"\n";
+					}
+					return text;
+				});
+				text3d->SetDrawDistance(8192.0);
+				text3d->SetPosSource([this] {
+					return localPlayer->GetPos();
+				});
+			}
+			else
+			{
+				delete text3d;
+				text3d = new ci::Text3D(L"", { 0,0,0 });
+			}
 		}
 		else if (cmdText == L"//dump")
 		{
