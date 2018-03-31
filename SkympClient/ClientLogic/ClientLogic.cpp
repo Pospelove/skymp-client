@@ -789,7 +789,7 @@ class ClientLogic : public ci::IClientLogic
 						if (engine == "RPEngineInput")
 						{
 							ci::Log("ERROR:ClientLogic RemotePlayer is broken " + engine + " isHosted=" + std::to_string(hostedPlayers.count(playerid)));
-							this->StreamOut(playerid);
+							//this->StreamOut(playerid);
 						}
 						else
 						{

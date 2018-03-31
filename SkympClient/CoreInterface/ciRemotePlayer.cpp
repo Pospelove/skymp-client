@@ -1724,6 +1724,18 @@ namespace ci
 					nicknamePos += {0, 0, 22};
 				}
 
+				//ci::Chat::AddMessage(this->GetName() + L" " + std::to_wstring(nicknamePos.x) + L" " + std::to_wstring(this->GetPos().x));
+				// ¬ыведет крайне различающиес€ числа, если человек исчез. 
+				// Ќапример, в ¬айтране x позици€ ноды может быть 60, 228, а x добытый через интерфейс this->GetPos() нормальный
+				// ≈сли человек не исчез, то числа мало различаютс€
+				// Ќа основе этого делаетс€ следующий фикс
+
+				if (std::abs(nicknamePos.x - this->GetPos().x) > 1000.0)
+				{
+					this->ForceDespawn(L"Bad Node pos 'NPC Head [Head]' (1.0.34d)");
+					return;
+				}
+
 				if (pimpl->nicknameLabel == nullptr && pimpl->nicknameEnabled && pimpl->hasLOS)
 					pimpl->nicknameLabel.reset(new ci::Text3D(this->GetName(), nicknamePos));
 
@@ -2080,7 +2092,8 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			if (pimpl->syncState.fatalErrors != 0 && clock() - pimpl->lastDespawn > 50)
 			{
-				this->ForceDespawn(L"Despawned: Fatal Error in Sync");
+				//this->ForceDespawn(L"Despawned: Fatal Error in Sync");
+				ci::Log(L"Fatal error in sync.");
 				pimpl->syncState.fatalErrors = 0;
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
