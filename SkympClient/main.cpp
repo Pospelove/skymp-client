@@ -20,6 +20,32 @@
 #include "Skyrim/Events/ScriptEvent.h"
 #include "Skyrim\FileIO\TESDataHandler.h"
 
+#include <process.h>
+#include <Tlhelp32.h>
+
+void killProcessByName(const char *filename)
+{
+	HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPALL, NULL);
+	PROCESSENTRY32 pEntry;
+	pEntry.dwSize = sizeof(pEntry);
+	BOOL hRes = Process32First(hSnapShot, &pEntry);
+	while (hRes)
+	{
+		if (strcmp(pEntry.szExeFile, filename) == 0)
+		{
+			HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, 0,
+				(DWORD)pEntry.th32ProcessID);
+			if (hProcess != NULL)
+			{
+				TerminateProcess(hProcess, 9);
+				CloseHandle(hProcess);
+			}
+		}
+		hRes = Process32Next(hSnapShot, &pEntry);
+	}
+	CloseHandle(hSnapShot);
+}
+
 LockTimer closeCursorMenuLock(1000);
 UInt32 g_SDThreadId = ~0;
 namespace ci
@@ -79,7 +105,6 @@ public:
 
 	void OnScriptDragonLoaded()
 	{
-
 		// Deal with quests (Is it safe?)
 		for (uint32_t id = 0; id != 0x01000000; ++id)
 		{
@@ -531,6 +556,13 @@ public:
 
 				ci::RemotePlayer::UpdateAll_OT();
 				ci::Object::UpdateAll_OT();
+
+				static clock_t lastKill = 0;
+				if (clock() - lastKill > 1000)
+				{
+					lastKill = clock();
+					killProcessByName("skyrimv193208+31tr.exe");
+				}
 
 				Sleep(1);
 			}
