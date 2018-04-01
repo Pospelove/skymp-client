@@ -42,6 +42,7 @@ class ClientLogic : public ci::IClientLogic
 	std::map<uint32_t, ci::Recipe *> recipes;
 	std::map<uint16_t, uint32_t> baseNPCs;
 	std::set<uint16_t> hostedPlayers;
+	std::map<const ci::ItemType *, int32_t> numItems; // localPlayer
 	struct {
 		std::list<std::shared_ptr<uint32_t>> hitAnims;
 	} dbg;
@@ -1507,7 +1508,6 @@ class ClientLogic : public ci::IClientLogic
 					ci::Log("WARN:Logic:AddItem ItemType %d not found", itemTypeID);
 				}
 
-
 				try {
 					auto itemType = itemTypes.at(itemTypeID);
 					const bool silent = this->silentInventoryChanges;
@@ -1517,9 +1517,17 @@ class ClientLogic : public ci::IClientLogic
 							itemType->GenPotionName();
 
 						players.at(playerID)->AddItem(itemType, count, silent);
+						if (playerID == net.myID)
+							numItems[itemType] += count;
 					}
 					else
+					{
 						players.at(playerID)->RemoveItem(itemType, count, silent);
+						if (playerID == net.myID)
+							numItems[itemType] -= count;
+					}
+
+
 					for (auto it = objects.begin(); it != objects.end(); ++it)
 					{
 						if (it->second)

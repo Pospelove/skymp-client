@@ -173,6 +173,18 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	case FormType::Potion:
 	case FormType::SoulGem:
 		//case FormType::MovableStatic:
+		// Delete Staffs
+		if (ref->baseForm->formType == FormType::Weapon)
+		{
+			auto weap = (TESObjectWEAP *)ref->baseForm;
+			if (weap->gameData.type == TESObjectWEAP::GameData::kType_Staff
+				|| weap->gameData.type == TESObjectWEAP::GameData::kType_Staff2)
+			{
+				sd::Delete(ref);
+				deleted = true;
+				return;
+			}
+		}
 		if (ref->formID < 0xFF000000)
 		{
 			sd::SetDestroyed(ref, true);
