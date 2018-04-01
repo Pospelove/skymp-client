@@ -969,6 +969,7 @@ namespace ci
 {
 	RemotePlayer *CreateGhostAxe();
 	std::set<RemotePlayer *> allRemotePlayers;
+	size_t numSpawned = 0;
 	std::function<void()> traceTask = nullptr;
 	RemotePlayer *ghostAxe = nullptr;
 	RemotePlayer *currentSpawning = nullptr;
@@ -1590,6 +1591,11 @@ namespace ci
 				&& pimpl->usl5)
 			{
 				//ci::Chat::AddMessage(pimpl->name + L"2");
+
+				const auto max = SyncOptions::GetSingleton()->GetInt("MAX_SPAWNED_PLAYERS");
+
+				if (numSpawned >= max)
+					return;
 
 				if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
 				{
@@ -2694,6 +2700,15 @@ namespace ci
 			{
 				WorldCleaner::GetSingleton()->SetFormProtected(currentSpawningBaseID, false);
 				currentSpawningBaseID = NULL;
+			}
+		});
+
+		SAFE_CALL("RemotePlayer", [&] {
+			numSpawned = 0;
+			for (auto p : allRemotePlayers)
+			{
+				if (p->IsSpawned())
+					++numSpawned;
 			}
 		});
 

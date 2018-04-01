@@ -2438,6 +2438,9 @@ void ci::LocalPlayer::Update_OT()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
+	if (sd::GetKeyPressed(VK_F9))
+		std::exit(0);
+
 	SAFE_CALL("LocalPlayer", [&] {
 		static bool openWas = false;
 		bool open = MenuManager::GetSingleton()->IsMenuOpen("Main Menu");
