@@ -607,8 +607,6 @@ class ClientLogic : public ci::IClientLogic
 					}
 					ci::Chat::AddMessage(L"Loading a plugin (" + std::to_wstring(pluginBinray.size()) + L" bytes)");
 					ci::HotLoadPlugin(pluginBinray);
-
-					ci::HotLoadPlugin("_NoQuestsInMultiplayer");
 				}
 			}
 			break;
