@@ -139,6 +139,7 @@ public:
 
 			static auto dropQuestsInRange = [](uint32_t rangeFirst, uint32_t rangeLast) {
 				// Deal with quests (Is it safe?)
+				auto cl = clock();
 				for (uint32_t id = rangeFirst; id <= rangeLast; ++id)
 				{
 					auto form = (TESQuest *)LookupFormByID(id);
@@ -154,6 +155,7 @@ public:
 						}
 					}
 				}
+				//ci::Chat::AddMessage(std::to_wstring(clock() - cl));
 			};
 
 			SET_TIMER_LIGHT(25, [] {
