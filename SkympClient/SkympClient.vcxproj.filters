@@ -198,9 +198,6 @@
     <Filter Include="core\Overlay">
       <UniqueIdentifier>{e4a14d2b-acd9-42fb-9b61-e8ddd65e6225}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\ScriptDragon">
-      <UniqueIdentifier>{d0407b97-303f-463f-b522-5cddc95067fd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\SKSEOriginal">
       <UniqueIdentifier>{ab8d12d8-69c2-4134-84b2-f40496212562}</UniqueIdentifier>
     </Filter>
@@ -221,6 +218,9 @@
     </Filter>
     <Filter Include="client_logic\Bots">
       <UniqueIdentifier>{f0a3ce43-a777-454e-b62e-4bdff5c5e5ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\ScriptDragon">
+      <UniqueIdentifier>{d0407b97-303f-463f-b522-5cddc95067fd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
