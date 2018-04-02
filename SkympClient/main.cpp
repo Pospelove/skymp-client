@@ -136,34 +136,6 @@ public:
 			sd::FadeOutGame(0, 1, 0.3, 0.5);
 			dummyLs.reset(nullptr);
 			needDummy = false;
-
-			static auto dropQuestsInRange = [](uint32_t rangeFirst, uint32_t rangeLast) {
-				// Deal with quests (Is it safe?)
-				auto cl = clock();
-				for (uint32_t id = rangeFirst; id <= rangeLast; ++id)
-				{
-					auto form = (TESQuest *)LookupFormByID(id);
-					if (form && form->formType == FormType::Quest)
-					{
-						if (form->IsStarting() == false && form->IsActive() == false)
-						{
-							form->flags.deleted = true;
-							form->flags.disabled = true;
-							form->flags.playerKnows = true;
-							form->data.flags.completed = true;
-							form->data.flags.stopping = true;
-						}
-					}
-				}
-				//ci::Chat::AddMessage(std::to_wstring(clock() - cl));
-			};
-
-			SET_TIMER_LIGHT(25, [] {
-				dropQuestsInRange(0xE46, 0x10FF8F / 2);
-			});
-			SET_TIMER_LIGHT(125, [] {
-				dropQuestsInRange(0x10FF8F / 2, 0x10FF8F);
-			});
 		});
 
 		while (1)
