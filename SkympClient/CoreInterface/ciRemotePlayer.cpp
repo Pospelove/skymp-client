@@ -575,6 +575,9 @@ namespace ci
 			auto result = pimpl->lookSync->Apply(pimpl->lookData);
 			ApplyPackage(result);
 			result->TESActorBaseData::flags.bleedoutOverride = true;
+			result->TESActorBaseData::flags.invulnerable = false;
+			result->TESActorBaseData::flags.essential = false;
+			result->TESActorBaseData::flags.ghost = false;
 			result->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
 			result->combatStyle->general.magicMult = 5;
 			result->combatStyle->general.meleeMult = 13.5;
