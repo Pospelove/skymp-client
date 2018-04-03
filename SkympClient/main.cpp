@@ -337,7 +337,7 @@ public:
 			this->ls = new Loadscreen("MyGUI\\logo.png");
 		}
 
-		while (1)
+		while (1) 
 		{
 			if (MenuManager::GetSingleton()->IsMenuOpen("Console"))
 			{
