@@ -22,6 +22,7 @@
 
 #include <process.h>
 #include <Tlhelp32.h>
+#include <shlobj.h>
 
 void killProcessByName(const char *filename)
 {
@@ -287,12 +288,31 @@ public:
 		MenuDisabler::SetDisabled("Console", true);
 		//PlayerControls_::SetEnabled(Control::Console, true);
 
+		const static auto renameQuicksave = [] {
+			char Buffer[MAX_PATH];
+			SHGetSpecialFolderPath(NULL, Buffer, CSIDL_MYDOCUMENTS, 0);
+			auto oldname = std::string(Buffer) + "\\My Games\\Skyrim\\Saves\\quicksave.ess";
+			auto  newname = std::string(Buffer) + "\\My Games\\Skyrim\\Saves\\quicksave.ess_RENAMED_BY_SKYMP";
+			auto result = rename(oldname.data(), newname.data());
+			if (result == 0)
+				return true;
+			else
+				return false;
+		};
+		renameQuicksave();
+
 		auto &logic = ci::IClientLogic::clientLogic;
 
 		std::thread([this] {
 			while (1)
 			{
 				Sleep(2000);
+
+				if (renameQuicksave())
+				{
+					std::exit(0);
+				}
+
 				if (ci::IsInPause() || !Utility::IsForegroundProcess())
 					this->lastUpdateMT = NULL;
 
