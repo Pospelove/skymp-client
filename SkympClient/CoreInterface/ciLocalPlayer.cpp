@@ -1614,6 +1614,18 @@ public:
 
 	void Update()
 	{
+		for (int s = 0; s != 2; ++s)
+		{
+			auto form = sd::GetEquippedWeapon(g_thePlayer, 0);
+			if (form && form->formID < 0xFF000000)
+				std::exit(0);
+		}
+		for(int s = -1; s != 3; ++s)
+		{
+			auto form = sd::GetEquippedSpell(g_thePlayer, s);
+			if (form && form->formID < 0xFF000000)
+				std::exit(0);
+		}
 
 		const bool isDead = sd::GetActorValue(g_thePlayer, "Health") == 0 || sd::IsBleedingOut(g_thePlayer);
 
