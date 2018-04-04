@@ -2583,13 +2583,18 @@ class ClientLogic : public ci::IClientLogic
 		for (int32_t i = 0; i != 1024; ++i)
 			this->lastUpdateByServer[i] = NULL;
 
-		ci::Chat::Init();
+		const int32_t cfgNumLines = read_cfg();
+
+		ci::Chat::Init(
+			atoi(g_config[CONFIG_CHAT_OFFSET_X].data()), 
+			atoi(g_config[CONFIG_CHAT_OFFSET_Y].data())
+		);
 		ci::Chat::AddMessage(L"#eeeeeeSkyMP " + StringToWstring(version) + L" Client Started");
 		ci::LocalPlayer::GetSingleton()->SetName(L"Player");
 
 		ci::SetUpdateRate(1);
 
-		if (read_cfg() == 0)
+		if (cfgNumLines == 0)
 		{
 			ci::Chat::AddMessage(L"#eeeeee" + StringToWstring(cfgFile) + L" not found");
 			return;
@@ -3347,6 +3352,11 @@ class ClientLogic : public ci::IClientLogic
 		{
 			tracehost = !tracehost;
 			ci::Chat::AddMessage((std::wstring)L"#BEBEBE" L">> tracehost " + (tracehost ? L"On" : L"Off"));
+		}
+		else if (cmdText == L"//ping")
+		{
+			const int32_t ping = net.peer ? net.peer->GetAveragePing(net.remoteGUID) : 0;
+			ci::Chat::AddMessage(L"#BEBEBE" L"Average ping is " + std::to_wstring(ping));
 		}
 		else if (cmdText == L"//tracehorsemd")
 		{

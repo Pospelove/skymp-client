@@ -43,7 +43,7 @@ struct
 	int32_t over9000;
 } chatSizes;
 
-Chat::Chat()
+Chat::Chat(int32_t offsetX, int32_t offsetY)
 {
 	if (!TheGUI)
 		return;
@@ -68,7 +68,14 @@ Chat::Chat()
 
 	auto pos = m_pList->getPosition();
 	pos.top -= 100;
+	pos.left += offsetX;
+	pos.top += offsetY;
 	m_pList->setPosition(pos);
+
+	auto pos1 = m_pEdit->getPosition();
+	pos1.left += offsetX;
+	pos1.top += offsetY;
+	m_pEdit->setPosition(pos1);
 
 	auto size = m_pList->getSize();
 

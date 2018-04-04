@@ -12,6 +12,8 @@ std::unordered_map<std::string, std::string> g_config;
 #define CONFIG_DRAW_DISTANCE std::string("draw_distance")
 #define CONFIG_FOV std::string("fov")
 #define CONFIG_TRANSLATE std::string("translate")
+#define CONFIG_CHAT_OFFSET_X std::string("chat_offset_x")
+#define CONFIG_CHAT_OFFSET_Y std::string("chat_offset_y")
 
 const auto cfgFile = "skymp_config.ini";
 

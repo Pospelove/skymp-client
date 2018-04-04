@@ -9,7 +9,7 @@ class Chat
 {
 public:
 
-	Chat();
+	Chat(int32_t offsetX, int32_t offsetY);
 
 	~Chat();
 
