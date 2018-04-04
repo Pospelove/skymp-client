@@ -567,11 +567,11 @@ class ClientLogic : public ci::IClientLogic
 		case ID_NAME_INVALID:
 			if (IsRussianTranslate())
 			{
-				ci::Chat::AddMessage(L"Имя может содержать только символы A-Z, a-z, 0-9 и _");
+				ci::Chat::AddMessage(L"Имя может содержать только символы A-Z, a-z, 0-9 и некоторые спец. символы");
 			}
 			else
 			{
-				ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9 and _");
+				ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9");
 			}
 			break;
 		case ID_NAME_ALREADY_USED:
@@ -733,6 +733,9 @@ class ClientLogic : public ci::IClientLogic
 		{
 			uint16_t playerid = ~0;
 			bsIn.Read(playerid);
+			if (playerid == net.myID)
+				return;
+
 			ci::MovementData movData;
 			Deserialize(bsIn, movData);
 			uint8_t enabled;
@@ -2461,6 +2464,7 @@ class ClientLogic : public ci::IClientLogic
 					return;
 
 				remPl->SetNicknameVisible(false);
+				ci::Chat::AddMessage(std::to_wstring(combatTarget));
 				remPl->SetCombatTarget(combatTarget == 65535 ? nullptr : localPlayer); // shitfix of npc stuck
 				
 				std::string engine;
