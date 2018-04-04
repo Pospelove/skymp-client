@@ -353,6 +353,13 @@ void Chat::Update()
 	std::lock_guard<dlf_mutex> lck(*mutex);
 }
 
+void Chat::SetRussianUser(bool ru)
+{
+	if (isRussianUserPtr)
+		delete isRussianUserPtr;
+	isRussianUserPtr = new bool(ru);
+}
+
 void Chat::Update_OT()
 {
 	if (!TheGUI)
@@ -370,19 +377,25 @@ void Chat::Update_OT()
 	}
 
 	// Detect if system language is Russian
-	static bool *isRussianUserPtr = nullptr;
 	if (isRussianUserPtr == nullptr)
 	{
+#ifdef DETECT_RUSSIAN_USER
 		WCHAR localeName[8] = { 0 };
 		GetUserDefaultLocaleName(localeName, 8);
 		if (std::wstring(localeName, 5) == L"ru-RU")
 			isRussianUserPtr = new bool(true);
 		else
 			isRussianUserPtr = new bool(false);
+#else
+		isRussianUserPtr = new bool(false);
+#endif
 	}
 
-	if (*isRussianUserPtr)
+	if (isRussianUserPtr != nullptr &&
+		*isRussianUserPtr == true)
 		this->isRussianUser = true;
+	else
+		this->isRussianUser = false;
 
 	// Language switch (Shift + Ctrl || Shift + Alt)
 	// Only for Russian-speaking users

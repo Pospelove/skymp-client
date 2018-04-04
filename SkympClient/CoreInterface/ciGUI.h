@@ -8,6 +8,7 @@ namespace ci
 	namespace Chat
 	{
 		void Init();
+		void SetRussianUser();
 
 		// pass " " to clear the chat
 		void AddMessage(const std::wstring &message, bool isNotification = false);

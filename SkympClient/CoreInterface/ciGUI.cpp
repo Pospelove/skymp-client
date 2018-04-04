@@ -41,6 +41,12 @@ void ci::Chat::AddMessage(const std::wstring &message, bool isNotification)
 	}
 }
 
+void ci::Chat::SetRussianUser()
+{
+	if (TheChat)
+		TheChat->SetRussianUser(true);
+}
+
 class CIAccess
 {
 public:

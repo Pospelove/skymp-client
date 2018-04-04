@@ -2586,7 +2586,7 @@ class ClientLogic : public ci::IClientLogic
 		ci::Chat::Init();
 		ci::Chat::AddMessage(L"#eeeeeeSkyMP " + StringToWstring(version) + L" Client Started");
 		ci::LocalPlayer::GetSingleton()->SetName(L"Player");
-		
+
 		ci::SetUpdateRate(1);
 
 		if (read_cfg() == 0)
@@ -2594,6 +2594,9 @@ class ClientLogic : public ci::IClientLogic
 			ci::Chat::AddMessage(L"#eeeeee" + StringToWstring(cfgFile) + L" not found");
 			return;
 		}
+
+		if (IsRussianTranslate())
+			ci::Chat::SetRussianUser();
 
 		const auto drawDistance = g_config[CONFIG_DRAW_DISTANCE];
 		if (drawDistance.empty() == false && atoi(drawDistance.data()) != 0)

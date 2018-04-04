@@ -30,6 +30,7 @@ public:
 		std::lock_guard<dlf_mutex> l(*this->mutex);
 		return this->isRussianUser;
 	}
+	void SetRussianUser(bool ru);
 
 	void Update();
 	void Update_OT();
@@ -45,6 +46,7 @@ private:
 	SInt16 offset = 0;
 	SInt16 needCloseEscMenu = 0;
 	bool isRussianUser = false;
+	bool *isRussianUserPtr = nullptr;
 
 	void EditKeyPressEvent(MyGUI::EditBox* aSender);
 };
