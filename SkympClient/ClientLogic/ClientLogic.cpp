@@ -20,7 +20,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-auto version = "1.0.35";
+auto version = "1.0.36";
 
 #include "Agent.h"
 
@@ -2464,7 +2464,6 @@ class ClientLogic : public ci::IClientLogic
 					return;
 
 				remPl->SetNicknameVisible(false);
-				ci::Chat::AddMessage(std::to_wstring(combatTarget));
 				remPl->SetCombatTarget(combatTarget == 65535 ? nullptr : localPlayer); // shitfix of npc stuck
 				
 				std::string engine;
