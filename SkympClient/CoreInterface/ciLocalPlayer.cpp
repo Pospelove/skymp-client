@@ -671,6 +671,31 @@ void ci::LocalPlayer::UseFurniture(const Object *target, bool anim)
 		}
 	});
 }
+
+void ci::LocalPlayer::UpdInventoryDupe()
+{
+	std::lock_guard<dlf_mutex> l(localPlMutex);
+	for (auto &pair : inventory)
+	{
+		const auto itemType = pair.first;
+		const int32_t count = (int32_t)pair.second;
+
+		if (itemType == nullptr)
+			continue;
+
+		const auto form = LookupFormByID(itemType->GetFormID());
+		if (form == nullptr)
+			continue;
+
+		const int32_t realCount = sd::GetItemCount(g_thePlayer, form);
+		if (realCount > count)
+		{
+			sd::RemoveItem(g_thePlayer, form, realCount - count, true, nullptr);
+			ci::Log("WARN:LocalPlayer Dupe " + std::to_string(realCount) + " " + std::to_string(count));
+		}
+	}
+}
+
 void ci::LocalPlayer::AddItem(const ItemType *item, uint32_t count, bool silent)
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
@@ -683,16 +708,15 @@ void ci::LocalPlayer::AddItem(const ItemType *item, uint32_t count, bool silent)
 		});
 
 		if (count > 0)
-		{
 			inventory[item] += count;
 
-			if (form && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
-			{
-				SET_TIMER(0, [=] {
-					ContainerChangedEventSink::GetSingleton()->IgnoreItemAdd();
-					sd::AddItem(g_thePlayer, form, count, silent || MenuManager::GetSingleton()->IsMenuOpen("Crafting Menu"));
+		if (form) {
+			SET_TIMER_LIGHT(100, [=] {
+				sd::AddItem(g_thePlayer, form, count, silent);
+				SET_TIMER_LIGHT(3000, [=] {
+					this->UpdInventoryDupe();
 				});
-			}
+			});
 		}
 	}
 }
@@ -707,14 +731,10 @@ void ci::LocalPlayer::RemoveItem(const ItemType *item, uint32_t count, bool sile
 			inventory.erase(item);
 
 		auto form = LookupFormByID(item->GetFormID());
-		if (form && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
+		if (form)
 		{
-			SET_TIMER(0, [=] {
-				ContainerChangedEventSink::GetSingleton()->IgnoreItemRemove();
-				if (silent)
-					sd::RemoveItem(g_thePlayer, form, count, silent, nullptr);
-				else
-					cd::RemoveItem(g_thePlayer, form, count, silent, nullptr);
+			SET_TIMER_LIGHT(100, [=] {
+				sd::RemoveItem(g_thePlayer, form, count, silent, nullptr);
 			});
 		}
 	}

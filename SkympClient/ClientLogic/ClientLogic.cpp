@@ -1521,11 +1521,15 @@ class ClientLogic : public ci::IClientLogic
 
 						players.at(playerID)->AddItem(itemType, count, silent);
 						if (playerID == net.myID)
+							ci::Log(std::to_wstring(itemTypeID) + L" " + std::to_wstring(count) + L" " + std::to_wstring(add) + L" ");
+						if (playerID == net.myID)
 							numItems[itemType] += count;
 					}
 					else
 					{
 						players.at(playerID)->RemoveItem(itemType, count, silent);
+						if (playerID == net.myID)
+							ci::Log(std::to_wstring(itemTypeID) + L" " + std::to_wstring(count) + L" " + std::to_wstring(add) + L" ");
 						if (playerID == net.myID)
 							numItems[itemType] -= count;
 					}
@@ -2587,6 +2591,15 @@ class ClientLogic : public ci::IClientLogic
 			this->lastUpdateByServer[i] = NULL;
 
 		const int32_t cfgNumLines = read_cfg();
+		for(auto badSymbol : {'\n', '\r'})
+			for (auto &pair : g_config)
+			{
+				auto &v = pair.second;
+				while (v.size() > 0 && v.back() == badSymbol)
+					v.pop_back();
+				while (v.size() > 0 && v.front() == badSymbol)
+					v = { v.begin() + 1, v.end() };
+			}
 
 		ci::Chat::Init(
 			atoi(g_config[CONFIG_CHAT_OFFSET_X].data()), 
@@ -3825,7 +3838,7 @@ class ClientLogic : public ci::IClientLogic
 		if (allowUpdateAVs == false)
 			return;
 		static clock_t lastUpd = 0;
-		if (lastUpd + 333 < clock())
+		if (lastUpd + 550 < clock())
 		{
 			lastUpd = clock();
 			for (uint8_t avID = av.Health; avID <= av.Stamina; ++avID)
@@ -3847,8 +3860,8 @@ class ClientLogic : public ci::IClientLogic
 					bsOut.Write(avID);
 					bsOut.Write(p);
 					currentAVsOnServer[avID] = p;
+					net.peer->Send(&bsOut, MEDIUM_PRIORITY, unreliable, NULL, net.remote, false);
 				}
-				net.peer->Send(&bsOut, MEDIUM_PRIORITY, unreliable, NULL, net.remote, false);
 			}
 		}
 	}

@@ -89,6 +89,7 @@ namespace ci
 		void RecoverAVs();
 		void RecoverInventory();
 		void RecoverSpells();
+		void UpdInventoryDupe();
 		LocalPlayer();
 		uint32_t GetRefID() const override;
 	};
