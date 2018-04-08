@@ -1521,15 +1521,11 @@ class ClientLogic : public ci::IClientLogic
 
 						players.at(playerID)->AddItem(itemType, count, silent);
 						if (playerID == net.myID)
-							ci::Log(std::to_wstring(itemTypeID) + L" " + std::to_wstring(count) + L" " + std::to_wstring(add) + L" ");
-						if (playerID == net.myID)
 							numItems[itemType] += count;
 					}
 					else
 					{
 						players.at(playerID)->RemoveItem(itemType, count, silent);
-						if (playerID == net.myID)
-							ci::Log(std::to_wstring(itemTypeID) + L" " + std::to_wstring(count) + L" " + std::to_wstring(add) + L" ");
 						if (playerID == net.myID)
 							numItems[itemType] -= count;
 					}
