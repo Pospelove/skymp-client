@@ -1595,11 +1595,6 @@ namespace ci
 			{
 				//ci::Chat::AddMessage(pimpl->name + L"2");
 
-				const auto max = SyncOptions::GetSingleton()->GetInt("MAX_SPAWNED_PLAYERS");
-
-				if (numSpawned >= max && max > 0)
-					return;
-
 				if (clock() - lastForceSpawn > 2333 && lastForceSpawn != 0)
 				{
 					currentSpawning = nullptr;

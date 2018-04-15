@@ -71,7 +71,6 @@ void WriteDefaultOptions(const char *cfgFile)
 		"UNSAFE_PLACEATME = 1\n"
 		"UNSAFE_MARKER_PLACEATME = 1\n"
 		"SPAWNING_TIMEOUT = 0\n"
-		"MAX_SPAWNED_PLAYERS = 50\n"
 
 		"ci::LocalPlayer\n"
 		"DISABLE_PLAYER_DAMAGE = 1\n"
