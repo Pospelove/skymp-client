@@ -51,6 +51,7 @@ class ClientLogic : public ci::IClientLogic
 	std::function<void(ci::DataSearch::TeleportDoorsData)> tpdCallback;
 	std::map<uint16_t, uint32_t> lastFurniture;
 	bool tracehost = false;
+	bool tracePackets = false;
 	uint32_t lastDialogID = ~0;
 	PacketReliability unreliable = PacketReliability::UNRELIABLE;
 
@@ -2572,6 +2573,13 @@ class ClientLogic : public ci::IClientLogic
 				net.remoteGUID = packet->guid;
 			try {
 				this->ProcessPacket(packet);
+
+				if (tracePackets)
+				{
+					std::wstringstream ss;
+					ss << StringToWstring(GetPacketName(packetID));
+					ci::Chat::AddMessage(ss.str());
+				}
 			}
 			catch (...) {
 				ci::Log("ERROR:ClientLogic UpdateNetworking() Receive " + std::to_string(packetID));
@@ -3364,6 +3372,11 @@ class ClientLogic : public ci::IClientLogic
 		{
 			tracehost = !tracehost;
 			ci::Chat::AddMessage((std::wstring)L"#BEBEBE" L">> tracehost " + (tracehost ? L"On" : L"Off"));
+		}
+		else if (cmdText == L"//tracepackets")
+		{
+			tracePackets = !tracePackets;
+			ci::Chat::AddMessage((std::wstring)L"#BEBEBE" L">> tracepackets " + (tracePackets ? L"On" : L"Off"));
 		}
 		else if (cmdText == L"//ping")
 		{

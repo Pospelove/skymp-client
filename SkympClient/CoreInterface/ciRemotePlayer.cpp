@@ -2110,11 +2110,12 @@ namespace ci
 				markerFormID = 0;
 			}
 		});
-
-		SAFE_CALL("RemotePlayer", [&] {
+		
+		// this reason to respawn is pretty buggy
+		/*SAFE_CALL("RemotePlayer", [&] {
 			if (pimpl->currentNonExteriorCell != CellUtil::GetParentNonExteriorCell(g_thePlayer))
 				this->ForceDespawn(L"Despawned: Cell changed");
-		});
+		});*/
 
 		SAFE_CALL("RemotePlayer", [&] {
 			const FormID worldSpaceID = sd::GetWorldSpace(g_thePlayer) ? sd::GetWorldSpace(g_thePlayer)->formID : NULL;
