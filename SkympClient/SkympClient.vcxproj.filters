@@ -184,6 +184,9 @@
     <ClCompile Include="CoreInterface\ciIActor.cpp">
       <Filter>core_interface\ciIActor</Filter>
     </ClCompile>
+    <ClCompile Include="GameUtility\CellUtil.cpp">
+      <Filter>core\GameUtility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -469,6 +472,9 @@
     </ClInclude>
     <ClInclude Include="CoreInterface\ciIActor.h">
       <Filter>core_interface\ciIActor</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\CellUtil.h">
+      <Filter>core\GameUtility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

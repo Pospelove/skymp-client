@@ -149,6 +149,7 @@
     <ClCompile Include="Disasm\disasm.c" />
     <ClCompile Include="Disasm\disasm_x86.c" />
     <ClCompile Include="Disasm\misc.c" />
+    <ClCompile Include="GameUtility\CellUtil.cpp" />
     <ClCompile Include="GameUtility\GameSettings.cpp" />
     <ClCompile Include="GameUtility\LockTimer.cpp" />
     <ClCompile Include="GameUtility\KeyboardManager.cpp" />
@@ -221,6 +222,7 @@
     <ClInclude Include="Disasm\disasm_x86.h" />
     <ClInclude Include="Disasm\disasm_x86_tables.h" />
     <ClInclude Include="Disasm\misc.h" />
+    <ClInclude Include="GameUtility\CellUtil.h" />
     <ClInclude Include="GameUtility\GameSettings.h" />
     <ClInclude Include="GameUtility\LockTimer.h" />
     <ClInclude Include="GameUtility\KeyboardManager.h" />

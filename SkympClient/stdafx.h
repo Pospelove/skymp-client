@@ -64,6 +64,7 @@
 #include "GameUtility\SkyUILib.h"
 #include "GameUtility\MiscUtility.h"
 #include "GameUtility\SimpleRef.h"
+#include "GameUtility\CellUtil.h"
 
 std::string WstringToString(const std::wstring &wstring);
 std::wstring StringToWstring(const std::string &string);
