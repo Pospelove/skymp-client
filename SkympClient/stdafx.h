@@ -43,6 +43,8 @@
 #include <mutex>
 #include <thread>
 #include <functional>
+#include <algorithm>
+#include <queue>
 
 #include "Common\ErrorHandling.h"
 

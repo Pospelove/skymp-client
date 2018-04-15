@@ -123,6 +123,7 @@
     <ClCompile Include="CoreInterface\ciDataSearch.cpp" />
     <ClCompile Include="CoreInterface\ciEnchantment.cpp" />
     <ClCompile Include="CoreInterface\ciGUI.cpp" />
+    <ClCompile Include="CoreInterface\ciIActor.cpp" />
     <ClCompile Include="CoreInterface\ciItemType.cpp" />
     <ClCompile Include="CoreInterface\ciLocalPlayer.cpp" />
     <ClCompile Include="CoreInterface\ciMagic.cpp" />
@@ -132,7 +133,9 @@
     <ClCompile Include="CoreInterface\ciOther.cpp" />
     <ClCompile Include="CoreInterface\ciPerk.cpp" />
     <ClCompile Include="CoreInterface\ciRecipe.cpp" />
-    <ClCompile Include="CoreInterface\ciRemotePlayer.cpp" />
+    <ClCompile Include="CoreInterface\ciRPCommon.cpp" />
+    <ClCompile Include="CoreInterface\ciRPEngineInput.cpp" />
+    <ClCompile Include="CoreInterface\ciRPEngineIO.cpp" />
     <ClCompile Include="CoreInterface\ciSpell.cpp" />
     <ClCompile Include="CoreInterface\ciTypes.cpp" />
     <ClCompile Include="Costile\Costile2.cpp" />
@@ -172,6 +175,7 @@
     <ClCompile Include="Sync\LookSyncV17.cpp" />
     <ClCompile Include="Sync\MovementData.cpp" />
     <ClCompile Include="Sync\SyncOptions.cpp" />
+    <ClCompile Include="Sync\Werewolf.cpp" />
     <ClCompile Include="WinAPI\WinAPI.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -247,7 +251,9 @@
     <ClInclude Include="Sync\AnimData.h" />
     <ClInclude Include="Sync\LookData.h" />
     <ClInclude Include="Sync\MovementData.h" />
+    <ClInclude Include="Sync\SyncEssential.h" />
     <ClInclude Include="Sync\SyncOptions.h" />
+    <ClInclude Include="Sync\Werewolf.h" />
     <ClInclude Include="WinAPI\WinAPI.hpp" />
   </ItemGroup>
   <ItemGroup>

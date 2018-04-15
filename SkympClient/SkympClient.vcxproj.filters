@@ -103,9 +103,6 @@
     <ClCompile Include="CoreInterface\ciLocalPlayer.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
-    <ClCompile Include="CoreInterface\ciRemotePlayer.cpp">
-      <Filter>core_interface</Filter>
-    </ClCompile>
     <ClCompile Include="CoreInterface\ciTypes.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
@@ -172,6 +169,21 @@
     <ClCompile Include="CoreInterface\ciPerk.cpp">
       <Filter>core_interface</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPEngineInput.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPEngineIO.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPCommon.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="Sync\Werewolf.cpp">
+      <Filter>core\Sync</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciIActor.cpp">
+      <Filter>core_interface\ciIActor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -221,6 +233,12 @@
     </Filter>
     <Filter Include="core\ScriptDragon">
       <UniqueIdentifier>{d0407b97-303f-463f-b522-5cddc95067fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core_interface\ciRemotePlayer">
+      <UniqueIdentifier>{0536b2f6-29d9-4de7-9fae-b333a3e93d67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core_interface\ciIActor">
+      <UniqueIdentifier>{1d8ac879-7db8-492c-87cb-85f3bb6ce3ca}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -347,16 +365,10 @@
     <ClInclude Include="GameUtility\PlayerControls.h">
       <Filter>core\GameUtility</Filter>
     </ClInclude>
-    <ClInclude Include="CoreInterface\ciIActor.h">
-      <Filter>core_interface</Filter>
-    </ClInclude>
     <ClInclude Include="GameUtility\MiscUtility.h">
       <Filter>core\GameUtility</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciLocalPlayer.h">
-      <Filter>core_interface</Filter>
-    </ClInclude>
-    <ClInclude Include="CoreInterface\ciRemotePlayer.h">
       <Filter>core_interface</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciTypes.h">
@@ -445,6 +457,18 @@
     </ClInclude>
     <ClInclude Include="ClientLogic\Tests.h">
       <Filter>client_logic</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRemotePlayer.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\SyncEssential.h">
+      <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync\Werewolf.h">
+      <Filter>core\Sync</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciIActor.h">
+      <Filter>core_interface\ciIActor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

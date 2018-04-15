@@ -1,12 +1,8 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
-#include "../Sync/LookData.h"
-#include "../Sync/MovementData.h"
-#include "../Sync/AnimData.h"
-#include "../Sync/SyncOptions.h"
+#include "../Sync/SyncEssential.h"
 #include "Skyrim/Events/ScriptEvent.h"
 #include "Skyrim/Camera/PlayerCamera.h"
-#include <queue>
 
 #define INVALID_AV float(228228228)
 
