@@ -6,6 +6,7 @@
 
 #include "ciRPInvisibleFox.h"
 #include "ciRPDispenser.h"
+#include "ciRPGnomeHost.h"
 
 namespace ci
 {
@@ -30,6 +31,9 @@ namespace ci
 
 		ci::InvisibleFox invisibleFox;
 		ci::Dispenser dispenser;
+		ci::GnomeHost gnomeHost;
+
+		std::vector<std::function<void()>> tasksSpawned;
 
 		dlf_mutex mutex;
 		FormID formID = 0;
@@ -63,7 +67,6 @@ namespace ci
 		float height = 1;
 		bool isMagicAttackStarted[2];
 		const void *visualMagicEffect = nullptr;
-		std::map<int32_t, std::unique_ptr<SimpleRef>> gnomes;
 		bool broken = false;
 		std::function<void(Actor *)> posTask, angleTask;
 		std::unique_ptr<ci::Object> pathToTarget;

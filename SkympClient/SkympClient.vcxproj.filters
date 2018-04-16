@@ -208,6 +208,9 @@
     <ClCompile Include="CoreInterface\ciRPDispenser.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPGnomeHost.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -522,6 +525,9 @@
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciRPDispenser.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPGnomeHost.h">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
   </ItemGroup>

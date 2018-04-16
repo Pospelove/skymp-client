@@ -121,7 +121,7 @@ private:
 
 		auto sourceForm = LookupFormByID(evn->sourceFormID);
 
-		std::thread([=] {
+		SET_TIMER_LIGHT(1, [=] {
 			auto hitEventData = hitEventData_;
 
 			std::lock_guard<RPGMUTEX> l(gMutex);
@@ -167,8 +167,8 @@ private:
 					if (!ref)
 						continue;
 					if (ref->formID != targetID
-						&& (pl->pimpl->gnomes[0] == nullptr || pl->pimpl->gnomes[0]->GetFormID() != targetID)
-						&& (pl->pimpl->gnomes[1] == nullptr || pl->pimpl->gnomes[1]->GetFormID() != targetID))
+						&& (pl->pimpl->gnomeHost.IsGnomeExist(0) == false || pl->pimpl->gnomeHost.GetGnomeFormID(0) != targetID) // requires sd thread
+						&& (pl->pimpl->gnomeHost.IsGnomeExist(1) == false || pl->pimpl->gnomeHost.GetGnomeFormID(1) != targetID))
 						continue;
 					auto onHit = pl->pimpl->onHit;
 					if (onHit)
@@ -183,7 +183,7 @@ private:
 					break;
 				}
 			}
-		}).detach();
+		});
 
 		return EventResult::kEvent_Continue;
 	}

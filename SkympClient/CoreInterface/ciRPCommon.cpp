@@ -43,18 +43,6 @@ namespace ci
 	RemotePlayer *currentFixingGreyFace = nullptr;
 	uint64_t errorsInSpawn = false;
 
-	void RunGnomeBehavior(TESObjectREFR *ref, const std::wstring &name)
-	{
-		sd::EnableAI((Actor *)ref, false);
-		sd::SetActorValue((Actor *)ref, "Invisibility", 100.0f);
-		sd::AllowPCDialogue((Actor *)ref, false);
-		cd::SetDisplayName(ref, WstringToString(name), true);
-		sd::SetActorValue((Actor *)ref, "DamageResist", 100.0f);
-		sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
-		sd::SetActorValue((Actor *)ref, "Health", 32000.f);
-		sd::StopCombat((Actor *)ref);
-	}
-
 	void RemotePlayer::UpdateWorldSpell()
 	{
 		std::lock_guard<dlf_mutex> l(gMutex);
@@ -141,6 +129,7 @@ namespace ci
 		allRemotePlayers.insert(this);
 
 		pimpl->name = name;
+		pimpl->gnomeHost.SetName(name);
 		pimpl->lookData = lookData;
 		pimpl->movementData.pos = spawnPoint;
 		pimpl->currentNonExteriorCell = CellUtil::LookupNonExteriorCellByID(cellID);
@@ -170,51 +159,6 @@ namespace ci
 			currentSpawning = nullptr;
 		if (currentFixingGreyFace == this)
 			currentFixingGreyFace = nullptr;
-	}
-
-	void RemotePlayer::CreateGnomes()
-	{
-		for (int32_t i = 0; i <= 1; ++i)
-		{
-			if (pimpl->gnomes[i] == nullptr)
-			{
-				static TESNPC *gnomeNpc = nullptr;
-				if (gnomeNpc == nullptr)
-				{
-					static auto exampleNpc = AllocateNPC();
-					gnomeNpc = (TESNPC *)LookupFormByID(ID_TESNPC::WEAdventurerBattlemageBretonMFire);
-					gnomeNpc->TESSpellList::unk04->numSpells = 0;
-					gnomeNpc->TESSpellList::unk04->spells = nullptr;
-					gnomeNpc->combatStyle = exampleNpc->GetCombatStyle();
-					gnomeNpc->voiceType = exampleNpc->GetVoiceType();
-					gnomeNpc->TESAIForm::unk10 = exampleNpc->TESAIForm::unk10;
-				}
-
-				gnomeNpc->defaultOutfit = gnomeNpc->sleepOutfit = nullptr;
-				gnomeNpc->TESContainer::numEntries = 0;
-				gnomeNpc->TESContainer::entries = nullptr;
-				gnomeNpc->race = (TESRace *)LookupFormByID(0x00071E6A);
-				gnomeNpc->height = 0.1f;
-				gnomeNpc->TESSpellList::unk04->numSpells = 0;
-				gnomeNpc->TESSpellList::unk04->spells = 0;
-				gnomeNpc->TESSpellList::unk04->numShouts = 0;
-				gnomeNpc->TESSpellList::unk04->shouts = 0;
-				gnomeNpc->numHeadParts = 0;
-				gnomeNpc->headparts = 0;
-
-				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, SyncOptions::GetRespawnRadius(0)));
-				const auto name = this->GetName();
-				pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
-					RunGnomeBehavior(ref, name);
-				});
-			}
-		}
-	}
-
-	void RemotePlayer::DestroyGnomes()
-	{
-		for (int32_t i = 0; i <= 1; ++i)
-			pimpl->gnomes[i] = nullptr;
 	}
 
 	void RemotePlayer::UpdateNonSpawned()
@@ -315,58 +259,6 @@ namespace ci
 
 			allRemotePlayers.erase(this);
 			new (this) RemotePlayer(this->GetName(), this->GetLookData(), this->GetPos(), this->GetCell(), this->GetWorldSpace(), pimpl->onHit, this->GetEngine(), pimpl->onActivate);
-		}
-	}
-
-	void RemotePlayer::UpdateGnomes(Actor *actor)
-	{
-		for (int32_t i = 0; i <= 1; ++i)
-		{
-			auto &gnome = pimpl->gnomes[i];
-			if (gnome != nullptr)
-			{
-				NiPoint3 newPos;
-
-				if (this->NeedsGnome(i))
-				{
-					newPos = Utility::GetNodeWorldPosition(actor, i ? "NPC L Hand [LHnd]" : "NPC R MagicNode [RMag]", false);
-
-					const float angleRad = this->GetAngleZ() / 180 * acos(-1);
-					float distance = SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_FORWARD_FROM_HAND");
-
-					auto isCasting = [&](int32_t i) {
-						return this->GetMovementData().castStage[i] != ci::MovementData::CastStage::None;
-					};
-					if (isCasting(!i) && !isCasting(i))
-						newPos.z -= 48;
-
-					if (sd::GetEquippedSpell(actor, !i) == nullptr || !actor->IsWeaponDrawn())
-						distance += 48;
-					else if (i == 1)
-						distance += 44;
-					newPos += {distance * sin(angleRad), distance * cos(angleRad), 0};
-					newPos.z += SyncOptions::GetSingleton()->GetFloat("HANDGNOME_OFFSET_Z_FROM_HAND");
-				}
-				else
-				{
-					newPos = { 0, 0, -1000.f * 1000.f * 1000.f };
-				}
-
-				gnome->SetPos(newPos);
-				gnome->SetRot({ 0,0,this->GetAngleZ() });
-
-				static std::map<uint32_t, clock_t> lastBehaviorUpdate;
-				lastBehaviorUpdate.erase(NULL);
-				lastBehaviorUpdate.erase(~0);
-				if (newPos.z > -100000000 && clock() - lastBehaviorUpdate[gnome->GetFormID()] > 12000)
-				{
-					const auto name = this->GetName();
-					gnome->TaskSingle([name](TESObjectREFR *ref) {
-						RunGnomeBehavior(ref, name);
-					});
-					lastBehaviorUpdate[gnome->GetFormID()] = clock();
-				}
-			}
 		}
 	}
 
@@ -768,6 +660,10 @@ namespace ci
 			}
 		}
 
+		for (auto task : pimpl->tasksSpawned)
+			task();
+		pimpl->tasksSpawned.clear();
+
 		if (clock() - pimpl->lastLosCheck > 300)
 		{
 			pimpl->hasLOS = sd::HasLOS(g_thePlayer, actor);
@@ -913,8 +809,12 @@ namespace ci
 		if (pimpl->greyFaceFixed || pimpl->baseNpc != nullptr)
 		{
 			if (this->NeedsGnome(0) || this->NeedsGnome(1))
-				this->CreateGnomes();
-			this->UpdateGnomes(actor);
+			{
+				pimpl->gnomeHost.SetActive(true);
+				pimpl->gnomeHost.SetName(this->GetName());
+			}
+
+			pimpl->gnomeHost.UpdateAndMoveTo(actor, this->GetMovementData(), { this->NeedsGnome(0), this->NeedsGnome(1) });
 			this->DeleteProjectile(actor);
 			this->UpdateMovement(actor);
 			this->ApplyHitAnimations(actor);
@@ -1008,7 +908,7 @@ namespace ci
 
 		//ci::Log(pimpl->name + L"8");
 
-		this->DestroyGnomes();
+		pimpl->gnomeHost.SetActive(false);
 		pimpl->spawnStage = SpawnStage::Spawning;
 
 		auto refToPlaceAt =
@@ -1606,25 +1506,9 @@ namespace ci
 			const auto foxID = pimpl->syncState.myFoxID;
 			if (spell != nullptr)
 			{
-				if (pimpl->gnomes[handID])
-				{
-					pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *ref) {
-						const auto refID = ref->formID;
-						auto actor = (Actor *)LookupFormByID(refID);
-						if (actor != nullptr)
-						{
-							auto foxRef = (TESObjectREFR *)LookupFormByID(foxID);
-							if (foxRef != nullptr)
-							{
-								auto spellForm = (SpellItem *)LookupFormByID(spell->GetFormID());
-								if (spellForm != nullptr)
-								{
-									sd::DoCombatSpellApply(actor, spellForm, foxRef);
-								}
-							}
-						}
-					});
-				}
+				pimpl->tasksSpawned.push_back([=] {
+					pimpl->gnomeHost.DoCombatSpellApply(spell->GetFormID(), handID, foxID);
+				});
 			}
 		}
 	}
@@ -1636,7 +1520,6 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 		if (!pimpl->isMagicAttackStarted[handID]
-			&& pimpl->gnomes[handID] != nullptr
 			&& pimpl->handsMagicProxy[handID] != nullptr
 			&& pimpl->handsMagicProxy[handID]->GetCastingType() == Spell::CastingType::Concentration
 			&& pimpl->handsMagicProxy[handID]->GetDelivery() == Spell::Delivery::Aimed)
@@ -1646,9 +1529,8 @@ namespace ci
 			const auto spell = (SpellItem *)LookupFormByID(pimpl->handsMagicProxy[handID]->GetFormID());
 			const auto myFoxID = pimpl->syncState.myFoxID;
 
-			pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *gnomeRef) {
-				auto target = (TESObjectREFR *)LookupFormByID(myFoxID);
-				sd::DoCombatSpellApply((Actor *)gnomeRef, spell, target);
+			pimpl->tasksSpawned.push_back([=] {
+				pimpl->gnomeHost.DoCombatSpellApply(spell->GetFormID(), handID, myFoxID);
 			});
 		}
 	}
@@ -1661,8 +1543,8 @@ namespace ci
 
 		if (pimpl->isMagicAttackStarted[handID])
 		{
-			pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *gnomeRef) {
-				sd::DoCombatSpellApply((Actor *)gnomeRef, (SpellItem *)LookupFormByID(ID_SpellItem::Telekinesis), nullptr);
+			pimpl->tasksSpawned.push_back([=] {
+				pimpl->gnomeHost.DoCombatSpellApply(ID_SpellItem::Telekinesis, handID, 0x00000000);
 			});
 			pimpl->isMagicAttackStarted[handID] = false;
 		}
