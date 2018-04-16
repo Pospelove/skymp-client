@@ -14,6 +14,7 @@ namespace ci
 
 	extern std::set<RemotePlayer *> allRemotePlayers;
 	extern RPGMUTEX gMutex;
+	extern ILookSynchronizer *lookSync;
 }
 
 namespace ci
@@ -80,7 +81,6 @@ namespace ci
 		TESNPC *baseNpc = nullptr;
 		std::string mark;
 		uint32_t combatTarget = 0;
-		std::function<void()> engineTask = nullptr;
 		bool fullySpawned = false;
 		std::set<const ci::Perk *> perks;
 

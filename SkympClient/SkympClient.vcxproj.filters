@@ -211,6 +211,12 @@
     <ClCompile Include="CoreInterface\ciRPGnomeHost.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPCommonEquipment.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPCommonSpawn.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">

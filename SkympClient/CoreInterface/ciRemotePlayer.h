@@ -115,6 +115,10 @@ namespace ci
 
 		void UpdateNonSpawned();
 
+		void SpawnIfNeed();
+		void UndoSpawn();
+		void DetectSpawningTimeout();
+
 		void UpdateSpawning();
 
 		void UpdateGnomes(Actor *actor);
@@ -150,6 +154,8 @@ namespace ci
 		uint32_t GetLocationID() const;
 
 		static size_t GetNumInstances();
+
+		static void FinishSpawning();
 
 	protected:
 		virtual TESNPC *AllocateNPC() const;
