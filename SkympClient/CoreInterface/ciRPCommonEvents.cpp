@@ -4,12 +4,6 @@
 
 #include "ciRPEngineBase.h"
 
-namespace ci
-{
-	extern std::set<RemotePlayer *> allRemotePlayers;
-	extern RPGMUTEX gMutex;
-}
-
 class ci::RemotePlayer::Impl::ActivateEventSinkGlobal : public BSTEventSink<TESActivateEvent>
 {
 public:

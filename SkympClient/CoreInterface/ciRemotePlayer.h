@@ -14,6 +14,7 @@ namespace ci
 		friend class RPEngineIO;
 		friend class GhostAxeManager;
 		friend class GnomeHost;
+		friend class WorldSpell;
 	public:
 
 		using OnHit = std::function<void(const HitEventData &)>;

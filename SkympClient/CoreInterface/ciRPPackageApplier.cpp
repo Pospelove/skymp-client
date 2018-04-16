@@ -2,6 +2,10 @@
 #include "CoreInterface.h"
 #include "ciRPPackageApplier.h"
 
+#include "ciRPEngineBase.h"
+
+#include "Skyrim\Camera\PlayerCamera.h"
+
 namespace ci
 {
 	class MagicAccess
@@ -122,4 +126,73 @@ void ci::WorldSpell::Set(const ci::Spell *spell, uint32_t numCasters, uint32_t n
 const ci::Spell *ci::WorldSpell::Get()
 {
 	return worldSpell.spell;
+}
+
+void ci::WorldSpell::Update()
+{
+	std::lock_guard<dlf_mutex> l(gMutex);
+
+	std::map<const ci::Spell *, int32_t> worldSpellElection;
+	int32_t max = -1;
+	const ci::Spell *bestSpell = nullptr;
+
+	std::set<const ci::Spell *> spells;
+
+	std::for_each(allRemotePlayers.begin(), allRemotePlayers.end(), [&](RemotePlayer *p) {
+
+		if (p->GetSyncMode() != (int32_t)MovementData_::SyncMode::Hard)
+			return;
+
+		{
+			std::lock_guard<dlf_mutex> l(p->pimpl->mutex);
+			if (p->pimpl->spawnStage != SpawnStage::Spawned)
+				return;
+			auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
+			if (actor == nullptr)
+				return;
+			const auto pos = p->GetPos();
+			if (PlayerCamera::GetSingleton()->IsInScreen(pos)
+				|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,64 })
+				|| PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,128 }))
+			{
+			}
+			else
+				return;
+		}
+
+		for (int32_t i = 0; i <= 1; ++i)
+			spells.insert(p->GetEquippedSpell(i));
+		spells.erase(nullptr);
+
+		const auto md = p->GetMovementData();
+		for (int32_t i = 0; i <= 1; ++i)
+		{
+			if (md.castStage[i] != ci::MovementData::CastStage::None)
+			{
+				auto activeSpell = p->GetEquippedSpell(i);
+				if (activeSpell != nullptr)
+				{
+					++worldSpellElection[activeSpell];
+					if (worldSpellElection[activeSpell] > max)
+					{
+						max = worldSpellElection[activeSpell];
+						bestSpell = activeSpell;
+
+						auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
+						if (actor != nullptr)
+							ci::WorldSpell::SetCasterRealEquippedSpell(
+								sd::GetEquippedSpell(actor, !i)
+							);
+					}
+					break;
+				}
+			}
+		}
+
+	});
+
+	if (bestSpell != nullptr)
+	{
+		ci::WorldSpell::Set(bestSpell, max, (uint32_t)spells.size());
+	}
 }

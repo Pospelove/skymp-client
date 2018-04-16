@@ -10,6 +10,14 @@
 
 namespace ci
 {
+	using RPGMUTEX = dlf_mutex;
+
+	extern std::set<RemotePlayer *> allRemotePlayers;
+	extern RPGMUTEX gMutex;
+}
+
+namespace ci
+{
 	class InvisibleFox;
 
 	enum class SpawnStage
@@ -18,8 +26,6 @@ namespace ci
 		Spawning,
 		Spawned,
 	};
-
-	using RPGMUTEX = dlf_mutex;
 
 	struct RemotePlayer::Impl
 	{
