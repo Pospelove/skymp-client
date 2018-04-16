@@ -140,7 +140,7 @@ namespace ci
 		void UpdateSpawned();
 
 		void Update();
-		void Update_OT();
+		void Update_OT() {};
 
 		void ForceSpawn(TESNPC *npc);
 		void ForceDespawn(const wchar_t *reason = L"");

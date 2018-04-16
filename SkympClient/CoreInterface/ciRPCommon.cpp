@@ -251,6 +251,8 @@ namespace ci
 		if (pimpl->stopProcessing)
 			return;
 		auto actor = (Actor *)LookupFormByID(pimpl->formID);
+		if (actor && actor->baseForm->formType != FormType::Character)
+			actor = nullptr;
 		if (!actor)
 			return this->DespawnIfNeed(nullptr);
 
@@ -383,14 +385,6 @@ namespace ci
 		catch (...) {
 			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s' '%d' ", WstringToString(this->GetName()).data(), (int32_t)spawnStage);
 		}
-	}
-
-	void RemotePlayer::Update_OT()
-	{
-		if (MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
-			return this->ForceDespawn(L"Despawned: Game exit");
-		if (!Utility::IsForegroundProcess() && GameSettings::IsFullScreen() && !this->IsDerived())
-			return this->ForceDespawn(L"Despawned: Window isn't active");
 	}
 
 	int32_t RemotePlayer::GetSyncMode() const
