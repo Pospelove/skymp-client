@@ -12,10 +12,7 @@
 #include "ciRPEngineInput.h" // To run other players
 #include "ciRPEngineIO.h" // To run NPCs
 
-enum class InvisibleFoxEngine {
-	None = 0x0,
-	Object = 0x2,
-};
+#include "ciRPInvisibleFox.h" // Used as SetLookAt() target for aiming npc
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 extern std::map<TESForm *, const ci::Spell *> knownSpells;
@@ -44,7 +41,6 @@ namespace ci
 	uint32_t currentSpawningBaseID = 0;
 	clock_t lastForceSpawn = 0;
 	RemotePlayer *currentFixingGreyFace = nullptr;
-	uint32_t numInvisibleFoxes = 0;
 	uint64_t errorsInSpawn = false;
 
 	void RunGnomeBehavior(TESObjectREFR *ref, const std::wstring &name)
@@ -175,15 +171,6 @@ namespace ci
 		if (currentFixingGreyFace == this)
 			currentFixingGreyFace = nullptr;
 
-		auto myPseudoFox = pimpl->myPseudoFox;
-		if (myPseudoFox != nullptr)
-		{
-			--numInvisibleFoxes;
-			std::thread([=] {
-				delete myPseudoFox;
-			}).detach();
-		}
-
 		auto dispenser = pimpl->dispenser;
 		if (dispenser != nullptr)
 		{
@@ -191,40 +178,6 @@ namespace ci
 				delete dispenser;
 			}).detach();
 		}
-	}
-
-	void RemotePlayer::AsyncFoxDestroy()
-	{
-		std::thread([=] {
-			std::lock_guard<dlf_mutex> l1(gMutex);
-			if (allRemotePlayers.find(this) != allRemotePlayers.end())
-			{
-				std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-				if (pimpl->myPseudoFox != nullptr)
-				{
-					delete pimpl->myPseudoFox;
-					pimpl->myPseudoFox = nullptr;
-					--numInvisibleFoxes;
-				}
-			}
-		}).detach();
-	}
-
-	void RemotePlayer::AsyncFoxCreate()
-	{
-		std::thread([=] {
-			std::lock_guard<dlf_mutex> l1(gMutex);
-			if (allRemotePlayers.find(this) != allRemotePlayers.end())
-			{
-				std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-				if (pimpl->myPseudoFox == nullptr)
-				{
-					pimpl->myPseudoFox = new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, this->GetLocationID(), { 0,0,0 }, { 0,0,0 });
-					pimpl->myPseudoFox->SetMotionType(Object::Motion_Keyframed);
-					++numInvisibleFoxes;
-				}
-			}
-		}).detach();
 	}
 
 	void RemotePlayer::CreateGnomes()
@@ -548,42 +501,6 @@ namespace ci
 			pimpl->avData["invisibility"].base + pimpl->avData["invisibility"].modifier);
 	}
 
-	void RemotePlayer::ManageMyFox(Actor *actor)
-	{
-		SAFE_CALL("RemotePlayer", [&] {
-
-			auto pointAtSphere = [](float angleZ, float aimingAngle, float r)->NiPoint3 {
-				auto toRad = [](float v) {
-					return v / 180 * acos(-1);
-				};
-				return { float(r * cos(-toRad(-90.f + angleZ)) * sin(toRad(aimingAngle + 90))),
-					float(r * sin(-toRad(-90.f + angleZ)) * sin(toRad(aimingAngle + 90))),
-					float(r * cos(toRad(aimingAngle + 90)))
-				};
-			};
-
-			pimpl->syncState.myFoxID = 0;
-			if (pimpl->myPseudoFox != nullptr)
-			{
-				const float r = 600;
-				const auto myMd = this->GetMovementData();
-				auto pos = myMd.pos + pointAtSphere(myMd.angleZ, myMd.aimingAngle, r);
-
-				if (this->IsSpellEquipped())
-					pos.z += SyncOptions::GetSingleton()->GetFloat("INVISIBLE_FOX_OFFSET_Z_MAGIC");
-
-				pimpl->myPseudoFox->SetPosition(pos);
-				auto baseForm = LookupFormByID(pimpl->myPseudoFox->GetBase());
-				if (baseForm != nullptr)
-				{
-					auto ref = sd::Game::FindClosestReferenceOfType(baseForm, pos.x, pos.y, pos.z, 128.0);
-					if (ref != nullptr)
-						pimpl->syncState.myFoxID = ref->formID;
-				}
-			}
-		});
-	}
-
 	void RemotePlayer::UpdateDispenser(Actor *actor)
 	{
 		SAFE_CALL("RemotePlayer", [&] {
@@ -654,25 +571,18 @@ namespace ci
 		});
 	}
 
-	void RemotePlayer::CreateDestroyMyFox(Actor *actor)
+	void RemotePlayer::UpdateInvisibleFox()
 	{
-		if (SyncOptions::GetSingleton()->GetInt("INVISIBLE_FOX_ENGINE") == (int32_t)InvisibleFoxEngine::Object)
-		{
-			if (this->IsSpellEquipped() || this->IsBowEquipped())
+		SAFE_CALL("RemotePlayer", [&] {
+			const bool needsFox = this->IsSpellEquipped() || this->IsBowEquipped();
+			pimpl->invisibleFox.SetActive(needsFox);
+			if (needsFox)
 			{
-				if (pimpl->myPseudoFox == nullptr
-					&& numInvisibleFoxes < SyncOptions::GetSingleton()->GetInt("MAX_INVISIBLE_FOXES")
-					&& sd::HasLOS(g_thePlayer, actor))
-				{
-					this->AsyncFoxCreate();
-				}
+				pimpl->invisibleFox.UpdateAndMoveTo(this->GetMovementData());
+				pimpl->invisibleFox.SetOffsetZ(SyncOptions::GetSingleton()->GetFloat("INVISIBLE_FOX_OFFSET_Z_MAGIC"));
+				pimpl->syncState.myFoxID = pimpl->invisibleFox.GetFormID();
 			}
-			else
-			{
-				if (pimpl->myPseudoFox != nullptr)
-					this->AsyncFoxDestroy();
-			}
-		}
+		});
 	}
 
 	void RemotePlayer::ManageMagicEquipment(Actor *actor)
@@ -1083,7 +993,7 @@ namespace ci
 			this->ApplyActorValues(actor);
 		}
 
-		this->ManageMyFox(actor);
+		this->UpdateInvisibleFox();
 
 		if (pimpl->timer250ms + 250 < clock())
 		{
@@ -1096,12 +1006,11 @@ namespace ci
 			});
 
 			this->UpdateDispenser(actor);
-			this->CreateDestroyMyFox(actor);
-
-			this->ManageMagicEquipment(actor);
 
 			this->ApplyEquipmentHands(actor);
 			this->ApplyEquipmentOther(actor);
+
+			this->ManageMagicEquipment(actor);
 
 			this->DespawnIfNeed(actor);
 			if (pimpl->spawnStage == SpawnStage::NonSpawned)
@@ -1135,7 +1044,7 @@ namespace ci
 			}
 		}
 		catch (...) {
-			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s' %d ", WstringToString(this->GetName()).data(), (int32_t)spawnStage);
+			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s' '%d' ", WstringToString(this->GetName()).data(), (int32_t)spawnStage);
 		}
 	}
 
@@ -1832,7 +1741,7 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->spawnStage == SpawnStage::Spawned)
 		{
-			const auto foxID = pimpl->myPseudoFox ? pimpl->myPseudoFox->GetRefID() : 0;
+			const auto foxID = pimpl->syncState.myFoxID;
 			if (spell != nullptr)
 			{
 				if (pimpl->gnomes[handID])
@@ -1873,7 +1782,7 @@ namespace ci
 			pimpl->isMagicAttackStarted[handID] = true;
 
 			const auto spell = (SpellItem *)LookupFormByID(pimpl->handsMagicProxy[handID]->GetFormID());
-			const auto myFoxID = pimpl->myPseudoFox ? pimpl->myPseudoFox->GetRefID() : 0;
+			const auto myFoxID = pimpl->syncState.myFoxID;
 
 			pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *gnomeRef) {
 				auto target = (TESObjectREFR *)LookupFormByID(myFoxID);

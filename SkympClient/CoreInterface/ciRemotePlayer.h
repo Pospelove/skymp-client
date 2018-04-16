@@ -105,8 +105,6 @@ namespace ci
 		static void UpdateAll_OT();
 		static void UpdateWorldSpell();
 
-		void AsyncFoxDestroy();
-		void AsyncFoxCreate();
 		void CreateGnomes();
 		void DestroyGnomes();
 
@@ -121,9 +119,8 @@ namespace ci
 		void UpdateMovement(Actor *actor);
 		void ApplyHitAnimations(Actor *actor);
 		void ApplyActorValues(Actor *actor);
-		void ManageMyFox(Actor *actor);
 		void UpdateDispenser(Actor *actor);
-		void CreateDestroyMyFox(Actor *actor);
+		void UpdateInvisibleFox();
 		void ManageMagicEquipment(Actor *actor);
 		void ApplyEquipmentHands(Actor *actor);
 		void ApplyEquipmentOther(Actor *actor);

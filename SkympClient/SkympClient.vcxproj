@@ -139,6 +139,7 @@
     <ClCompile Include="CoreInterface\ciRPEngineIO.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommonEvents.cpp" />
     <ClCompile Include="CoreInterface\ciRPGhostAxe.cpp" />
+    <ClCompile Include="CoreInterface\ciRPInvisibleFox.cpp" />
     <ClCompile Include="CoreInterface\ciRPPackageApplier.cpp" />
     <ClCompile Include="CoreInterface\ciRPPlaceMarker.cpp" />
     <ClCompile Include="CoreInterface\ciSpell.cpp" />
@@ -211,6 +212,7 @@
     <ClInclude Include="CoreInterface\ciRPEngineInput.h" />
     <ClInclude Include="CoreInterface\ciRPEngineIO.h" />
     <ClInclude Include="CoreInterface\ciRPGhostAxe.h" />
+    <ClInclude Include="CoreInterface\ciRPInvisibleFox.h" />
     <ClInclude Include="CoreInterface\ciRPPackageApplier.h" />
     <ClInclude Include="CoreInterface\ciRPPlaceMarker.h" />
     <ClInclude Include="CoreInterface\ciSpell.h" />

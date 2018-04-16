@@ -4,8 +4,12 @@
 // It's OK to include files from Sync directory because ciRPEngineBase.h is private header
 #include "../Sync/SyncEssential.h"
 
+#include "ciRPInvisibleFox.h"
+
 namespace ci
 {
+	class InvisibleFox;
+
 	enum class SpawnStage
 	{
 		NonSpawned,
@@ -51,8 +55,8 @@ namespace ci
 		std::queue<uint32_t> hitAnimsToApply, hitAnimsOut;
 		OnHit onHit = nullptr;
 		OnActivate onActivate = nullptr;
+		ci::InvisibleFox invisibleFox; 
 		std::map<std::string, ci::AVData> avData;
-		ci::Object *myPseudoFox = nullptr;
 		ci::Object *dispenser = nullptr;
 		float height = 1;
 		bool isMagicAttackStarted[2];
