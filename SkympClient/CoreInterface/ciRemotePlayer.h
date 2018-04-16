@@ -12,6 +12,7 @@ namespace ci
 		friend class IRemotePlayerEngine;
 		friend class RPEngineInput;
 		friend class RPEngineIO;
+		friend class GhostAxeManager;
 	public:
 
 		using OnHit = std::function<void(const HitEventData &)>;
@@ -97,11 +98,12 @@ namespace ci
 		static RemotePlayer *LookupByFormID(uint32_t id);
 		static void SetTracing(bool trace);
 
+		struct Impl;
+
 	private:
 		static void UpdateAll();
 		static void UpdateAll_OT();
 		static void UpdateWorldSpell();
-		static void ApplyWorldSpell();
 
 		void AsyncFoxDestroy();
 		void AsyncFoxCreate();
@@ -146,7 +148,6 @@ namespace ci
 		uint32_t GetLocationID() const;
 
 		static size_t GetNumInstances();
-		static uint32_t GetGhostAxeFormID();
 
 	protected:
 		virtual TESNPC *AllocateNPC() const;
@@ -155,8 +156,6 @@ namespace ci
 		bool IsDerived() const {
 			return this->GetName() == L"Ghost Axe" || this->GetName() == L"Invisible Fox";
 		}
-
-		struct Impl;
 		std::unique_ptr<Impl> pimpl;
 	};
 }

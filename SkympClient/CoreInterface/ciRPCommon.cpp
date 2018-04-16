@@ -3,6 +3,15 @@
 #include "Skyrim\Camera\PlayerCamera.h"
 #include "CoreInterface.h"
 
+#include "ciRPEngineBase.h"
+#include "ciRPPackageApplier.h"
+#include "ciRPPlaceMarker.h"
+#include "ciRPGhostAxe.h"
+#include "ciRPCommonEvents.h"
+
+#include "ciRPEngineInput.h" // To run other players
+#include "ciRPEngineIO.h" // To run NPCs
+
 enum class InvisibleFoxEngine {
 	None = 0x0,
 	Object = 0x2,
@@ -10,27 +19,6 @@ enum class InvisibleFoxEngine {
 
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 extern std::map<TESForm *, const ci::Spell *> knownSpells;
-extern clock_t localPlCrosshairRefUpdateMoment;
-
-class CIAccess
-{
-public:
-	static void OnPoisonAttack()
-	{
-		std::thread([=] {
-			auto logic = ci::IClientLogic::clientLogic;
-			if (logic != nullptr)
-			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnPoisonAttack();
-			}
-		}).detach();
-	}
-
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
-	}
-};
 
 namespace ci
 {
@@ -41,878 +29,23 @@ namespace ci
 			return ac->GetRefID();
 		}
 	};
-
-	class ObjectAccess
-	{
-	public:
-		static uint32_t GetObjectRefID(const Object *obj) {
-			return obj->GetRefID();
-		}
-	};
 }
 
 namespace ci
 {
-	void ApplyPackage(TESNPC *);
-
-	enum class SpawnStage
-	{
-		NonSpawned,
-		Spawning,
-		Spawned,
-	};
-
-	struct RemotePlayer::Impl
-	{
-		Impl() {
-			isMagicAttackStarted[0] = isMagicAttackStarted[1] = false;
-		}
-
-		bool usl1, usl2, usl3, usl4, usl5;
-
-		dlf_mutex mutex;
-		FormID formID = 0;
-		std::wstring name;
-		std::unique_ptr<ci::Text3D> nicknameLabel;
-		std::unique_ptr<ci::IRemotePlayerEngine> engine;
-		bool nicknameEnabled = true;
-		bool hasLOS = true;
-		clock_t lastLosCheck = 0;
-		LookData lookData;
-		ILookSynchronizer *lookSync = ILookSynchronizer::GetV17();
-		TESObjectCELL *currentNonExteriorCell = nullptr;
-		FormID worldSpaceID = 0;
-		SpawnStage spawnStage = SpawnStage::NonSpawned;
-		clock_t spawnMoment = 0;
-		clock_t timer250ms = 0;
-		clock_t unsafeSyncTimer = 0;
-		clock_t lastOutOfPos = 0;
-		bool greyFaceFixed = false;
-		bool greyFaceFixedUnsafe = false;
-		MovementData movementData, movementDataOut;
-		MovementData_::SyncState syncState;
-		clock_t lastDespawn = 0;
-		UInt32 rating = 0;
-		bool afk = false;
-		bool stopProcessing = false;
-		std::map<const ci::ItemType *, uint32_t> inventory;
-		std::queue<uint32_t> hitAnimsToApply, hitAnimsOut;
-		OnHit onHit = nullptr;
-		OnActivate onActivate = nullptr;
-		std::map<std::string, ci::AVData> avData;
-		ci::Object *myPseudoFox = nullptr;
-		ci::Object *dispenser = nullptr;
-		float height = 1;
-		bool isMagicAttackStarted[2];
-		const void *visualMagicEffect = nullptr;
-		std::map<int32_t, std::unique_ptr<SimpleRef>> gnomes;
-		bool broken = false;
-		std::function<void(Actor *)> posTask, angleTask;
-		std::unique_ptr<ci::Object> pathToTarget;
-		float pathingSpeedmult = 100;
-		TESNPC *baseNpc = nullptr;
-		std::string mark;
-		uint32_t combatTarget = 0;
-		std::function<void()> engineTask = nullptr;
-		bool fullySpawned = false;
-		std::set<const ci::Perk *> perks;
-
-		struct Equipment
-		{
-			Equipment() {
-				hands[0] = hands[1] = nullptr;
-				handsMagic[0] = handsMagic[1] = nullptr;
-			}
-
-			std::array<const ci::ItemType *, 2> hands;
-			std::array<const ci::Spell *, 2> handsMagic;
-			std::set<const ci::ItemType *> armor;
-			const ci::ItemType *ammo = nullptr;
-
-			friend bool operator==(const Equipment &l, const Equipment &r) {
-				return l.hands[0] == r.hands[0] && l.hands[1] == r.hands[1] && l.armor == r.armor && l.ammo == r.ammo;
-			}
-			friend bool operator!=(const Equipment &l, const Equipment &r) {
-				return !(l == r);
-			}
-		} eq, eqLast;
-
-		std::map<int32_t, const ci::Spell *> handsMagicProxy;
-		clock_t lastMagicEquipmentChange = 0;
-
-		clock_t lastWeaponsUpdate = 0;
-
-		static decltype(knownItems) *RemotePlayerKnownItems() { // lock gMutex to use this
-			static decltype(knownItems) remotePlayerKnownItems;
-			return &remotePlayerKnownItems;
-		}
-
-		static decltype(knownSpells) *RemotePlayerKnownSpells() { // lock gMutex to use this
-			static decltype(knownSpells) remotePlayerKnownSpells;
-			return &remotePlayerKnownSpells;
-		}
-
-		class HitEventSinkGlobal;
-		class ActivateEventSinkGlobal;
-	};
-
-	class IRemotePlayerEngine : public IActor
-	{
-	public:
-
-		IRemotePlayerEngine(RemotePlayer *argParent) : parent(argParent)
-		{
-		}
-
-		virtual ~IRemotePlayerEngine()
-		{
-		}
-
-		void SetName(const std::wstring &name) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-
-			if (pimpl->name != name)
-			{
-				pimpl->name = name;
-				if (pimpl->spawnStage == SpawnStage::Spawned)
-				{
-					const auto formID = pimpl->formID;
-					SET_TIMER_LIGHT(0, [=] {
-						auto str = WstringToString(name);
-						cd::SetDisplayName(cd::Value<TESObjectREFR>(formID), str, true);
-					});
-				}
-			}
-		}
-
-		void SetCell(uint32_t cellID) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			auto cell = CellUtil::LookupNonExteriorCellByID(cellID);
-			pimpl->currentNonExteriorCell = cell;
-		}
-
-		void SetWorldSpace(uint32_t worldSpaceID) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->worldSpaceID = worldSpaceID;
-		}
-
-		void ApplyLookData(const LookData &lookData) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-
-			pimpl->lookData = lookData;
-			if (pimpl->spawnStage == SpawnStage::Spawned && this->GetParent()->IsDerived() == false)
-				this->GetParent()->ForceDespawn(L"Despawned: LookData updated");
-		}
-
-		void UseFurniture(const Object *target, bool withAnim) override
-		{
-			// ...
-		}
-
-		void AddItem(const ItemType *item, uint32_t count, bool silent) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			if (item && count)
-				pimpl->inventory[item] += count;
-		}
-
-		void RemoveItem(const ItemType *item, uint32_t count, bool silent) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			if (item && count)
-			{
-				if (pimpl->inventory[item] > count)
-					pimpl->inventory[item] -= count;
-				else
-				{
-					pimpl->inventory.erase(item);
-					this->GetParent()->UnequipItem(item, silent, false, false);
-					this->GetParent()->UnequipItem(item, silent, false, true);
-				}
-			}
-		}
-
-		void EquipItem(const ItemType *item, bool silent, bool preventRemoval, bool leftHand) override
-		{
-			if (item != nullptr)
-			{
-				auto &pimpl = this->GetImpl();
-				std::lock_guard<dlf_mutex> l(pimpl->mutex);
-				//uint32_t count;
-				//try {
-				//	count = pimpl->inventory.at(item);
-				//}
-				//catch (...) {
-				//	count = 0;
-				//}
-				//if (count == 0)
-				//	ErrorHandling::SendError("WARN:RemotePlayer EquipItem()");
-
-				if (item->GetClass() == ci::ItemType::Class::Armor)
-				{
-					pimpl->eq.armor.insert(item);
-					return;
-				}
-				if (item->GetClass() == ci::ItemType::Class::Weapon)
-				{
-					pimpl->eq.hands[leftHand] = item;
-					pimpl->handsMagicProxy[leftHand] = nullptr;
-					return;
-				}
-				if (item->GetClass() == ci::ItemType::Class::Ammo)
-				{
-					pimpl->eq.ammo = item;
-					return;
-				}
-			}
-		}
-
-		void UnequipItem(const ItemType *item, bool silent, bool preventEquip, bool isLeftHand) override
-		{
-			if (item == nullptr)
-				return;
-
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			if (item->GetClass() == ci::ItemType::Class::Armor)
-			{
-				pimpl->eq.armor.erase(item);
-				return;
-			}
-			if (item->GetClass() == ci::ItemType::Class::Weapon)
-			{
-				if (pimpl->eq.hands[isLeftHand] == item)
-					pimpl->eq.hands[isLeftHand] = nullptr;
-				return;
-			}
-			if (item->GetClass() == ci::ItemType::Class::Ammo)
-			{
-				if (pimpl->eq.ammo == item)
-					pimpl->eq.ammo = nullptr;
-				return;
-			}
-		}
-
-		void AddSpell(const Spell *spell, bool silent) override
-		{
-		}
-
-		void RemoveSpell(const Spell *spell, bool silent) override
-		{
-			for (int32_t i = 0; i != 2; ++i)
-				this->GetParent()->UnequipSpell(spell, i != 0);
-		}
-
-		void PlayAnimation(uint32_t animID) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->hitAnimsToApply.push(animID);
-		}
-
-		void UpdateAVData(const std::string &avName_, const AVData &data) override
-		{
-			auto avName = avName_;
-			std::transform(avName.begin(), avName.end(), avName.begin(), ::tolower);
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->avData[avName] = data;
-		}
-
-		void AddActiveEffect(const ci::MagicEffect *effect, float uiDisplayDuration, float uiDisplayMagnitude) override
-		{
-			// ...
-		}
-
-		void RemoveActiveEffect(const ci::MagicEffect *effect) override
-		{
-			// ...
-		}
-
-		void AddPerk(const ci::Perk *perk) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->perks.insert(perk);
-			pimpl->perks.erase(nullptr);
-		}
-
-		void RemovePerk(const ci::Perk *perk) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->perks.erase(perk);
-		}
-
-		std::wstring GetName() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->name;
-		}
-
-		uint32_t GetCell() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->currentNonExteriorCell ? pimpl->currentNonExteriorCell->formID : 0;
-		}
-
-		uint32_t GetWorldSpace() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->worldSpaceID;
-		}
-
-		LookData GetLookData() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->lookData;
-		}
-
-		std::vector<ci::ItemType *> GetEquippedArmor() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			std::vector<ci::ItemType *> result;
-			for (auto item : pimpl->eq.armor)
-				result.push_back(const_cast<ci::ItemType *>(item));
-			return result;
-		}
-
-		ci::ItemType *GetEquippedWeapon(bool isLeftHand) const
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return const_cast<ci::ItemType *>(pimpl->eq.hands[isLeftHand]);
-		}
-
-		ci::ItemType *GetEquippedAmmo() const
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return const_cast<ci::ItemType *>(pimpl->eq.ammo);
-		}
-
-		const Spell *GetEquippedShout() const override
-		{
-			return nullptr; // Not Implemented
-		}
-
-		AVData GetAVData(const std::string &avName_) const override
-		{
-			try {
-				auto avName = avName_;
-				std::transform(avName.begin(), avName.end(), avName.begin(), ::tolower);
-				auto &pimpl = this->GetImpl();
-				return pimpl->avData.at(avName);
-			}
-			catch (...) {
-				return {};
-			}
-		}
-
-		uint32_t GetRefID() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->formID;
-		}
-
-		TESNPC *AllocateNPC()
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-
-			auto result = pimpl->lookSync->Apply(pimpl->lookData);
-			ApplyPackage(result);
-			result->TESActorBaseData::flags.bleedoutOverride = true;
-			result->TESActorBaseData::flags.invulnerable = false;
-			result->TESActorBaseData::flags.essential = false;
-			result->TESActorBaseData::flags.ghost = false;
-			result->combatStyle = (TESCombatStyle *)LookupFormByID(0x000F960C);
-			result->combatStyle->general.magicMult = 5;
-			result->combatStyle->general.meleeMult = 13.5;
-			result->combatStyle->general.staffMult = 15;
-			result->height = pimpl->height;
-
-			if (pimpl->baseNpc != nullptr)
-			{
-				return pimpl->baseNpc;
-			}
-
-			return result;
-		}
-
-		virtual void ApplyMovementDataImpl() = 0;
-		virtual const char *GetEngineName() const = 0;
-		virtual void EngineUpdateSpawned(Actor *actor) = 0;
-		virtual void EngineApplyFactions(Actor *actor) = 0;
-
-		enum class FactionsState
-		{
-			Unknown,
-			NoFactions,
-			PlayerAllyFaction,
-		};
-
-		FactionsState factionsState = FactionsState::Unknown;
-
-	protected:
-		RemotePlayer *GetParent() const {
-			return this->parent;
-		}
-
-
-		virtual std::unique_ptr<RemotePlayer::Impl> &GetImpl() const {
-			return this->GetParent()->pimpl;
-		}
-
-	private:
-		RemotePlayer *const parent;
-	};
-
-	class RPEngineInput : public IRemotePlayerEngine
-	{
-	public:
-		RPEngineInput(RemotePlayer *argParent) : IRemotePlayerEngine(argParent)
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->posTask = nullptr;
-			pimpl->angleTask = nullptr;
-			pimpl->pathToTarget.reset();
-		}
-
-		~RPEngineInput() override
-		{
-		}
-
-		void SetPos(NiPoint3 pos) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->movementData.pos = pos;
-		}
-
-		void SetAngleZ(float angle) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->movementData.angleZ = (UInt16)angle;
-		}
-
-		void ApplyMovementData(const MovementData &movementData) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->movementData = movementData;
-		}
-
-		void EquipSpell(const Spell *spell, bool leftHand) override
-		{
-			if (!spell || spell->IsEmpty())
-				return;
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->handsMagicProxy[leftHand] = spell;
-			pimpl->eq.hands[leftHand] = nullptr;
-		}
-
-		void UnequipSpell(const Spell *spell, bool leftHand) override
-		{
-			if (!spell || spell->IsEmpty())
-				return;
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			if (pimpl->handsMagicProxy[leftHand] == spell)
-				pimpl->handsMagicProxy[leftHand] = nullptr;
-		}
-
-		NiPoint3 GetPos() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementData.pos;
-		}
-
-		float GetAngleZ() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementData.angleZ;
-		}
-
-		MovementData GetMovementData() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementData;
-		}
-
-		const Spell *GetEquippedSpell(bool isLeftHand = false) const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->handsMagicProxy[isLeftHand];
-		}
-
-		void ApplyMovementDataImpl() override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			auto actor = (Actor *)LookupFormByID(pimpl->formID);
-			if (!actor)
-				return;
-
-			SAFE_CALL("RemotePlayer", [&] {
-				if (clock() - localPlCrosshairRefUpdateMoment > SyncOptions::GetSingleton()->GetInt("MAX_CD_LAG") || clock() - pimpl->lastOutOfPos < 1000)
-					pimpl->unsafeSyncTimer = clock() + SyncOptions::GetSingleton()->GetInt("CD_LAG_RECOVER_TIME");
-				pimpl->syncState.fullyUnsafeSync = RemotePlayer::GetNumInstances() > SyncOptions::GetSingleton()->GetInt("MAX_PLAYERS_SYNCED_SAFE") || pimpl->unsafeSyncTimer > clock();
-			});
-
-			bool success = false;
-			SAFE_CALL("RemotePlayer", [&] {
-				if (pimpl->rating < SyncOptions::GetSingleton()->GetInt("MAX_HARDSYNCED_PLAYERS")
-					&& pimpl->syncState.syncMode == MovementData_::SyncMode::Normal)
-					pimpl->syncState.syncMode = MovementData_::SyncMode::Hard;
-				{
-					auto md = pimpl->movementData;
-					//if (sd::IsInCombat(g_thePlayer) && sd::GetCombatTarget(g_thePlayer) != actor)
-					//	md.isWeapDrawn = true; // предотвращение эпилепсии
-					MovementData_::Apply(md, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
-
-					if (pimpl->afk)
-						sd::EnableAI(actor, false);
-					else
-						sd::EnableAI(actor, true);
-				}
-				success = true;
-			});
-
-			SAFE_CALL("RemotePlayer", [&] {
-				if (!success)
-					MovementData_::Apply(pimpl->movementData, actor, &pimpl->syncState, RemotePlayer::GetGhostAxeFormID());
-			});
-		}
-
-
-		const char *GetEngineName() const override
-		{
-			return "RPEngineInput";
-		}
-
-		void EngineUpdateSpawned(Actor *actor) override
-		{
-
-			// Already locked
-			auto &pimpl = this->GetImpl();
-
-			//sd::SetActorValue(actor, "Agression", pimpl->movementData.isWeapDrawn ? 1.0 : 0.0);
-
-			const float confidence = pimpl->movementData.isWeapDrawn ? 4.0 : 0.0;
-			if (abs(sd::GetBaseActorValue(actor, "Confidence") - confidence) > 0.25)
-			{
-				///sd::SetActorValue(actor, "Confidence", confidence);
-				///sd::ForceActorValue(actor, "Confidence", confidence);
-			}
-
-			if (sd::IsInCombat(actor))
-			{
-				auto target = sd::GetCombatTarget(actor);
-				if (target != nullptr)
-				{
-					auto ghostAxeRef = (Actor *)LookupFormByID(RemotePlayer::GetGhostAxeFormID());
-					if (ghostAxeRef != nullptr && target != ghostAxeRef)
-					{
-						sd::StopCombat(actor);
-						sd::StartCombat(actor, ghostAxeRef);
-						this->GetParent()->ApplyMovementDataImpl();
-					}
-				}
-			}
-		}
-
-		void EngineApplyFactions(Actor *actor) override
-		{
-			if (this->factionsState == IRemotePlayerEngine::FactionsState::Unknown)
-			{
-				sd::RemoveFromAllFactions(actor);
-				this->factionsState = IRemotePlayerEngine::FactionsState::NoFactions;
-			}
-
-			if (this->factionsState == IRemotePlayerEngine::FactionsState::NoFactions)
-			{
-				enum {
-					CWPlayerAlly = 0x0008F36D,
-				};
-				cd::AddToFaction(
-					cd::Value<Actor>(actor->formID),
-					cd::Value<TESFaction>(CWPlayerAlly));
-				this->factionsState = IRemotePlayerEngine::FactionsState::PlayerAllyFaction;
-			}
-		}
-	};
-
-	class RPEngineIO : public IRemotePlayerEngine
-	{
-	public:
-		RPEngineIO(RemotePlayer *argParent) : IRemotePlayerEngine(argParent)
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->pathToTarget.reset();
-		}
-
-		~RPEngineIO() override
-		{
-		}
-
-		void SetPos(NiPoint3 pos) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->posTask = [pos](Actor *actor) {
-				sd::SetPosition(actor, pos.x, pos.y, pos.z);
-			};
-			pimpl->movementData.pos = pos;
-		}
-
-		void SetAngleZ(float angle) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			pimpl->angleTask = [angle](Actor *actor) {
-				sd::SetAngle(actor, 0, 0, angle);
-			};
-			pimpl->movementData.angleZ = angle;
-		}
-
-		void ApplyMovementData(const MovementData &movementData) override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			this->GetParent()->SetPos(movementData.pos);
-			this->GetParent()->SetAngleZ(movementData.angleZ);
-			pimpl->movementData = movementData;
-		}
-
-		void EquipSpell(const Spell *spell, bool leftHand) override
-		{
-		}
-
-		void UnequipSpell(const Spell *spell, bool leftHand) override
-		{
-		}
-
-		NiPoint3 GetPos() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementDataOut.pos;
-		}
-
-		float GetAngleZ() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			return pimpl->movementDataOut.angleZ;
-		}
-
-		MovementData GetMovementData() const override
-		{
-			auto &pimpl = this->GetImpl();
-			std::lock_guard<dlf_mutex> l(pimpl->mutex);
-			if (pimpl->fullySpawned == false)
-				return pimpl->movementData;
-			return pimpl->movementDataOut;
-		}
-
-		const Spell *GetEquippedSpell(bool isLeftHand = false) const override
-		{
-			return nullptr;
-		}
-
-		void ApplyMovementDataImpl()
-		{
-		}
-
-		const char *GetEngineName() const override
-		{
-			return "RPEngineIO";
-		}
-
-		void EngineUpdateSpawned(Actor *actor) override
-		{
-			//sd::SetActorValue(actor, "Agression", 1.0);
-
-			// Already locked
-			auto &pimpl = this->GetImpl();
-
-			sd::ClearKeepOffsetFromActor(actor);
-			sd::SetHeadTracking(actor, false);
-
-			auto animPtr = AnimData_::UpdateActor(pimpl->formID);
-			if (animPtr != nullptr)
-			{
-				pimpl->hitAnimsOut.push(*animPtr);
-			}
-
-			if (clock() - this->lastCombatUpdate > (pimpl->combatTarget ? 500 : 10))
-			{
-				this->lastCombatUpdate = clock();
-
-				const float newVal = pimpl->combatTarget != 0 ? 4.0f : 0.0f;
-				sd::SetActorValue(actor, "Confidence", newVal);
-				sd::ForceActorValue(actor, "Confidence", newVal);
-
-				//ci::Chat::AddMessage(std::to_wstring(pimpl->combatTarget));
-				if (pimpl->combatTarget != 0)
-				{
-					auto combatTarget = (Actor *)LookupFormByID(pimpl->combatTarget);
-					if (combatTarget != nullptr)
-					{
-						sd::ClearKeepOffsetFromActor(actor);
-						if (sd::GetCombatTarget(actor) != combatTarget && sd::HasLOS(actor, combatTarget))
-						{
-							sd::StopCombat(actor);
-							sd::StartCombat(actor, combatTarget);
-						}
-						sd::SetActorValue(actor, "Agression", 4.0);
-						sd::ForceActorValue(actor, "Agression", 4.0);
-					}
-					else
-					{
-						sd::SetActorValue(actor, "Agression", 0.0);
-						sd::ForceActorValue(actor, "Agression", 0.0);
-					}
-				}
-				else
-				{
-					sd::SetActorValue(actor, "Agression", 0.0);
-					sd::ForceActorValue(actor, "Agression", 0.0);
-					sd::PathToReference(actor, actor, 0.5);
-					if (sd::IsInCombat(actor))
-						sd::StopCombat(actor);
-				}
-			}
-
-			TESObjectREFR *const target = pimpl->pathToTarget ? (TESObjectREFR *)LookupFormByID(ObjectAccess::GetObjectRefID(pimpl->pathToTarget.get())) : nullptr;
-			if (target != nullptr)
-			{
-				sd::PathToReference(actor, target, 0.5);
-				sd::ForceActorValue(actor, "speedmult", pimpl->pathingSpeedmult);
-			}
-			else
-				sd::ForceActorValue(actor, "speedmult", 100);
-		}
-
-		void EngineApplyFactions(Actor *actor) override
-		{
-			if (this->factionsState != IRemotePlayerEngine::FactionsState::NoFactions)
-			{
-				sd::RemoveFromAllFactions(actor);
-				this->factionsState = IRemotePlayerEngine::FactionsState::NoFactions;
-			}
-		}
-
-		clock_t lastCombatUpdate = 0;
-	};
-}
-
-namespace ci
-{
-	RemotePlayer *CreateGhostAxe();
+	// Used from other files with 'extern' keyword
 	std::set<RemotePlayer *> allRemotePlayers;
+	RPGMUTEX gMutex;
+	ILookSynchronizer *lookSync = ILookSynchronizer::GetV17();
+
 	size_t numSpawned = 0;
 	std::function<void()> traceTask = nullptr;
-	RemotePlayer *ghostAxe = nullptr;
 	RemotePlayer *currentSpawning = nullptr;
 	uint32_t currentSpawningBaseID = 0;
 	clock_t lastForceSpawn = 0;
 	RemotePlayer *currentFixingGreyFace = nullptr;
-	dlf_mutex gMutex;
 	uint32_t numInvisibleFoxes = 0;
 	uint64_t errorsInSpawn = false;
-	uint32_t markerFormID = 0;
-
-	struct WorldSpellData
-	{
-		const ci::Spell *spell = nullptr;
-		uint32_t casters = 0;
-		SpellItem *casterRealEquippedSpell = nullptr;
-		uint32_t differentSpells = 0;
-	};
-
-	WorldSpellData worldSpell;
-
-	inline float GetRespawnRadius(bool isInterior) {
-		return SyncOptions::GetSingleton()->GetFloat("DRAW_DISTANCE");
-	}
-
-	std::vector<std::pair<uint32_t, uint32_t>> packages = {
-		{ ID_TESPackage::WCollegePracticeCastWard, ID_SpellItem::CollegePracticeWard },
-	};
-
-	void SetPackageSpell(size_t packageN, uint32_t spellID)
-	{
-		const auto collegePracticeWard = (SpellItem *)LookupFormByID(packages[packageN].second);
-		const auto formID = collegePracticeWard->formID;
-		const auto s = (SpellItem *)LookupFormByID(spellID);
-		memcpy(collegePracticeWard, s, sizeof SpellItem);
-		collegePracticeWard->data.calculations.cost = 0;
-		collegePracticeWard->formID = formID;
-	}
-
-	void SetPackageCondition_ZeroVariable01(TESPackage *package)
-	{
-		static auto ambushSitPackage = (TESPackage *)LookupFormByID(ID_TESPackage::ambushSitPackage); // Condition: Variable01 == 0
-		package->unk3C = ambushSitPackage->unk3C;
-	}
-
-	void ApplyPackage(TESNPC *npc)
-	{
-		// forceav variable10 1.0/0.0 to start/stop combat
-		// forceav variable01 0.0/1.0 to start/stop casting
-
-		auto nonDrawn = (TESPackage *)LookupFormByID(0x000654E2);
-		auto drawn = (TESPackage *)LookupFormByID(0x0004E4BB);
-
-		/* static */ auto useMagic = (TESPackage *) nullptr;
-		if (!useMagic)
-		{
-			const size_t packageN = 0;
-			const auto defaultSpell = ID_SpellItem::Flames;
-
-			useMagic = (TESPackage *)LookupFormByID(packages[packageN].first);
-			SetPackageCondition_ZeroVariable01(useMagic);
-			useMagic->packageFlags = drawn->packageFlags;
-
-			SetPackageSpell(packageN, defaultSpell);
-		}
-
-		if (!npc)
-			return;
-		auto &data = npc->TESAIForm::unk10;
-		data.unk0 = (UInt32)useMagic;
-		data.next = FormHeap_Allocate<TESAIForm::Data>();
-		data.next->unk0 = (UInt32)drawn;
-		data.next->next = FormHeap_Allocate<TESAIForm::Data>();
-		data.next->next->unk0 = (UInt32)nonDrawn;
-		data.next->next->next = nullptr;
-	}
 
 	void RunGnomeBehavior(TESObjectREFR *ref, const std::wstring &name)
 	{
@@ -924,290 +57,6 @@ namespace ci
 		sd::SetActorValue((Actor *)ref, "MagicResist", 100.0f);
 		sd::SetActorValue((Actor *)ref, "Health", 32000.f);
 		sd::StopCombat((Actor *)ref);
-	}
-
-	TESObjectSTAT *GetPlaceAtMeMarkerBase()
-	{
-		return (TESObjectSTAT *)LookupFormByID(0x15);
-	}
-
-	void UpdatePlaceAtMeMarker()
-	{
-		auto GetRelXy = [](float rzrot, float dist, float *outX, float *outY) {
-			rzrot = (float)(rzrot * 3.14 / 180);
-			*outX += dist * sin(rzrot);
-			*outY += dist * cos(rzrot);
-		};
-
-		static TESObjectCELL *cellWas = nullptr;
-		static void *wpWas = nullptr;
-		auto cellNow = sd::GetParentCell(g_thePlayer);
-		auto wpNow = sd::GetWorldSpace(g_thePlayer);
-		bool isInteriorNow = false;
-		if (cellWas != cellNow)
-		{
-			const bool isInterior[2] = {
-				cellWas && cellWas->IsInterior(),
-				cellNow && cellNow->IsInterior()
-			};
-			isInteriorNow = isInterior[1];
-			if (isInterior[0] || isInterior[1] || wpWas != wpNow)
-			{
-				markerFormID = 0;
-			}
-
-			cellWas = cellNow;
-			wpWas = wpNow;
-		}
-
-		auto ref = (TESObjectREFR *)LookupFormByID(markerFormID);
-		if (!ref || ref->formType != FormType::Reference || sd::GetParentCell(ref) == nullptr)
-		{
-			static bool isTaskRunning = false;
-			if (!isTaskRunning)
-			{
-				isTaskRunning = true;
-
-				auto onPlace = [](cd::Value<TESObjectREFR> result) {
-					markerFormID = result.GetFormID();
-					isTaskRunning = false;
-					AnimData_::Register(); // 1.0.1 shitfix
-				};
-
-				if (SyncOptions::GetSingleton()->GetInt("UNSAFE_MARKER_PLACEATME") != 0)
-				{
-					auto refr = sd::PlaceAtMe(g_thePlayer, GetPlaceAtMeMarkerBase(), 1, true, false);
-					cd::Value<TESObjectREFR> cdRefr = refr;
-					SET_TIMER_LIGHT(0, [cdRefr, onPlace] {
-						onPlace(cdRefr);
-					});
-				}
-				else
-				{
-					cd::PlaceAtMe(g_thePlayer, GetPlaceAtMeMarkerBase(), 1, true, false, onPlace);
-				}
-			}
-			return;
-		}
-
-		auto pos = cd::GetPosition(g_thePlayer);
-		GetRelXy(sd::GetAngleZ(g_thePlayer) + 128 + 90, GetRespawnRadius(isInteriorNow) * 0.3, &pos.x, &pos.y);
-		static clock_t lastTranslateTo = 0;
-		if (clock() - lastTranslateTo > 1000)
-		{
-			lastTranslateTo = clock();
-			if ((pos - cd::GetPosition(ref)).Length() > 2000)
-				cd::SetPosition(ref, { pos.x,pos.y, pos.z });
-		}
-	}
-
-	class RemotePlayer::Impl::ActivateEventSinkGlobal : public BSTEventSink<TESActivateEvent>
-	{
-	public:
-		ActivateEventSinkGlobal() {
-			g_activateEventSource.AddEventSink(this);
-		}
-
-		virtual ~ActivateEventSinkGlobal() override {
-			g_activateEventSource.RemoveEventSink(this);
-		}
-
-		virtual	EventResult	ReceiveEvent(TESActivateEvent *evn, BSTEventSource<TESActivateEvent> * source) override
-		{
-			if (evn->caster == g_thePlayer)
-			{
-				std::lock_guard<dlf_mutex> l(gMutex);
-
-				for (auto pl : allRemotePlayers)
-				{
-					std::lock_guard<dlf_mutex> l1(pl->pimpl->mutex);
-					if (pl->pimpl->formID == evn->target->formID)
-					{
-						auto onActivate = pl->pimpl->onActivate;
-						if (onActivate != nullptr)
-						{
-							std::thread([=] {
-								std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-								onActivate();
-							}).detach();
-						}
-						return EventResult::kEvent_Continue;
-					}
-				}
-			}
-			return EventResult::kEvent_Continue;
-		}
-	};
-
-	class RemotePlayer::Impl::HitEventSinkGlobal : public BSTEventSink<TESHitEvent>
-	{
-	public:
-		HitEventSinkGlobal() {
-			g_hitEventSource.AddEventSink(this);
-		}
-
-		virtual ~HitEventSinkGlobal() override {
-			g_hitEventSource.RemoveEventSink(this);
-		}
-
-	private:
-		std::map<uint32_t, clock_t> lastReceive;
-		dlf_mutex m;
-
-		virtual	EventResult	ReceiveEvent(TESHitEvent *evn, BSTEventSource<TESHitEvent> * source) override
-		{
-			if (LookupFormByID(evn->sourceFormID) != nullptr && LookupFormByID(evn->sourceFormID)->formType == FormType::Enchantment)
-				return EventResult::kEvent_Continue;
-
-			if (evn->target == nullptr)
-				return EventResult::kEvent_Continue;
-
-			auto getRefMark = [](uint32_t refID)->std::string {
-				if (refID == g_thePlayer->GetFormID())
-					return "";
-
-				for (auto it = allRemotePlayers.begin(); it != allRemotePlayers.end(); ++it)
-				{
-					auto pl = *it;
-					if (pl == nullptr)
-						continue;
-					std::lock_guard<dlf_mutex> l1(pl->pimpl->mutex);
-					if (pl->pimpl->formID == refID)
-					{
-						return pl->pimpl->mark;
-					}
-				}
-				return "";
-			};
-
-			auto caster = evn->caster;
-			if (caster == nullptr)
-				caster = g_thePlayer;
-
-			const auto casterID = caster->GetFormID();
-			const auto targetID = evn->target->GetFormID();
-			const bool isTargetLocal = (evn->target == g_thePlayer);
-			const bool isCasterLocal = (caster == g_thePlayer);
-
-			if (isCasterLocal)
-			{
-				bool doRet = false;
-
-				std::lock_guard<dlf_mutex> l(this->m);
-				if (clock() - lastReceive[evn->sourceFormID] < 25)
-				{
-					SET_TIMER_LIGHT(167, [] {
-						CIAccess::OnPoisonAttack();
-					});
-					doRet = true;
-				}
-				lastReceive[evn->sourceFormID] = clock();
-
-				if (doRet)
-					return EventResult::kEvent_Continue;
-			}
-
-			HitEventData hitEventData_;
-			hitEventData_.powerAttack = evn->flags.powerAttack;
-
-			auto sourceForm = LookupFormByID(evn->sourceFormID);
-
-			std::thread([=] {
-				auto hitEventData = hitEventData_;
-
-				std::lock_guard<dlf_mutex> l(gMutex);
-
-				const ci::ItemType *weapon = nullptr;
-				const ci::Spell *spell = nullptr;
-				if (sourceForm != nullptr)
-				{
-					try {
-						std::lock_guard<dlf_mutex> l(gMutex);
-						weapon = RemotePlayerKnownItems()->at(sourceForm);
-					}
-					catch (...) {
-					}
-					try {
-						std::lock_guard<dlf_mutex> l(gMutex);
-						spell = RemotePlayerKnownSpells()->at(sourceForm);
-					}
-					catch (...) {
-					}
-				}
-				hitEventData.weapon = weapon;
-				hitEventData.spell = spell;
-				hitEventData.hitSrcMark = getRefMark(casterID);
-
-				if (isTargetLocal)
-				{
-					auto localPl = ci::LocalPlayer::GetSingleton();
-					std::thread([=] {
-						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-						localPl->onHit(hitEventData);
-					}).detach();
-				}
-				else
-				{
-					for (auto it = allRemotePlayers.begin(); it != allRemotePlayers.end(); ++it)
-					{
-						auto pl = *it;
-						if (pl == nullptr)
-							continue;
-						std::lock_guard<dlf_mutex> l1(pl->pimpl->mutex);
-						auto ref = (TESObjectREFR *)LookupFormByID(pl->pimpl->formID);
-						if (!ref)
-							continue;
-						if (ref->formID != targetID
-							&& (pl->pimpl->gnomes[0] == nullptr || pl->pimpl->gnomes[0]->GetFormID() != targetID)
-							&& (pl->pimpl->gnomes[1] == nullptr || pl->pimpl->gnomes[1]->GetFormID() != targetID))
-							continue;
-						auto onHit = pl->pimpl->onHit;
-						if (onHit)
-						{
-							std::thread([=] {
-								std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-								onHit(hitEventData);
-							}).detach();
-						}
-						else
-							pl->pimpl->broken = true;
-						break;
-					}
-				}
-			}).detach();
-
-			return EventResult::kEvent_Continue;
-		}
-	};
-
-	void RemotePlayer::ApplyWorldSpell()
-	{
-		std::lock_guard<dlf_mutex> l(gMutex);
-
-		auto spell = worldSpell.spell ? LookupFormByID(worldSpell.spell->GetFormID()) : nullptr;
-		if (worldSpell.differentSpells == 1 || worldSpell.casters == 1)
-			spell = worldSpell.casterRealEquippedSpell;
-
-		static TESForm *appliedSpell = nullptr;
-		if (appliedSpell != spell)
-		{
-			if (spell != nullptr)
-			{
-				auto dest = (SpellItem *)LookupFormByID(packages[0].second);
-
-				const auto formID = dest->formID;
-				memcpy(dest, spell, sizeof SpellItem);
-				dest->formID = formID;
-
-				if (dest->effectItemList.size() > 0)
-				{
-					const bool isTelekinesis = dest->effectItemList.front()->mgef->properties.archetype == EffectSetting::Properties::Archetype::kArchetype_Telekinesis;
-					if (!isTelekinesis) // Clear effectItemList of Telekinesis would remove unique cast anim
-						dest->effectItemList.clear();
-				}
-			}
-			appliedSpell = spell;
-		}
 	}
 
 	void RemotePlayer::UpdateWorldSpell()
@@ -1262,7 +111,9 @@ namespace ci
 
 							auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
 							if (actor != nullptr)
-								worldSpell.casterRealEquippedSpell = sd::GetEquippedSpell(actor, !i);
+								ci::WorldSpell::SetCasterRealEquippedSpell(
+									sd::GetEquippedSpell(actor, !i)
+								);
 						}
 						break;
 					}
@@ -1273,9 +124,7 @@ namespace ci
 
 		if (bestSpell != nullptr)
 		{
-			worldSpell.spell = bestSpell;
-			worldSpell.casters = max;
-			worldSpell.differentSpells = spells.size();
+			ci::WorldSpell::Set(bestSpell, max, (uint32_t)spells.size());
 		}
 	}
 
@@ -1288,8 +137,7 @@ namespace ci
 		const std::string &engineName,
 		OnActivate onActivate) : pimpl(new Impl)
 	{
-		static void *hitEventSink = new Impl::HitEventSinkGlobal,
-			*activateEventSink = new Impl::ActivateEventSinkGlobal;
+		ci::CommonEvents::Hook();
 
 		std::lock_guard<dlf_mutex> l(gMutex);
 		std::lock_guard<dlf_mutex> l1(pimpl->mutex);
@@ -1409,7 +257,7 @@ namespace ci
 				gnomeNpc->numHeadParts = 0;
 				gnomeNpc->headparts = 0;
 
-				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, GetRespawnRadius(0)));
+				pimpl->gnomes[i] = std::unique_ptr<SimpleRef>(new SimpleRef(gnomeNpc, { 0,0,0 }, SyncOptions::GetRespawnRadius(0)));
 				const auto name = this->GetName();
 				pimpl->gnomes[i]->TaskPersist([=](TESObjectREFR *ref) {
 					RunGnomeBehavior(ref, name);
@@ -1443,10 +291,10 @@ namespace ci
 				firstSpawnAttempt = new clock_t{ clock() };
 
 			pimpl->usl1 = *firstSpawnAttempt + 2333 < clock();
-			pimpl->usl2 = NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() < GetRespawnRadius(isInterior);
+			pimpl->usl2 = NiPoint3{ pimpl->movementData.pos - localPlPos }.Length() < SyncOptions::GetRespawnRadius(isInterior);
 			pimpl->usl3 = (pimpl->currentNonExteriorCell == CellUtil::GetParentNonExteriorCell(g_thePlayer) || pimpl->currentNonExteriorCell == nullptr);
 			pimpl->usl4 = pimpl->worldSpaceID == worldSpaceID;
-			pimpl->usl5 = markerFormID;
+			pimpl->usl5 = ci::PlaceMarker::GetFormID() != 0;
 
 
 			//ci::Chat::AddMessage(pimpl->name + L"1");
@@ -1657,7 +505,7 @@ namespace ci
 	{
 		SAFE_CALL("RemotePlayer", [&] {
 			for (int32_t i = 0; i <= 1; ++i)
-				pimpl->syncState.isWorldSpell[i] = (pimpl->eq.handsMagic[i] == worldSpell.spell);
+				pimpl->syncState.isWorldSpell[i] = (pimpl->eq.handsMagic[i] == ci::WorldSpell::Get());
 			this->ApplyMovementDataImpl();
 		});
 	}
@@ -1966,7 +814,7 @@ namespace ci
 				pimpl->lastDespawn = clock();
 				pimpl->broken = true;
 				errorsInSpawn++; // should i uncomment ?
-				markerFormID = 0;
+				ci::PlaceMarker::SetFormID(0);
 			}
 		});
 		
@@ -1985,7 +833,7 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			const NiPoint3 localPlPos = cd::GetPosition(g_thePlayer);
 			const bool isInterior = sd::GetParentCell(g_thePlayer) ? sd::IsInterior(sd::GetParentCell(g_thePlayer)) : false;
-			if (NiPoint3{ this->GetMovementData().pos - localPlPos }.Length() >= GetRespawnRadius(isInterior))
+			if (NiPoint3{ this->GetMovementData().pos - localPlPos }.Length() >= SyncOptions::GetRespawnRadius(isInterior))
 				this->ForceDespawn(L"Despawned: Player is too far");
 		});
 
@@ -2009,7 +857,7 @@ namespace ci
 			lastTintMaskUse = clock();
 			lastGreyFaceFix = clock();
 			actor->baseForm->formID = g_thePlayer->baseForm->formID; // AAAAAA
-			pimpl->lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, pimpl->lookData.tintmasks);
+			lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, pimpl->lookData.tintmasks);
 			actor->QueueNiNodeUpdate(true);
 			pimpl->greyFaceFixedUnsafe = true;
 			pimpl->greyFaceFixed = true;
@@ -2027,7 +875,7 @@ namespace ci
 			SAFE_CALL_RETURN("RemotePlayer", [&] {
 				currentFixingGreyFace = this;
 				actor->baseForm->formID = g_thePlayer->baseForm->formID; // AAAAAA
-				pimpl->lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, pimpl->lookData.tintmasks);
+				lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, pimpl->lookData.tintmasks);
 				pimpl->greyFaceFixed = true;
 				sd::Disable(actor, false);
 				lastGreyFaceFix = clock();
@@ -2336,7 +1184,7 @@ namespace ci
 			if (this->IsDerived())
 				refToPlaceAt = nullptr;
 			else
-				refToPlaceAt = (Actor *)LookupFormByID(RemotePlayer::GetGhostAxeFormID());
+				refToPlaceAt = (Actor *)LookupFormByID(GhostAxeManager::GetSingleton().GetGhostAxeFormID());
 			if (!refToPlaceAt)
 				refToPlaceAt = g_thePlayer;
 		}
@@ -2530,11 +1378,6 @@ namespace ci
 		return allRemotePlayers.size();
 	}
 
-	uint32_t RemotePlayer::GetGhostAxeFormID()
-	{
-		return ghostAxe ? ghostAxe->pimpl->formID : 0;
-	}
-
 	void RemotePlayer::UpdateAll()
 	{
 		std::lock_guard<dlf_mutex> l(gMutex);
@@ -2548,7 +1391,7 @@ namespace ci
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			UpdatePlaceAtMeMarker();
+			ci::PlaceMarker::Update();
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
@@ -2602,25 +1445,12 @@ namespace ci
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			ApplyWorldSpell();
+			ci::WorldSpell::Apply();
 		});
 
 		SAFE_CALL("RemotePlayer", [&] {
-			if (ghostAxe == nullptr && allRemotePlayers.size() > 0)
-			{
-				ghostAxe = CreateGhostAxe();
-			}
-			if (ghostAxe != nullptr)
-			{
-				auto movData = MovementData_::GetFromPlayer();
-				movData.pos.z += SyncOptions::GetSingleton()->GetFloat("GHOST_AXE_OFFSET_Z");
-				movData.pos.x += GetRespawnRadius(false) * 0.85;
-				ghostAxe->ApplyMovementData(movData);
-				static auto localPl = ci::LocalPlayer::GetSingleton();
-				ghostAxe->SetCell(localPl->GetCell());
-				ghostAxe->SetWorldSpace(localPl->GetWorldSpace());
-				ghostAxe->Update();
-			}
+			if (allRemotePlayers.size() > 0)
+				GhostAxeManager::GetSingleton().Update();
 		});
 	}
 
@@ -3195,62 +2025,5 @@ namespace ci
 
 	void RemotePlayer::ApplyMovementDataImpl() {
 		return pimpl->engine->ApplyMovementDataImpl();
-	}
-
-	class GhostAxe : public RemotePlayer
-	{
-	public:
-		GhostAxe() : RemotePlayer(L"Ghost Axe", {}, {}, NULL, NULL, nullptr, "RPEngineInput", nullptr)
-		{
-		}
-
-		virtual ~GhostAxe() override
-		{
-		}
-
-	private:
-		void ApplyMovementDataImpl() override {
-			auto actor = (Actor *)LookupFormByID(pimpl->formID);
-			if (!actor)
-				return;
-			auto movData = pimpl->movementData;
-			if (this->timer < clock())
-			{
-				timer = clock() + SyncOptions::GetSingleton()->GetInt("GHOST_AXE_UPDATE_RATE");
-				cd::TranslateTo(actor, movData.pos.x, movData.pos.y, movData.pos.z, 0, 0, 0, 100000.0, 4.0);
-				sd::ForceActorValue(actor, "Confidence", 0);
-				if (sd::GetBaseActorValue(actor, "Invisibility") == 0)
-				{
-					this->aiEnabled = true;
-					sd::SetActorValue(actor, "Invisibility", 100);
-				}
-			}
-			if (this->aiEnabled)
-			{
-				this->aiEnabled = false;
-				sd::EnableAI(actor, false);
-			}
-		}
-
-		TESNPC *AllocateNPC() const override {
-			enum {
-				InvisibleNPC = 0x00071E6B,
-			};
-			auto npc = (TESNPC *)LookupFormByID(InvisibleNPC);
-			npc->height = 0.333;
-			npc->headparts = nullptr;
-			npc->numHeadParts = 0;
-			return npc;
-		}
-
-		clock_t timer = 0;
-		bool aiEnabled = true;
-	};
-
-	RemotePlayer *CreateGhostAxe() {
-		auto axe = new GhostAxe;
-		axe->SetBaseNPC(ID_TESNPC::InvisibleNPC);
-		axe->UpdateAVData("invisibility", AVData(100.0, 0.0, 1.0));
-		return axe;
 	}
 }

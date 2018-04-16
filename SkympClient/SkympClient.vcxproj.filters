@@ -187,6 +187,21 @@
     <ClCompile Include="GameUtility\CellUtil.cpp">
       <Filter>core\GameUtility</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPEngineBase.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPPackageApplier.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPPlaceMarker.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPGhostAxe.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPCommonEvents.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -475,6 +490,27 @@
     </ClInclude>
     <ClInclude Include="GameUtility\CellUtil.h">
       <Filter>core\GameUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPEngineBase.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPPackageApplier.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPPlaceMarker.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPGhostAxe.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPCommonEvents.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPEngineInput.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPEngineIO.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

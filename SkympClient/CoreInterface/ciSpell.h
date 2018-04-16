@@ -12,6 +12,7 @@ namespace ci
 		friend class IActor;
 		friend class RemotePlayer;
 		friend class LocalPlayer;
+		friend class MagicAccess;
 	public:
 
 		Spell(uint32_t existingSpellID);

@@ -25,7 +25,6 @@ extern ErrorHandling::DeadlockFreeMutex<0> localPlMutex;
 
 namespace ci
 {
-	float GetRespawnRadius(bool isInterior);
 	extern FormID markerFormID;
 }
 
@@ -914,7 +913,7 @@ void ci::Object::Update()
 	{
 		SAFE_CALL("Object", [&] {
 			if (markerFormID && localPlCell
-				&& NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() < GetRespawnRadius(isInterior)
+				&& NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() < SyncOptions::GetRespawnRadius(isInterior)
 				//&& (pimpl->locationID == worldSpaceID || pimpl->locationID == localPlCell->formID)
 				)
 			{
@@ -950,7 +949,7 @@ void ci::Object::Update()
 			});
 
 			SAFE_CALL("Object", [&] {
-				if (NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() >= GetRespawnRadius(isInterior))
+				if (NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() >= SyncOptions::GetRespawnRadius(isInterior))
 					return this->ForceDespawn("Object is too far");
 			});
 
