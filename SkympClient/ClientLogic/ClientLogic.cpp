@@ -3274,7 +3274,7 @@ class ClientLogic : public ci::IClientLogic
 			{
 				const auto str = WstringToString(arguments[0]);
 				const auto sm = atoi(str.data());
-				ci::LocalPlayer::GetSingleton()->SetSpeedmult(sm);
+				ci::LocalPlayer::GetSingleton()->SetSpeedmult((float)sm);
 				ci::Chat::AddMessage(L"#BEBEBE" L"Set Speedmult to " + std::to_wstring(sm));
 			}
 			else
