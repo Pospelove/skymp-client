@@ -170,14 +170,6 @@ namespace ci
 			currentSpawning = nullptr;
 		if (currentFixingGreyFace == this)
 			currentFixingGreyFace = nullptr;
-
-		auto dispenser = pimpl->dispenser;
-		if (dispenser != nullptr)
-		{
-			std::thread([=] {
-				delete dispenser;
-			}).detach();
-		}
 	}
 
 	void RemotePlayer::CreateGnomes()
@@ -501,74 +493,10 @@ namespace ci
 			pimpl->avData["invisibility"].base + pimpl->avData["invisibility"].modifier);
 	}
 
-	void RemotePlayer::UpdateDispenser(Actor *actor)
+	void RemotePlayer::UpdateDispenser()
 	{
-		SAFE_CALL("RemotePlayer", [&] {
-			if (this->IsBowEquipped() || this->IsSpellEquipped())
-			{
-				if (pimpl->dispenser == nullptr)
-				{
-					std::thread([=] {
-						std::lock_guard<dlf_mutex> l1(gMutex);
-						if (allRemotePlayers.find(this) != allRemotePlayers.end())
-						{
-							std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-							if (pimpl->dispenser == nullptr)
-							{
-								pimpl->dispenser = new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, this->GetLocationID(), { 0,0,0 }, { 0,0,0 });
-								pimpl->dispenser->SetMotionType(Object::Motion_Keyframed);
-							}
-						}
-					}).detach();
-				}
-				if (pimpl->dispenser != nullptr)
-				{
-					enum Var {
-						OffsetZSneaking,
-						OffsetZ,
-						OffsetDistance,
-						NumVars,
-					};
-
-					enum DispenserMode {
-						DispenserModeBow,
-						DispenserModeMagic,
-						NumModes,
-					};
-
-					static const char *vars[NumVars][NumModes] = {
-						{ "DISPENSER_OFFSET_Z_SNEAKING",	"MAGIC_DISPENSER_OFFSET_Z_SNEAKING" },
-						{ "DISPENSER_OFFSET_Z",				"MAGIC_DISPENSER_OFFSET_Z" },
-						{ "DISPENSER_OFFSET_DISTANCE",		"MAGIC_DISPENSER_OFFSET_DISTANCE" },
-					};
-
-					const DispenserMode mode = this->IsSpellEquipped() ? DispenserModeMagic : DispenserModeBow;
-
-					auto pos = this->GetPos();
-					pos += {0, 0, this->GetMovementData().isSneaking ?
-						SyncOptions::GetSingleton()->GetFloat(vars[OffsetZSneaking][mode]) :
-						SyncOptions::GetSingleton()->GetFloat(vars[OffsetZ][mode])
-					};
-					const float distance = SyncOptions::GetSingleton()->GetFloat(vars[OffsetDistance][mode]);
-					const float angleRad = this->GetAngleZ() / 180 * acos(-1);
-					pos += {distance * sin(angleRad), distance * cos(angleRad), 0};
-
-					const auto rot = NiPoint3{
-						(float)this->GetMovementData().aimingAngle,
-						0.0f,
-						this->GetAngleZ()
-					};
-
-					pimpl->dispenser->SetLocation(this->GetLocationID());
-					pimpl->dispenser->TranslateTo(pos, rot, 10000.f, 10000.f);
-				}
-			}
-			else
-			{
-				if (pimpl->dispenser != nullptr)
-					pimpl->dispenser->SetLocation(-1);
-			}
-		});
+		pimpl->dispenser.SetActive(this->IsSpellEquipped() || this->IsBowEquipped());
+		pimpl->dispenser.UpdateAndMoveTo(this->GetMovementData(), this->IsSpellEquipped());
 	}
 
 	void RemotePlayer::UpdateInvisibleFox()
@@ -994,6 +922,7 @@ namespace ci
 		}
 
 		this->UpdateInvisibleFox();
+		this->UpdateDispenser();
 
 		if (pimpl->timer250ms + 250 < clock())
 		{
@@ -1004,8 +933,6 @@ namespace ci
 				if ((this->GetPos() - cd::GetPosition(actor)).Length() > SyncOptions::GetSingleton()->GetFloat("MAX_OUT_OF_POS"))
 					pimpl->lastOutOfPos = clock();
 			});
-
-			this->UpdateDispenser(actor);
 
 			this->ApplyEquipmentHands(actor);
 			this->ApplyEquipmentOther(actor);
@@ -1679,60 +1606,9 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->spawnStage == SpawnStage::Spawned)
 		{
-			const auto refID = pimpl->formID;
-			const auto dispenserID = pimpl->dispenser ? pimpl->dispenser->GetRefID() : 0;
 			const auto weap = this->GetEquippedWeapon();
 			const auto ammo = this->GetEquippedAmmo();
-			if (ammo != nullptr
-				&& weap != nullptr && weap->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow)
-			{
-				SET_TIMER_LIGHT(1, [=] {
-					auto actor = (Actor *)LookupFormByID(refID);
-					if (actor != nullptr)
-					{
-						auto dispenserRef = (TESObjectREFR *)LookupFormByID(dispenserID);
-						if (dispenserRef != nullptr)
-						{
-							auto ammoSrc = (TESAmmo *)LookupFormByID(ammo->GetFormID());
-
-							auto ammoCopy = FormHeap_Allocate<TESAmmo>();
-							memcpy(ammoCopy, ammoSrc, sizeof TESAmmo);
-							ammoCopy->formID = 0;
-							ammoCopy->SetFormID(Utility::NewFormID(), 1);
-
-							auto projSrc = ammoSrc->settings.projectile;
-							auto projCopy = FormHeap_Allocate<BGSProjectile>();
-							memcpy(projCopy, projSrc, sizeof BGSProjectile);
-							projCopy->formID = 0;
-							projCopy->SetFormID(Utility::NewFormID(), 1);
-
-							ammoCopy->settings.projectile = projCopy;
-							ammoCopy->settings.damage = 0;
-
-							auto &speed = projCopy->data.unk08;
-							auto &range = projCopy->data.unk0C;
-							auto &fadeDuration = projCopy->data.unk30;
-							auto &collisionRadius = projCopy->data.unk48;
-
-							const auto lastSpeed = speed;
-							speed = pow(power, 2) * speed;
-
-							auto bowSrc = (TESObjectWEAP *)LookupFormByID(weap->GetFormID());
-							auto bowCopy = FormHeap_Allocate<TESObjectWEAP>();
-							memcpy(bowCopy, bowSrc, sizeof TESObjectWEAP);
-							bowCopy->formID = 0;
-							bowCopy->SetFormID(Utility::NewFormID(), 1);
-							bowCopy->attackDamage = 0;
-
-							sd::Weapon::Fire(bowCopy, dispenserRef, ammoCopy);
-
-							SET_TIMER(3000, [=] {
-								sd::RemoveItem(g_thePlayer, ammoCopy, -1, true, nullptr);
-							});
-						}
-					}
-				});
-			}
+			pimpl->dispenser.Fire(weap, ammo, power);
 		}
 	}
 

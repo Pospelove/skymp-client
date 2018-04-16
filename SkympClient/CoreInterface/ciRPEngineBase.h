@@ -5,6 +5,7 @@
 #include "../Sync/SyncEssential.h"
 
 #include "ciRPInvisibleFox.h"
+#include "ciRPDispenser.h"
 
 namespace ci
 {
@@ -26,6 +27,9 @@ namespace ci
 		}
 
 		bool usl1, usl2, usl3, usl4, usl5;
+
+		ci::InvisibleFox invisibleFox;
+		ci::Dispenser dispenser;
 
 		dlf_mutex mutex;
 		FormID formID = 0;
@@ -55,9 +59,7 @@ namespace ci
 		std::queue<uint32_t> hitAnimsToApply, hitAnimsOut;
 		OnHit onHit = nullptr;
 		OnActivate onActivate = nullptr;
-		ci::InvisibleFox invisibleFox; 
 		std::map<std::string, ci::AVData> avData;
-		ci::Object *dispenser = nullptr;
 		float height = 1;
 		bool isMagicAttackStarted[2];
 		const void *visualMagicEffect = nullptr;

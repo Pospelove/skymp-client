@@ -12,6 +12,7 @@ namespace ci
 		friend class RemotePlayer;
 		friend class Object;
 		friend class Recipe;
+		friend class ItemTypeAccess;
 	public:
 		enum class Class
 		{

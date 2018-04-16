@@ -119,7 +119,7 @@ namespace ci
 		void UpdateMovement(Actor *actor);
 		void ApplyHitAnimations(Actor *actor);
 		void ApplyActorValues(Actor *actor);
-		void UpdateDispenser(Actor *actor);
+		void UpdateDispenser();
 		void UpdateInvisibleFox();
 		void ManageMagicEquipment(Actor *actor);
 		void ApplyEquipmentHands(Actor *actor);

@@ -205,6 +205,9 @@
     <ClCompile Include="CoreInterface\ciRPInvisibleFox.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPDispenser.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -516,6 +519,9 @@
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciRPInvisibleFox.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPDispenser.h">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
   </ItemGroup>

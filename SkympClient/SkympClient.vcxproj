@@ -133,6 +133,7 @@
     <ClCompile Include="CoreInterface\ciOther.cpp" />
     <ClCompile Include="CoreInterface\ciPerk.cpp" />
     <ClCompile Include="CoreInterface\ciRecipe.cpp" />
+    <ClCompile Include="CoreInterface\ciRPDispenser.cpp" />
     <ClCompile Include="CoreInterface\ciRPEngineBase.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommon.cpp" />
     <ClCompile Include="CoreInterface\ciRPEngineInput.cpp" />
@@ -208,6 +209,7 @@
     <ClInclude Include="CoreInterface\ciPerk.h" />
     <ClInclude Include="CoreInterface\ciRecipe.h" />
     <ClInclude Include="CoreInterface\ciRPCommonEvents.h" />
+    <ClInclude Include="CoreInterface\ciRPDispenser.h" />
     <ClInclude Include="CoreInterface\ciRPEngineBase.h" />
     <ClInclude Include="CoreInterface\ciRPEngineInput.h" />
     <ClInclude Include="CoreInterface\ciRPEngineIO.h" />
