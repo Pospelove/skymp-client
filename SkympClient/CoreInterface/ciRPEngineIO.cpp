@@ -15,6 +15,14 @@ namespace ci
 			return obj->GetRefID();
 		}
 	};
+
+	class IActorAccess
+	{
+	public:
+		static uint32_t GetActorRefID(const IActor *ac) {
+			return ac->GetRefID();
+		}
+	};
 }
 
 ci::RPEngineIO::RPEngineIO(RemotePlayer *argParent) : IRemotePlayerEngine(argParent)
@@ -174,4 +182,18 @@ void ci::RPEngineIO::EngineApplyFactions(Actor *actor)
 		sd::RemoveFromAllFactions(actor);
 		this->factionsState = IRemotePlayerEngine::FactionsState::NoFactions;
 	}
+}
+
+void ci::RemotePlayer::SetCombatTarget(const IActor *target)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->mutex);
+	if (target == this || target == nullptr)
+	{
+		pimpl->combatTarget = 0;
+		return;
+	}
+	pimpl->combatTarget = IActorAccess::GetActorRefID(target);
+	auto remotePl = dynamic_cast<const RemotePlayer *>(target);
+	if (remotePl != nullptr && this->GetRefID())
+		remotePl->pimpl->combatTarget = this->GetRefID();
 }

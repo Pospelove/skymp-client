@@ -67,6 +67,7 @@ namespace ci
 		const Spell *GetEquippedShout() const override;
 		AVData GetAVData(const std::string &avName) const override;
 
+		// Implemented in ciRPCommon.cpp
 		void SetEngine(const std::string &engineName);
 		std::string GetEngine() const;
 		void PathTo(const NiPoint3 &pos, bool walk);
@@ -74,8 +75,10 @@ namespace ci
 		void SetBaseNPC(uint32_t npcID);
 		void SetMark(const std::string &mark);
 		std::string GetMark() const;
-		void SetCombatTarget(const IActor *target);
 		std::shared_ptr<uint32_t> GetNextHitAnim();
+
+		// Implemented in ciRPEngineIO.cpp
+		void SetCombatTarget(const IActor *target);
 
 		void SetInAFK(bool val);
 		void SetNicknameVisible(bool visible);
