@@ -114,7 +114,11 @@ void ci::Model::Update()
 
 void ci::Model::SpawnActor()
 {
-	auto actor = sd::PlaceActorAtMe(g_thePlayer, pimpl->npcSource(), 0, nullptr);
+	TESObjectREFR *toPlaceAt = sd::FindClosestActor(pimpl->spawnPoint.x, pimpl->spawnPoint.y, pimpl->spawnPoint.z, 1000000.0);
+	if (toPlaceAt == nullptr)
+		toPlaceAt = g_thePlayer;
+
+	auto actor = sd::PlaceActorAtMe(toPlaceAt, pimpl->npcSource(), 0, nullptr);
 	pimpl->refID = actor->formID;
 	WorldCleaner::GetSingleton()->SetFormProtected(pimpl->refID, true);
 	sd::TranslateTo(actor, pimpl->spawnPoint.x, pimpl->spawnPoint.y, pimpl->spawnPoint.z, 0.0f, 0.0f, 0.0f, 10000.0f, 0.0f);
