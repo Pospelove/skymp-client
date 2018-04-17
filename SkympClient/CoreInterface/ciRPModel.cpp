@@ -6,11 +6,6 @@
 
 #include "ciRPEngineBase.h" // ci::lookSync
 
-namespace ci
-{
-	clock_t lastTintMaskUse = 0;
-}
-
 struct ci::Model::Impl
 {
 	bool isSpawned = false;
