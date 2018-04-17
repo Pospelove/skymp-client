@@ -133,6 +133,7 @@
     <ClCompile Include="CoreInterface\ciOther.cpp" />
     <ClCompile Include="CoreInterface\ciPerk.cpp" />
     <ClCompile Include="CoreInterface\ciRecipe.cpp" />
+    <ClCompile Include="CoreInterface\ciRPCommonDespawnLogic.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommonEquipment.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommonSpawn.cpp" />
     <ClCompile Include="CoreInterface\ciRPDispenser.cpp" />
@@ -144,6 +145,7 @@
     <ClCompile Include="CoreInterface\ciRPGhostAxe.cpp" />
     <ClCompile Include="CoreInterface\ciRPGnomeHost.cpp" />
     <ClCompile Include="CoreInterface\ciRPInvisibleFox.cpp" />
+    <ClCompile Include="CoreInterface\ciRPModel.cpp" />
     <ClCompile Include="CoreInterface\ciRPPackageApplier.cpp" />
     <ClCompile Include="CoreInterface\ciRPPlaceMarker.cpp" />
     <ClCompile Include="CoreInterface\ciSpell.cpp" />
@@ -219,6 +221,7 @@
     <ClInclude Include="CoreInterface\ciRPGhostAxe.h" />
     <ClInclude Include="CoreInterface\ciRPGnomeHost.h" />
     <ClInclude Include="CoreInterface\ciRPInvisibleFox.h" />
+    <ClInclude Include="CoreInterface\ciRPModel.h" />
     <ClInclude Include="CoreInterface\ciRPPackageApplier.h" />
     <ClInclude Include="CoreInterface\ciRPPlaceMarker.h" />
     <ClInclude Include="CoreInterface\ciSpell.h" />

@@ -7,6 +7,7 @@
 #include "ciRPInvisibleFox.h"
 #include "ciRPDispenser.h"
 #include "ciRPGnomeHost.h"
+#include "ciRPModel.h"
 
 namespace ci
 {
@@ -21,13 +22,6 @@ namespace ci
 {
 	class InvisibleFox;
 
-	enum class SpawnStage
-	{
-		NonSpawned,
-		Spawning,
-		Spawned,
-	};
-
 	struct RemotePlayer::Impl
 	{
 		Impl() {
@@ -39,6 +33,9 @@ namespace ci
 		ci::InvisibleFox invisibleFox;
 		ci::Dispenser dispenser;
 		ci::GnomeHost gnomeHost;
+		ci::Model model;
+
+		bool isSpawned = false;
 
 		std::vector<std::function<void()>> tasksSpawned;
 
@@ -53,16 +50,13 @@ namespace ci
 		LookData lookData;
 		TESObjectCELL *currentNonExteriorCell = nullptr;
 		FormID worldSpaceID = 0;
-		SpawnStage spawnStage = SpawnStage::NonSpawned;
-		clock_t spawnMoment = 0;
+		//clock_t spawnMoment = 0; //
 		clock_t timer250ms = 0;
 		clock_t unsafeSyncTimer = 0;
 		clock_t lastOutOfPos = 0;
-		bool greyFaceFixed = false;
-		bool greyFaceFixedUnsafe = false;
 		MovementData movementData, movementDataOut;
-		MovementData_::SyncState syncState;
-		clock_t lastDespawn = 0;
+		MovementData_::SyncState syncState; //
+		//clock_t lastDespawn = 0; //
 		UInt32 rating = 0;
 		bool afk = false;
 		bool stopProcessing = false;
@@ -81,7 +75,7 @@ namespace ci
 		TESNPC *baseNpc = nullptr;
 		std::string mark;
 		uint32_t combatTarget = 0;
-		bool fullySpawned = false;
+		bool fullySpawnedIO = false;
 		std::set<const ci::Perk *> perks;
 
 		struct Equipment

@@ -217,6 +217,12 @@
     <ClCompile Include="CoreInterface\ciRPCommonSpawn.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPModel.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInterface\ciRPCommonDespawnLogic.cpp">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -534,6 +540,9 @@
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciRPGnomeHost.h">
+      <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciRPModel.h">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClInclude>
   </ItemGroup>

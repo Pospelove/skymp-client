@@ -30,7 +30,7 @@ namespace ci
 		if (pimpl->name != name)
 		{
 			pimpl->name = name;
-			if (pimpl->spawnStage == SpawnStage::Spawned)
+			if(this->GetParent()->IsSpawned())
 			{
 				const auto formID = pimpl->formID;
 				SET_TIMER_LIGHT(0, [=] {
@@ -62,8 +62,8 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 		pimpl->lookData = lookData;
-		if (pimpl->spawnStage == SpawnStage::Spawned && this->GetParent()->IsDerived() == false)
-			this->GetParent()->ForceDespawn(L"Despawned: LookData updated");
+		if (this->GetParent()->IsSpawned() && this->GetParent()->IsDerived() == false)
+			pimpl->model.Despawn(L"Despawned: LookData updated");
 	}
 
 	void IRemotePlayerEngine::UseFurniture(const Object *target, bool withAnim)

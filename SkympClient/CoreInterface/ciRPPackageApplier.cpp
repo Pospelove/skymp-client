@@ -145,7 +145,7 @@ void ci::WorldSpell::Update()
 
 		{
 			std::lock_guard<dlf_mutex> l(p->pimpl->mutex);
-			if (p->pimpl->spawnStage != SpawnStage::Spawned)
+			if (p->pimpl->isSpawned == false)
 				return;
 			auto actor = (Actor *)LookupFormByID(p->pimpl->formID);
 			if (actor == nullptr)

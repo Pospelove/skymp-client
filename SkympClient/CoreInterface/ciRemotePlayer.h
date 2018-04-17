@@ -133,7 +133,7 @@ namespace ci
 		void ManageMagicEquipment(Actor *actor);
 		void ApplyEquipmentHands(Actor *actor);
 		void ApplyEquipmentOther(Actor *actor);
-		void DespawnIfNeed(Actor *actor);
+		void DespawnIfNeed();
 		void FixGreyFaceBug(Actor *actor);
 		void FixGreyFaceBugUnsafe(Actor *actor);
 
@@ -146,7 +146,6 @@ namespace ci
 		void ForceDespawn(const wchar_t *reason = L"");
 
 		int32_t GetSyncMode() const;
-		int32_t GetSpawnStage() const;
 		uint32_t GetRefID() const override;
 		bool IsBowEquipped() const;
 		bool IsSpellEquipped() const; 

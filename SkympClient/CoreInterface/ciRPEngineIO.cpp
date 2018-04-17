@@ -91,7 +91,7 @@ ci::MovementData ci::RPEngineIO::GetMovementData() const
 {
 	auto &pimpl = this->GetImpl();
 	std::lock_guard<dlf_mutex> l(pimpl->mutex);
-	if (pimpl->fullySpawned == false)
+	if (pimpl->fullySpawnedIO == false)
 		return pimpl->movementData;
 	return pimpl->movementDataOut;
 }

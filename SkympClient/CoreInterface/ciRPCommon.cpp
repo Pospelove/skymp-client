@@ -81,7 +81,7 @@ namespace ci
 		if (pimpl->formID != NULL)
 			WorldCleaner::GetSingleton()->SetFormProtected(pimpl->formID, false);
 
-		this->UndoSpawn();
+		//this->UndoSpawn();
 	}
 
 	void RemotePlayer::UpdateNonSpawned()
@@ -89,18 +89,18 @@ namespace ci
 		SAFE_CALL("RemotePlayer", [&] {
 			pimpl->nicknameLabel = nullptr;
 			pimpl->visualMagicEffect = nullptr;
+			pimpl->eqLast = {};
+			for (int32_t i = 0; i <= 1; ++i)
+				pimpl->isMagicAttackStarted[i] = false;
 		});
 
-		this->SpawnIfNeed();
+		//this->SpawnIfNeed();
 	}
 
 	void RemotePlayer::UpdateSpawning()
 	{
-		pimpl->eqLast = {};
-		for (int32_t i = 0; i <= 1; ++i)
-			pimpl->isMagicAttackStarted[i] = false;
 
-		this->DetectSpawningTimeout();
+		//this->DetectSpawningTimeout();
 	}
 
 	void RemotePlayer::UpdateNickname(Actor *actor)
@@ -116,18 +116,6 @@ namespace ci
 				{
 					nicknamePos = headPos;
 					nicknamePos += {0, 0, 22};
-				}
-
-				//ci::Chat::AddMessage(this->GetName() + L" " + std::to_wstring(nicknamePos.x) + L" " + std::to_wstring(this->GetPos().x));
-				// ¬ыведет крайне различающиес€ числа, если человек исчез. 
-				// Ќапример, в ¬айтране x позици€ ноды может быть 60, 228, а x добытый через интерфейс this->GetPos() нормальный
-				// ≈сли человек не исчез, то числа мало различаютс€
-				// Ќа основе этого делаетс€ следующий фикс
-
-				if (std::abs(nicknamePos.x - this->GetPos().x) > 1000.0)
-				{
-					this->ForceDespawn(L"Bad Node pos 'NPC Head [Head]' (1.0.34d)");
-					return;
 				}
 
 				if (pimpl->nicknameLabel == nullptr && pimpl->nicknameEnabled && pimpl->hasLOS)
@@ -250,11 +238,11 @@ namespace ci
 	{
 		if (pimpl->stopProcessing)
 			return;
-		auto actor = (Actor *)LookupFormByID(pimpl->formID);
-		if (actor && actor->baseForm->formType != FormType::Character)
+		auto actor = pimpl->model.GetActor();
+		if (actor && actor->formType != FormType::Character)
 			actor = nullptr;
 		if (!actor)
-			return this->DespawnIfNeed(nullptr);
+			return;
 
 		for (auto task : pimpl->tasksSpawned)
 			task();
@@ -270,7 +258,7 @@ namespace ci
 			pimpl->movementDataOut = MovementData_::Get(actor);
 			if ((pimpl->movementData.pos - pimpl->movementDataOut.pos).Length() < 128)
 			{
-				pimpl->fullySpawned = true;
+				pimpl->fullySpawnedIO = true;
 			}
 			if (pimpl->angleTask)
 			{
@@ -318,20 +306,17 @@ namespace ci
 		this->UpdateNickname(actor);
 		this->UpdatePerks(actor);
 
-		if (pimpl->greyFaceFixed || pimpl->baseNpc != nullptr)
+		if (this->NeedsGnome(0) || this->NeedsGnome(1))
 		{
-			if (this->NeedsGnome(0) || this->NeedsGnome(1))
-			{
-				pimpl->gnomeHost.SetActive(true);
-				pimpl->gnomeHost.SetName(this->GetName());
-			}
-
-			pimpl->gnomeHost.UpdateAndMoveTo(actor, this->GetMovementData(), { this->NeedsGnome(0), this->NeedsGnome(1) });
-			this->DeleteProjectile(actor);
-			this->UpdateMovement(actor);
-			this->ApplyHitAnimations(actor);
-			this->ApplyActorValues(actor);
+			pimpl->gnomeHost.SetActive(true);
+			pimpl->gnomeHost.SetName(this->GetName());
 		}
+
+		pimpl->gnomeHost.UpdateAndMoveTo(actor, this->GetMovementData(), { this->NeedsGnome(0), this->NeedsGnome(1) });
+		this->DeleteProjectile(actor);
+		this->UpdateMovement(actor);
+		this->ApplyHitAnimations(actor);
+		this->ApplyActorValues(actor);
 
 		this->UpdateInvisibleFox();
 		this->UpdateDispenser();
@@ -351,39 +336,50 @@ namespace ci
 
 			this->ManageMagicEquipment(actor);
 
-			this->DespawnIfNeed(actor);
-			if (pimpl->spawnStage == SpawnStage::NonSpawned)
-				return;
+			this->DespawnIfNeed();
+
+			//if (pimpl->spawnStage == SpawnStage::NonSpawned)
+			//	return;
 		}
 
-		this->FixGreyFaceBug(actor);
-		this->FixGreyFaceBugUnsafe(actor);
+		//this->FixGreyFaceBug(actor);
+		//this->FixGreyFaceBugUnsafe(actor);
 	}
 
 	void RemotePlayer::Update()
 	{
 		std::lock_guard<dlf_mutex> l1(pimpl->mutex);
 
-		const auto spawnStage = pimpl->spawnStage;
+		const auto isSpawned = pimpl->model.IsSpawned();
 
-		try {
-			switch (spawnStage)
+		pimpl->model.SetSpawnPoint(this->GetPos());
+		pimpl->model.SetNPCSource([this] {
+			auto npc = this->AllocateNPC();
+			if (pimpl->baseNpc != nullptr)
+				npc->race = pimpl->baseNpc->GetRace();
+			return npc;
+		});
+		pimpl->model.SetTints(this->GetLookData().tintmasks);
+		pimpl->model.SetName(this->GetName());
+
+		pimpl->model.Update();
+
+		if (pimpl->isSpawned != pimpl->model.IsSpawned())
+		{
+			pimpl->isSpawned = pimpl->model.IsSpawned();
+			if (pimpl->isSpawned) // OnSpawn
 			{
-			case SpawnStage::NonSpawned:
-				this->UpdateNonSpawned();
-				break;
-
-			case SpawnStage::Spawning:
-				this->UpdateSpawning();
-				break;
-
-			case SpawnStage::Spawned:
-				this->UpdateSpawned();
-				break;
+				pimpl->syncState = {};
 			}
 		}
+		
+		pimpl->formID = pimpl->model.GetActor() ? pimpl->model.GetActor()->formID : 0;
+
+		try {
+			isSpawned ? this->UpdateSpawned() : this->UpdateNonSpawned();
+		}
 		catch (...) {
-			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s' '%d' ", WstringToString(this->GetName()).data(), (int32_t)spawnStage);
+			ErrorHandling::SendError("ERROR:MT:RemotePlayer '%s' '%d' ", WstringToString(this->GetName()).data(), (int32_t)isSpawned);
 		}
 	}
 
@@ -393,22 +389,14 @@ namespace ci
 		return (int32_t)pimpl->syncState.syncMode;
 	}
 
-	int32_t RemotePlayer::GetSpawnStage() const
-	{
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return (int32_t)pimpl->spawnStage;
-	}
-
 	uint32_t RemotePlayer::GetRefID() const {
 		return pimpl->engine->GetRefID();
 	}
 
 	bool RemotePlayer::IsBowEquipped() const
 	{
-		if (this->pimpl->spawnStage != SpawnStage::Spawned)
-			return false;
-		return (pimpl->eq.hands[0] && pimpl->eq.hands[0]->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow)
-			|| (pimpl->eq.hands[1] && pimpl->eq.hands[1]->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow);
+		return this->IsSpawned() && ((pimpl->eq.hands[0] && pimpl->eq.hands[0]->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow)
+			|| (pimpl->eq.hands[1] && pimpl->eq.hands[1]->GetSubclass() == ci::ItemType::Subclass::WEAP_Bow));
 	}
 
 	bool RemotePlayer::IsSpellEquipped() const
@@ -453,7 +441,7 @@ namespace ci
 			ci::PlaceMarker::Update();
 		});
 
-		RemotePlayer::FinishSpawning();
+		//RemotePlayer::FinishSpawning();
 
 		UInt32 rating = 0;
 		SAFE_CALL("RemotePlayer", [&] {
@@ -734,15 +722,6 @@ namespace ci
 				pimpl->baseNpc = newNpc;
 			}
 		}
-
-		if (pimpl->spawnStage == SpawnStage::Spawned)
-		{
-			if (lastNpc != pimpl->baseNpc)
-			{
-				if (this->IsDerived() == false)
-					this->ForceDespawn(L"Despawned: Base NPC updated");
-			}
-		}
 	}
 
 	void RemotePlayer::SetMark(const std::string &mark)
@@ -760,7 +739,7 @@ namespace ci
 	std::shared_ptr<uint32_t> RemotePlayer::GetNextHitAnim()
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		if (pimpl->spawnStage != SpawnStage::Spawned)
+		if (this->IsSpawned() == false)
 			return nullptr;
 		if (pimpl->hitAnimsOut.empty())
 			return nullptr;
@@ -784,7 +763,7 @@ namespace ci
 	void RemotePlayer::Fire(float power)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		if (pimpl->spawnStage == SpawnStage::Spawned)
+		if(this->IsSpawned())
 		{
 			const auto weap = this->GetEquippedWeapon();
 			const auto ammo = this->GetEquippedAmmo();
@@ -795,7 +774,7 @@ namespace ci
 	void RemotePlayer::FireMagic(const ci::Spell *spell, int32_t handID)
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		if (pimpl->spawnStage == SpawnStage::Spawned)
+		if(this->IsSpawned())
 		{
 			const auto foxID = pimpl->syncState.myFoxID;
 			if (spell != nullptr)
@@ -903,7 +882,7 @@ namespace ci
 	bool RemotePlayer::IsSpawned() const
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return pimpl->spawnStage == SpawnStage::Spawned;
+		return pimpl->isSpawned;
 	}
 
 	void RemotePlayer::SetAttachedHorse(ci::IActor *horse)
@@ -922,13 +901,13 @@ namespace ci
 	void RemotePlayer::Respawn()
 	{
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		this->ForceDespawn(L"ClientLogic");
+		pimpl->model.Despawn(L"ClientLogic");
 	}
 
 	uint32_t RemotePlayer::GetFormID() const
 	{
-		std::lock_guard<dlf_mutex> l(pimpl->mutex);
-		return pimpl->formID;
+		// TODO: Remove this function!
+		return this->GetRefID();
 	}
 
 	RemotePlayer *RemotePlayer::LookupByFormID(uint32_t id)
