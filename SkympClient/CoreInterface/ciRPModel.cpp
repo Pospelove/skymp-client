@@ -76,7 +76,7 @@ void ci::Model::Despawn(const std::wstring &reason)
 {
 	std::lock_guard<dlf_mutex> l(pimpl->m);
 	pimpl->despawnFlag = true;
-	ci::Log(L"ERROR:Model Forced despawn " + reason);
+	ci::Log(L"DBG:Model Forced despawn " + reason);
 }
 
 void ci::Model::Update()

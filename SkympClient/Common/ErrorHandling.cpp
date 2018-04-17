@@ -1,6 +1,8 @@
 #include "../stdafx.h"
 #include "ErrorHandling.h"
 
+#include "../Overlay/Chat.h"
+
 namespace ErrorHandling
 {
 	void SendError(const char *fmt, ...)
@@ -18,9 +20,10 @@ namespace ErrorHandling
 
 		if (wasOpen && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 		{
-			/*SET_TIMER_LIGHT(0, [=] {
-				sd::PrintNote((char *)str.data());
-			});*/
+			if (TheChat != nullptr && !memcmp(str.data(), "ERROR:", sizeof("ERROR:") - 1))
+			{
+				TheChat->AddChatMessage("#FF0000" + str);
+			}
 		}
 		try {
 			static std::mutex mutex;
