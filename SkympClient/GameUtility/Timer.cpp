@@ -14,13 +14,13 @@ decltype(Timer::mutex) Timer::mutex{"timer"};
 
 void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 {
-	static std::recursive_mutex numThreadsMutex;
+	static dlf_mutex numThreadsMutex{"timer_numthreads"};
 	static uint32_t numThreads;
 	try
 	{
 		std::thread([=] {
 			{
-				std::lock_guard<std::recursive_mutex> l(numThreadsMutex);
+				std::lock_guard<dlf_mutex> l(numThreadsMutex);
 				++numThreads;
 			}
 			enum {
@@ -55,7 +55,7 @@ void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 			std::lock_guard<dlf_mutex> l(mutex);
 			callbacks.push_back({ fn, dbgLine, dbgFunc });
 			{
-				std::lock_guard<std::recursive_mutex> l(numThreadsMutex);
+				std::lock_guard<dlf_mutex> l(numThreadsMutex);
 				--numThreads;
 			}
 		}).detach();
