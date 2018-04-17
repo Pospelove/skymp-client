@@ -214,14 +214,14 @@
     <ClCompile Include="CoreInterface\ciRPCommonEquipment.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClCompile>
-    <ClCompile Include="CoreInterface\ciRPCommonSpawn.cpp">
-      <Filter>core_interface\ciRemotePlayer</Filter>
-    </ClCompile>
     <ClCompile Include="CoreInterface\ciRPModel.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
     </ClCompile>
     <ClCompile Include="CoreInterface\ciRPCommonDespawnLogic.cpp">
       <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClCompile>
+    <ClCompile Include="GameUtility\TaskRunner.cpp">
+      <Filter>core\GameUtility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -544,6 +544,9 @@
     </ClInclude>
     <ClInclude Include="CoreInterface\ciRPModel.h">
       <Filter>core_interface\ciRemotePlayer</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUtility\TaskRunner.h">
+      <Filter>core\GameUtility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

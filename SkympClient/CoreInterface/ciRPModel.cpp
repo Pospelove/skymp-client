@@ -4,6 +4,8 @@
 
 #include "../Sync/SyncEssential.h"
 
+#include "ciRPEngineBase.h" // ci::lookSync
+
 namespace ci
 {
 	clock_t lastTintMaskUse = 0;
@@ -136,6 +138,17 @@ void ci::Model::SpawnActor()
 	sd::Enable(actor, true);
 
 	cd::Value<Actor> ac = actor;
+
+	auto tints = pimpl->tints;
+	TaskRunner<TASK_RUNNER_1000_MS>::AddTask([ac, tints] {
+		const auto actor = ac.operator Actor *();
+		if (actor != nullptr)
+		{
+			ci::lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, tints);
+			actor->baseForm->formID = g_thePlayer->baseForm->formID;
+			actor->QueueNiNodeUpdate(true);
+		}
+	}, (int64_t)(pimpl->spawnPoint - ci::LocalPlayer::GetSingleton()->GetPos()).Length());
 
 	SET_TIMER_LIGHT(0, [=] {
 		const auto id = ac.GetFormID();

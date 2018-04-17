@@ -989,13 +989,16 @@ ci::LookData lastAppliedLook;
 void ci::LocalPlayer::ApplyLookData(const LookData &lookData)
 {
 	// 1.0.1 shitfix:
-	ci::lastTintMaskUse = clock();
+	/*ci::lastTintMaskUse = clock();
 	const auto timerMs = clock() - lastTintMaskUse > 5000 ? 0 : clock() - lastTintMaskUse;
 	SET_TIMER(timerMs, [=] {
 		//if (this->GetLookData() != lookData)
 			lookSync->Apply(lookData, g_thePlayer);
 		lastAppliedLook = lookData;
-	});
+	});*/
+	TaskRunner<TASK_RUNNER_1000_MS>::AddTask([=] {
+		lookSync->Apply(lookData, g_thePlayer);
+	}, 0);
 }
 
 std::wstring ci::LocalPlayer::GetName() const

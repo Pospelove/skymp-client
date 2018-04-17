@@ -28,6 +28,7 @@ public:
 
 namespace ci
 {
+
 	void SetSyncOption(std::string o, std::string val)
 	{
 		// threadsafe

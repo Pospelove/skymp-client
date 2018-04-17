@@ -3124,6 +3124,10 @@ class ClientLogic : public ci::IClientLogic
 			ci::Object::SetTracing(tr);
 			tr = !tr;
 		}
+		else if (cmdText == L"//day")
+		{
+			ci::SetGlobalVariable(0x00000038, 13);
+		}
 		else if (cmdText == L"//worldspaces")
 		{
 			ci::ExecuteCommand(ci::CommandType::Console, L"skymp worldspaces");

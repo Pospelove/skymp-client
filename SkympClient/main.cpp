@@ -78,6 +78,8 @@ public:
 
 	virtual bool InitInstance() override
 	{
+		//SafeWrite32(0x006B5DB0, (DWORD)FakeFn);
+
 		if (!Requires(kSKSEVersion_1_7_1, SKSEPapyrusInterface::Version_1))
 		{
 			ErrorHandling::SendError("FATAL:Client your skse version is too old");

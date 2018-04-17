@@ -135,7 +135,6 @@
     <ClCompile Include="CoreInterface\ciRecipe.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommonDespawnLogic.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommonEquipment.cpp" />
-    <ClCompile Include="CoreInterface\ciRPCommonSpawn.cpp" />
     <ClCompile Include="CoreInterface\ciRPDispenser.cpp" />
     <ClCompile Include="CoreInterface\ciRPEngineBase.cpp" />
     <ClCompile Include="CoreInterface\ciRPCommon.cpp" />
@@ -171,6 +170,7 @@
     <ClCompile Include="GameUtility\MiscUtility.cpp" />
     <ClCompile Include="GameUtility\PauseDisabler.cpp" />
     <ClCompile Include="GameUtility\PlayerControls.cpp" />
+    <ClCompile Include="GameUtility\TaskRunner.cpp" />
     <ClCompile Include="GameUtility\Timer.cpp" />
     <ClCompile Include="GameUtility\WorldCleaner.cpp" />
     <ClCompile Include="main.cpp" />
@@ -255,6 +255,7 @@
     <ClInclude Include="GameUtility\MiscUtility.h" />
     <ClInclude Include="GameUtility\PauseDisabler.h" />
     <ClInclude Include="GameUtility\PlayerControls.h" />
+    <ClInclude Include="GameUtility\TaskRunner.h" />
     <ClInclude Include="GameUtility\Timer.h" />
     <ClInclude Include="GameUtility\WorldCleaner.h" />
     <ClInclude Include="Mhook\mhook.h" />
