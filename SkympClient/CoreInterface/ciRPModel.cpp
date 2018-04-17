@@ -143,9 +143,14 @@ void ci::Model::SpawnActor()
 		const auto actor = ac.operator Actor *();
 		if (actor != nullptr)
 		{
-			ci::lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, tints);
-			actor->baseForm->formID = g_thePlayer->baseForm->formID;
-			actor->QueueNiNodeUpdate(true);
+			try {
+				ci::lookSync->ApplyTintMasks((TESNPC *)actor->baseForm, tints);
+				actor->baseForm->formID = g_thePlayer->baseForm->formID;
+				actor->QueueNiNodeUpdate(true);
+			}
+			catch (...) {
+				ci::Log(L"ERROR:Model ApplyTintMasks failed");
+			}
 		}
 	}, (int64_t)(pimpl->spawnPoint - ci::LocalPlayer::GetSingleton()->GetPos()).Length());
 
