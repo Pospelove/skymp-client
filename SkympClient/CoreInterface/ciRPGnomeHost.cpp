@@ -112,9 +112,6 @@ void ci::GnomeHost::SetName(const std::wstring &name)
 
 void ci::GnomeHost::DoCombatSpellApply(uint32_t spellID, int32_t handID, uint32_t foxID)
 {
-	std::wstringstream ss;
-	ss << L"DoCombatSpellApply " << spellID << L' ' << handID << L' ' << foxID;
-	ci::Chat::AddMessage(ss.str());
 	if (pimpl->gnomes[handID])
 	{
 		pimpl->gnomes[handID]->TaskSingle([=](TESObjectREFR *ref) {
