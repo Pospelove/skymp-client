@@ -52,8 +52,10 @@ void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 					Sleep(1);
 				Sleep(min_sleep);
 			}
-			std::lock_guard<dlf_mutex> l(mutex);
-			callbacks.push_back({ fn, dbgLine, dbgFunc });
+			{
+				std::lock_guard<dlf_mutex> l(mutex);
+				callbacks.push_back({ fn, dbgLine, dbgFunc });
+			}
 			{
 				std::lock_guard<dlf_mutex> l(numThreadsMutex);
 				--numThreads;

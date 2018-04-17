@@ -2192,7 +2192,8 @@ class ClientLogic : public ci::IClientLogic
 			++count;
 			if (count != effects.size())
 			{
-				ci::Log("ERROR:ClientLogic wat");
+				//ci::Log("ERROR:ClientLogic wat");
+				// TODO: Explain how should it work and refactor
 			}
 			break;
 		}

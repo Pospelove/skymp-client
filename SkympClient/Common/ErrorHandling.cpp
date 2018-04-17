@@ -18,6 +18,9 @@ namespace ErrorHandling
 		if (MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 			wasOpen = true;
 
+		if ("ERROR:Mutex Would deadlock (timer)" == str) // false warning
+			return;
+
 		if (wasOpen && !MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
 		{
 			if (TheChat != nullptr && !memcmp(str.data(), "ERROR:", sizeof("ERROR:") - 1))

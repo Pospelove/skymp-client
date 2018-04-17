@@ -14,11 +14,13 @@ namespace ErrorHandling
 		{
 		}
 
+		void set_limit(uint32_t newLimitMs)
+		{
+			this->limitMs = newLimitMs;
+		}
+
 		void lock()
 		{
-			enum {
-				limitMs = 300,
-			};
 			clock_t startMoment = clock();
 			while (1)
 			{
@@ -58,6 +60,7 @@ namespace ErrorHandling
 		std::recursive_mutex mutex;
 		int32_t lockCount = 0;
 		const std::string identifier;
+		uint32_t limitMs = 300;
 	};
 }
 
