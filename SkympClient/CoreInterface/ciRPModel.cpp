@@ -149,7 +149,7 @@ void ci::Model::SpawnActor()
 				actor->QueueNiNodeUpdate(true);
 			}
 			catch (...) {
-				ci::Log(L"ERROR:Model ApplyTintMasks failed");
+				ci::Log(L"WARN:Model ApplyTintMasks failed");
 			}
 		}
 	}, (int64_t)(pimpl->spawnPoint - ci::LocalPlayer::GetSingleton()->GetPos()).Length());
