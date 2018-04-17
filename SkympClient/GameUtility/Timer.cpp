@@ -109,7 +109,7 @@ void Timer::Update()
 				it->callback.operator()();
 			}
 			catch (...) {
-				sd::PrintNote("ERROR:MT:Timer %s %d", it->dbgFunc.data(), it->dbgLine);
+				ErrorHandling::SendError("ERROR:MT:Timer %s %d", it->dbgFunc.data(), it->dbgLine);
 			}
 		}
 		callbacks.clear();
