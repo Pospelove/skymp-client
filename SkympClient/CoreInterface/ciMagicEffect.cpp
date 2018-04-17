@@ -15,7 +15,7 @@ namespace ci
 
 		uint32_t existingEffectID;
 		EffectSetting *effect = nullptr;
-		dlf_mutex m;
+		dlf_mutex m{"ci_magiceffect_impl"};
 	};
 
 	MagicEffect::MagicEffect(Archetype archetype, uint32_t existingEffectID, CastingType castingType, Delivery delivery, Volume volume)

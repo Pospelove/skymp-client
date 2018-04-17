@@ -65,7 +65,7 @@ bool CenterOnCell(uint32_t cellID, NiPoint3 pos, float angleZ)
 
 auto lookSync = ILookSynchronizer::GetV17();
 
-ErrorHandling::DeadlockFreeMutex<0> localPlMutex;
+dlf_mutex localPlMutex{"ci_localplayer"};
 std::wstring *localPlName = nullptr;
 UInt32 localPlCellID = 0,
 localPlWorldSpaceID = 0;

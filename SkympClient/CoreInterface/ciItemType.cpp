@@ -4,10 +4,12 @@
 
 namespace Helper
 {
-	struct {
-		dlf_mutex M;
+	struct Smith
+	{
+		dlf_mutex M{"ci_itemtype_helper"};
 		std::map<TESForm *, float> smithLevel;
-	} smith;
+	};
+	Smith smith;
 
 	void SetSmithLevel(TESForm *form, float level)
 	{

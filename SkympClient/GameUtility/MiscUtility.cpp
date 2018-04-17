@@ -166,7 +166,7 @@ namespace Utility
 	int32_t maxKeywords = 256;
 
 	typedef std::map <std::string, BGSKeyword *> KeywordCache;
-	static dlf_mutex s_keywordCacheLock, kdLock;
+	static dlf_mutex s_keywordCacheLock{ "miscutility_keywordcache" }, kdLock{ "miscutility_kd"};
 	static KeywordCache s_keywordCache;
 
 	BGSKeyword *GetKeyword(void *staticFuncTag, BSFixedString keyword)

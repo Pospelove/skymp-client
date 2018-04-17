@@ -27,7 +27,7 @@ public:
 	bool is2D = false;
 	Text2DData text2d;
 	float drawDistance = 1000 * 1000 * 1000;
-	dlf_mutex m;
+	dlf_mutex m{"3dtext"};
 
 private:
 	static void Init();

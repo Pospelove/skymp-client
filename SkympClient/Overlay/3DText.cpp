@@ -19,7 +19,7 @@ class Font
 public:
 	Font(const std::string &name, int32_t h, int32_t fontWeight, const std::string &path = "")
 	{
-		static dlf_mutex m;
+		static dlf_mutex m{"3dtext_font"};
 		std::lock_guard<dlf_mutex> l(m);
 		if (path.empty() == false)
 		{
@@ -88,7 +88,7 @@ void Draw(const Text2DData &text)
 }
 
 std::set<Text3D *> all3DT;
-dlf_mutex all3DTMutex;
+dlf_mutex all3DTMutex{"3dtext_cont"};
 
 Text3D::Text3D()
 {

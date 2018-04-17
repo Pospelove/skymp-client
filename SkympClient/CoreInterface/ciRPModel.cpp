@@ -12,7 +12,7 @@ struct ci::Model::Impl
 	NiPoint3 spawnPoint = { 0,0,0 };
 	TintMasks tints;
 	NPCSource npcSource;
-	dlf_mutex m;
+	dlf_mutex m{"ci_model_impl"};
 	uint32_t refID = 0;
 	std::wstring name = L" ";
 	bool despawnFlag = false;

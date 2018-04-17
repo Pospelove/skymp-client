@@ -393,7 +393,7 @@ namespace ci
 
 	struct Mutex::Impl 
 	{
-		dlf_mutex mutex;
+		dlf_mutex mutex{"ci_other_mutex"};
 	};
 
 	Mutex::Mutex() : pimpl(new Impl) 

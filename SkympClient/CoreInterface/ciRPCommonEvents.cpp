@@ -55,7 +55,7 @@ public:
 
 private:
 	std::map<uint32_t, clock_t> lastReceive;
-	dlf_mutex m;
+	dlf_mutex m{"ci_remoteplayer_hiteventsink"};
 
 	virtual	EventResult	ReceiveEvent(TESHitEvent *evn, BSTEventSource<TESHitEvent> * source) override
 	{

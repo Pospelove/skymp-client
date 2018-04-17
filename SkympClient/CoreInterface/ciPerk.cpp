@@ -7,7 +7,7 @@ struct ci::Perk::Impl
 	float *requiredSkillLevelPtr = nullptr;
 	float requiresSkillLevel = 0;
 	uint32_t requiredPerkID = 0;
-	dlf_mutex m;
+	dlf_mutex m{"ci_perk_impl"};
 };
 
 ci::Perk::Perk(uint32_t formID) : pimpl(new Impl)

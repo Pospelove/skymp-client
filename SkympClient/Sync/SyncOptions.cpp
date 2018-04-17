@@ -6,7 +6,7 @@ using Options = std::map<std::string, std::string>;
 struct SyncOptions::Impl
 {
 	Options options;
-	dlf_mutex m;
+	dlf_mutex m{"syncoptions"};
 };
 
 Options ReadOptions(const char *cfgFile)

@@ -78,7 +78,7 @@ struct ci::Text3D::Impl
 };
 
 std::set<ci::Text3D *> texts;
-dlf_mutex textsM;
+dlf_mutex textsM{"ci_gui_texts"};
 
 ci::Text3D::Text3D(const std::wstring &str, NiPoint3 pos) :
 	pimpl(new Impl)

@@ -15,5 +15,5 @@ private:
 	virtual void OnMouseMove(unsigned int x, unsigned int y, unsigned int z);
 
 	std::set<uint8_t> pressed;
-	mutable dlf_mutex mutex;
+	mutable dlf_mutex mutex{"keyboardmanager"};
 };

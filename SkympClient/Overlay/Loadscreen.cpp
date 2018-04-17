@@ -51,7 +51,7 @@ struct Loadscreen::Impl
 	std::unique_ptr<CSprite> sprite;
 };
 
-dlf_mutex gLoadscreenM;
+dlf_mutex gLoadscreenM{"loadscreen"};
 std::set<Loadscreen *> loadscreens;
 
 void Loadscreen::Render()

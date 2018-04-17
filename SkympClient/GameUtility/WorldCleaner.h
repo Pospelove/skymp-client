@@ -15,7 +15,7 @@ private:
 	void DealWithReference(TESObjectREFR *ref);
 
 	std::set<RefHandle> protectedForms;
-	mutable dlf_mutex mutex;
+	mutable dlf_mutex mutex{"worldcleaner"};
 	std::map<FormType, std::function<void(TESObjectREFR *)>> callbacks;
 	std::set<uint32_t> dict;
 };

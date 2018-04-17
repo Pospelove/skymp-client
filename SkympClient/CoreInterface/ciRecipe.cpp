@@ -15,7 +15,7 @@ namespace ci
 		std::vector<RecipeEntry> entries;
 	};
 
-	dlf_mutex recipeM;
+	dlf_mutex recipeM{"ci_recipe"};
 
 	using KeywordBackup = std::map<BGSConstructibleObject *, BGSKeyword *>;
 	std::shared_ptr<KeywordBackup> keywordBackup;

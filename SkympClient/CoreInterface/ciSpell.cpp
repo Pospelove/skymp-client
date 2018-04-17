@@ -13,7 +13,7 @@ namespace ci
 		uint32_t existingSpellID = 0;
 		MagicItem *spell = nullptr;
 		float cost = 0;
-		dlf_mutex m;
+		dlf_mutex m{"ci_spell_impl"};
 	};
 
 	Spell::Spell(uint32_t existingSpellID) : pimpl(new Impl)

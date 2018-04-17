@@ -63,7 +63,7 @@ namespace SkyUILib
 	bool showListResultCalled = false;
 	Callback gCallback, gCallbackMsgbox, gCallbackInput;
 	bool showInputResultCalled = false;
-	dlf_mutex mutex;
+	dlf_mutex mutex{"skyuilib"};
 	static clock_t lastClose = 0;
 
 	void UpdateList()

@@ -10,7 +10,7 @@ struct Info
 };
 
 std::list<Info> callbacks;
-decltype(Timer::mutex) Timer::mutex;
+decltype(Timer::mutex) Timer::mutex{"timer"};
 
 void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 {

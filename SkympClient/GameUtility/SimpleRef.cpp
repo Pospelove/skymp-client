@@ -2,7 +2,7 @@
 #include "SimpleRef.h"
 
 std::set<SimpleRef *> allSimpleRefs;
-dlf_mutex gMutex;
+dlf_mutex gMutex{"simpleref_cont"};
 
 enum {
 	NON_SPAWNED = 0,
@@ -12,7 +12,7 @@ enum {
 struct SimpleRef::Impl 
 {
 	TESForm *base = nullptr;
-	dlf_mutex m;
+	dlf_mutex m{"simpleref_impl"};
 	int32_t spawnStage = NON_SPAWNED;
 	float drawDistance = 0;
 	uint32_t refID = 0;

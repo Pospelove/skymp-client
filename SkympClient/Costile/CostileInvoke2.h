@@ -341,7 +341,7 @@ inline void CallVMFunc(const std::string &className, const std::string &funcName
 extern UInt32 g_SDThreadId;
 
 
-static dlf_mutex execImplMutex;
+static dlf_mutex execImplMutex{"ci_costile_exec"};
 
 inline CostileArgument ExecImpl(bool isAsync,
 	BSScript::IStackCallbackFunctorPtr callback,

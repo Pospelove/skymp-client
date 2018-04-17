@@ -38,7 +38,7 @@ private:
 	MyGUI::Gui* myGUI;
 	int PositionX = 0, PositionY = 0;
 	bool isRussianLanguage = false;
-	mutable dlf_mutex mutex;
+	mutable dlf_mutex mutex{"gui"};
 };
 
 extern GUI* TheGUI;

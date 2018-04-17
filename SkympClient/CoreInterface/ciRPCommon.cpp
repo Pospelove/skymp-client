@@ -32,7 +32,7 @@ namespace ci
 {
 	// Used from other files with 'extern' keyword
 	std::set<RemotePlayer *> allRemotePlayers;
-	RPGMUTEX gMutex;
+	RPGMUTEX gMutex{"ci_remoteplayer_cont"};
 	ILookSynchronizer *lookSync = ILookSynchronizer::GetV17();
 
 	std::function<void()> traceTask = nullptr;
@@ -692,7 +692,7 @@ namespace ci
 			}
 
 			{
-				static dlf_mutex npcMutex;
+				static dlf_mutex npcMutex{"ci_remoteplayer_tesnpc"};
 				std::lock_guard<dlf_mutex> l1(npcMutex);
 
 				auto newNpc = npc;

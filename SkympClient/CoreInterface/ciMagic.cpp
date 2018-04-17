@@ -41,7 +41,7 @@ namespace ci
 	struct Magic::Impl
 	{
 		std::vector<ci::EffectItem> effects;
-		dlf_mutex m;
+		dlf_mutex m{"ci_magic_impl"};
 	};
 
 	Magic::Magic()

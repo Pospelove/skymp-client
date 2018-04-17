@@ -39,7 +39,7 @@ namespace ci
 
 		std::vector<std::function<void()>> tasksSpawned;
 
-		dlf_mutex mutex;
+		dlf_mutex mutex{"ci_remoteplayer_impl"};
 		FormID formID = 0;
 		std::wstring name;
 		std::unique_ptr<ci::Text3D> nicknameLabel;

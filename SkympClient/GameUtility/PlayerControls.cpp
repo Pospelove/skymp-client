@@ -8,7 +8,7 @@ namespace PlayerControls_
 	};
 
 	std::vector<SInt64> state(CONTROLS_COUNT, MIN_ENABLED_STATE);
-	dlf_mutex mutex;
+	dlf_mutex mutex{"playercontrols"};
 
 	void Update()
 	{

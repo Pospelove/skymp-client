@@ -14,7 +14,7 @@ namespace Costile2
 	BSScript::ZeroFunctionArguments zeroArgs;
 	std::map<SInt32, BSFixedString *> staticStrings;
 
-	dlf_mutex mutex;
+	dlf_mutex mutex{"costile2"};
 	const size_t count = 16;
 
 	struct SessionData

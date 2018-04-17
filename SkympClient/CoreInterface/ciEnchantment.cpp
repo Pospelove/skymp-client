@@ -1,7 +1,7 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
 
-dlf_mutex enchMutex;
+dlf_mutex enchMutex{"ci_enchantment"};
 
 struct ci::Enchantment::Impl
 {

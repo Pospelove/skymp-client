@@ -7,7 +7,7 @@ namespace Werewolf
 {
 	void SetWerewolf(uint32_t refID, bool ww, bool skipAnim)
 	{
-		static dlf_mutex wwMutex;
+		static dlf_mutex wwMutex{"werewolf"};
 		std::lock_guard<dlf_mutex> l(wwMutex);
 
 		enum class Stage : int8_t

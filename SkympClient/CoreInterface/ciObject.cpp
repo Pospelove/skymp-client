@@ -14,14 +14,17 @@ public:
 	}
 };
 
-dlf_mutex gMutex;
-std::set<ci::Object *> allObjects;
+namespace ci
+{
+	dlf_mutex gObjMutex{ "ci_object_cont" };
+	std::set<ci::Object *> allObjects;
+}
 std::function<void()> traceTask = nullptr;
 
 extern std::map<const ci::ItemType *, uint32_t> inventory;
 extern std::map<TESForm *, const ci::ItemType *> knownItems;
 extern std::map<TESForm *, const ci::Spell *> knownSpells;
-extern ErrorHandling::DeadlockFreeMutex<0> localPlMutex;
+extern dlf_mutex localPlMutex;
 
 namespace ci
 {
@@ -105,7 +108,7 @@ struct ci::Object::Impl
 	class ActivateEventSink;
 	class ContainerChangedEventSink;
 
-	dlf_mutex mutex;
+	dlf_mutex mutex{"ci_object_impl"};
 	uint32_t refID = 0;
 	uint32_t baseID = 0;
 
@@ -156,7 +159,7 @@ struct ci::Object::Impl
 			if(evn->caster->baseForm->formType == FormType::NPC)
 			{
 				const auto casterRefID = evn->caster->formID;
-				std::lock_guard<dlf_mutex> l(gMutex);
+				std::lock_guard<dlf_mutex> l(gObjMutex);
 				if (allObjects.find(owner) == allObjects.end())
 					return EventResult::kEvent_Continue;
 				if (owner->pimpl->refID != evn->target->formID)
@@ -239,7 +242,7 @@ struct ci::Object::Impl
 
 		virtual	EventResult	ReceiveEvent(TESContainerChangedEvent *evn, BSTEventSource<TESContainerChangedEvent> * source) override
 		{
-			std::lock_guard<dlf_mutex> l(gMutex);
+			std::lock_guard<dlf_mutex> l(gObjMutex);
 			auto it = allObjects.find(owner);
 			if (it != allObjects.end())
 			{
@@ -369,7 +372,7 @@ struct ci::Object::Impl
 			hitEventData.spell = spell;
 
 			std::thread([=] {
-				std::lock_guard<dlf_mutex> l(gMutex);
+				std::lock_guard<dlf_mutex> l(gObjMutex);
 				for (auto it = allObjects.begin(); it != allObjects.end(); ++it)
 				{
 					auto obj = *it;
@@ -409,7 +412,7 @@ ci::Object::Object(uint32_t existingReferenceID,
 {
 	static auto hitEventSink = new Impl::HitEventSinkGlobal;
 
-	std::lock_guard<dlf_mutex> l(gMutex);
+	std::lock_guard<dlf_mutex> l(gObjMutex);
 	allObjects.insert(this);
 
 	std::lock_guard<dlf_mutex> l1(pimpl->mutex);
@@ -450,7 +453,7 @@ ci::Object::Object(uint32_t existingReferenceID,
 
 ci::Object::~Object()
 {
-	std::lock_guard<dlf_mutex> l(gMutex);
+	std::lock_guard<dlf_mutex> l(gObjMutex);
 	allObjects.erase(this);
 
 	if (pimpl->isNative && pimpl->editorPos != nullptr && pimpl->editorRot != nullptr)
@@ -822,7 +825,7 @@ uint32_t ci::Object::GetRandomRefID(bool ignoreCamera)
 {
 	std::vector<uint32_t> refIDs;
 	{
-		std::lock_guard<dlf_mutex> l(gMutex);
+		std::lock_guard<dlf_mutex> l(gObjMutex);
 		for (auto object : allObjects)
 		{
 			auto id = object->GetRefID();
@@ -857,7 +860,7 @@ uint32_t ci::Object::GetFarObject()
 	uint32_t farRefID = 0;
 	float maxDistance = 0;
 	{
-		std::lock_guard<dlf_mutex> l(gMutex);
+		std::lock_guard<dlf_mutex> l(gObjMutex);
 		for (auto object : allObjects)
 		{
 			auto id = object->GetRefID();
@@ -878,10 +881,10 @@ uint32_t ci::Object::GetFarObject()
 
 void ci::Object::SetTracing(bool trace)
 {
-	std::lock_guard<dlf_mutex> l(gMutex);
+	std::lock_guard<dlf_mutex> l(gObjMutex);
 	
 	static std::function<void()> f = [] {
-		std::lock_guard<dlf_mutex> l(gMutex);
+		std::lock_guard<dlf_mutex> l(gObjMutex);
 		ci::Chat::AddMessage(L"allObjects size is " + std::to_wstring(allObjects.size()));
 	};
 
@@ -1062,7 +1065,7 @@ void ci::Object::Update_OT()
 				std::thread([=] {
 					SET_TIMER(0, [=] {
 						SET_TIMER(3000, [=] {
-							std::lock_guard<dlf_mutex> l1(gMutex);
+							std::lock_guard<dlf_mutex> l1(gObjMutex);
 							if (allObjects.find(this) == allObjects.end())
 								return;
 							std::lock_guard<dlf_mutex> l(pimpl->mutex);
@@ -1077,7 +1080,7 @@ void ci::Object::Update_OT()
 
 void ci::Object::UpdateAll()
 {
-	std::lock_guard<dlf_mutex> l(gMutex);
+	std::lock_guard<dlf_mutex> l(gObjMutex);
 
 	if (traceTask)
 		traceTask();
@@ -1118,7 +1121,7 @@ void ci::Object::UpdateAll_OT()
 	{
 		lastUpdateAllOT = clock();
 		SAFE_CALL("Object", [&] {
-			std::lock_guard<dlf_mutex> l(gMutex);
+			std::lock_guard<dlf_mutex> l(gObjMutex);
 			std::for_each(allObjects.begin(), allObjects.end(), [](ci::Object *object) {
 				object->Update_OT();
 			});
@@ -1133,7 +1136,7 @@ void ci::Object::ForceSpawn()
 	{
 		pimpl->spawnStage = SpawnStage::Spawning;
 		SET_TIMER(100, [=] {
-			std::lock_guard<dlf_mutex> l(gMutex);
+			std::lock_guard<dlf_mutex> l(gObjMutex);
 			if (allObjects.find(this) == allObjects.end())
 				return;
 			std::lock_guard<dlf_mutex> l1(pimpl->mutex);

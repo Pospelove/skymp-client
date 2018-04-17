@@ -10,7 +10,7 @@ void _() {
 template <uint32_t delay>
 void TaskRunner<delay>::AddTask(std::function<void()> fn, int64_t priority)
 {
-	static dlf_mutex m;
+	static dlf_mutex m{"taskrunner"};
 	std::lock_guard<dlf_mutex> l(m);
 
 	static std::map<int64_t, std::list<std::function<void()>>> tasks;

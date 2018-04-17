@@ -6,16 +6,11 @@ namespace ErrorHandling
 {
 	void SendError(const char *fmt, ...);
 
-	template <uint32_t line>
 	class DeadlockFreeMutex
 	{
 	public:
-		template <uint32_t anyInt>
-		operator DeadlockFreeMutex<anyInt> &() {
-			return *reinterpret_cast<DeadlockFreeMutex<anyInt>*>(this);
-		}
 
-		DeadlockFreeMutex() : mLine(line)
+		DeadlockFreeMutex(const std::string &identifier) : identifier(identifier)
 		{
 		}
 
@@ -36,7 +31,7 @@ namespace ErrorHandling
 				Sleep(1);
 				if (clock() - limitMs > startMoment)
 				{
-					SendError("ERROR:Mutex Would deadlock (%u)", this->mLine);
+					SendError("ERROR:Mutex Would deadlock (%s)", this->identifier.data());
 					return;
 				}
 			}
@@ -62,11 +57,11 @@ namespace ErrorHandling
 	private:
 		std::recursive_mutex mutex;
 		int32_t lockCount = 0;
-		const uint32_t mLine;
+		const std::string identifier;
 	};
 }
 
-#define dlf_mutex ErrorHandling::DeadlockFreeMutex<__LINE__>
+using dlf_mutex = ErrorHandling::DeadlockFreeMutex;
 
 #define SET_TIMER(...) Timer:: Set( __VA_ARGS__, __LINE__, __FUNCTION__)
 #define SET_TIMER_LIGHT(...) Timer:: SetLight( __VA_ARGS__, __LINE__, __FUNCTION__)

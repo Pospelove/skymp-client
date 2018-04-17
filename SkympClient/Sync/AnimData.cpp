@@ -377,7 +377,7 @@ void AnimData_OnAnimationEvent(TESObjectREFR *source, std::string animEventName)
 				auto actor = (Actor *)LookupFormByID(refID);
 				if (actor->baseForm->formType == FormType::NPC)
 				{
-					static dlf_mutex m;
+					static dlf_mutex m{"animdata_unk"};
 					std::lock_guard<dlf_mutex> l(m);
 					static std::map<uint32_t, clock_t> last;
 
