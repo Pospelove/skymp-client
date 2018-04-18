@@ -16,19 +16,39 @@ void Timer::Set(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFunc)
 {
 	static dlf_mutex numThreadsMutex{"timer_numthreads"};
 	static uint32_t numThreads;
+	static std::map<std::string, uint32_t> topUsedFunctions;
 	try
 	{
 		std::thread([=] {
 			{
 				std::lock_guard<dlf_mutex> l(numThreadsMutex);
 				++numThreads;
+				++topUsedFunctions[dbgFunc];
 			}
 			enum {
 				maxThreads = 500,
 			};
 			if (numThreads > maxThreads)
 			{
-				ErrorHandling::SendError("FATAL:Timer Too many threads started (%u)", numThreads);
+				std::string topFn = "NULL";
+				{
+					uint32_t topVal = 0;
+					std::lock_guard<dlf_mutex> l(numThreadsMutex);
+					for (auto &pair : topUsedFunctions)
+					{
+						if (pair.second > topVal)
+						{
+							topVal = pair.second;
+							topFn = pair.first;
+						}
+					}
+				}
+				static bool sent = false;
+				if (!sent)
+				{
+					sent = true;
+					ErrorHandling::SendError("FATAL:Timer Too many threads started (%u) (%s)", numThreads, topFn.data());
+				}
 				Sleep(1000);
 				std::exit(EXIT_FAILURE);
 			}
