@@ -2561,7 +2561,7 @@ class ClientLogic : public ci::IClientLogic
 			}
 		}
 		catch (...) {
-			ci::Log("ERROR:ClientLogic UpdateNetworking() Send");
+			ci::Log("WARN:ClientLogic UpdateNetworking() Send"); // TODO: Refactor
 		}
 
 		// RECEIVE:
@@ -2583,7 +2583,7 @@ class ClientLogic : public ci::IClientLogic
 				}
 			}
 			catch (...) {
-				ci::Log("ERROR:ClientLogic UpdateNetworking() Receive " + std::to_string(packetID));
+				ci::Log("WARN:ClientLogic UpdateNetworking() Receive " + std::to_string(packetID)); // TODO: Refactor
 			}
 		}
 	}
@@ -2939,7 +2939,7 @@ class ClientLogic : public ci::IClientLogic
 					UpdateNetworking();
 				}
 				catch (...) {
-					ci::Log("ERROR:ClientLogic UpdateNetworking()");
+					ci::Log("WARN:ClientLogic UpdateNetworking()"); // TODO: Refactor
 				}
 				try {
 					UpdateObjects();
