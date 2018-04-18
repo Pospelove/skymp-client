@@ -25,7 +25,7 @@ void ci::Chat::AddMessage(const std::wstring &message, bool isNotification)
 
 	if (isNotification)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			sd::PrintNote((char *)WstringToString(message).data());
 		});
 		return;

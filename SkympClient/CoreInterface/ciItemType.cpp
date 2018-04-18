@@ -220,7 +220,7 @@ bool ItemType::IsCustomPotion() const {
 void ItemType::SetWeight(float w)
 {
 	auto item = pimpl->item;
-	SET_TIMER(0, [=] {
+	SET_TIMER_LIGHT(0, [=] {
 		cd::SetWeight(item, w);
 	});
 }
@@ -228,7 +228,7 @@ void ItemType::SetWeight(float w)
 void ItemType::SetGoldValue(uint32_t v)
 {
 	auto item = pimpl->item;
-	SET_TIMER(0, [=] {
+	SET_TIMER_LIGHT(0, [=] {
 		cd::SetGoldValue(item, v);
 	});
 }
@@ -238,7 +238,7 @@ void ItemType::SetArmorRating(float v)
 	auto item = pimpl->item;
 	if (item->formType == FormType::Armor)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			cd::SetArmorRating((TESObjectARMO *)item, v);
 		});
 	}
@@ -249,13 +249,13 @@ void ItemType::SetDamage(float v)
 	auto item = pimpl->item;
 	if (item->formType == FormType::Weapon)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			((TESObjectWEAP *)item)->attackDamage = (uint16_t)v;
 		});
 	}
 	else if (item->formType == FormType::Ammo)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			((TESAmmo *)item)->settings.damage = (uint16_t)v;
 		});
 	}

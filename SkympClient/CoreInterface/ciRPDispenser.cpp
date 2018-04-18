@@ -130,7 +130,7 @@ void ci::Dispenser::Fire(const ItemType *bow, const ItemType *ammo, float power)
 
 			sd::Weapon::Fire(bowCopy, dispenserRef, ammoCopy);
 
-			SET_TIMER(3000, [=] {
+			SET_TIMER_LIGHT(3100, [=] {
 				sd::RemoveItem(g_thePlayer, ammoCopy, -1, true, nullptr);
 			});
 		}

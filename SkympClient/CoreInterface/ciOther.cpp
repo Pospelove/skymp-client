@@ -98,7 +98,7 @@ namespace ci
 
 		if (consoleCmdString == L"skymp qnnu")
 		{
-			SET_TIMER(0, [] {
+			SET_TIMER_LIGHT(0, [] {
 				g_thePlayer->QueueNiNodeUpdate(false);
 			});
 			return;
@@ -219,7 +219,7 @@ namespace ci
 		static const BSFixedString fsMainMenu = "Main Menu";
 		if (MenuManager::GetSingleton()->IsMenuOpen(fsMainMenu))
 			return;
-		SET_TIMER(0, [] {
+		SET_TIMER_LIGHT(0, [] {
 			MenuManager::GetSingleton()->OpenMenu(fsMainMenu);
 		});
 	}

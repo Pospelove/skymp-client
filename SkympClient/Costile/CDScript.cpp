@@ -23,7 +23,7 @@ void cd::Context::Eval(std::string scriptString)
 {
 	if (GetCurrentThreadId() != g_SDThreadId)
 	{
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			Eval(scriptString);
 		});
 		return;

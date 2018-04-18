@@ -23,7 +23,7 @@ void MoveTo(uint32_t markerRefID)
 	{
 		ci::SetVolume(0);
 
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			SET_TIMER(1500, [=] {
 				ci::SetVolume(-1);
 			});
@@ -538,7 +538,7 @@ void ci::LocalPlayer::SetName(const std::wstring &name)
 		localPlName = new std::wstring;
 	*localPlName = name;
 
-	SET_TIMER(0, [=] {
+	SET_TIMER_LIGHT(0, [=] {
 		cd::SetDisplayName(g_thePlayer, WstringToString(name), true);
 		cd::SetName(g_thePlayer->baseForm, WstringToString(name));
 	});

@@ -190,7 +190,7 @@ struct ci::Object::Impl
 					isOpening = true;
 					auto onActivate = owner->pimpl->onActivate;
 					auto resendOnActivate = [=] {
-						SET_TIMER(0, [=] {
+						SET_TIMER_LIGHT(0, [=] {
 							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 							onActivate(false, ci::LocalPlayer::GetSingleton());
 						});
@@ -255,7 +255,7 @@ struct ci::Object::Impl
 					if (evn->from == g_thePlayer->formID && evn->to == owner->pimpl->refID) //put
 					{
 						auto onConatinerChanged = owner->pimpl->onConatinerChanged;
-						SET_TIMER(0, [=] {
+						SET_TIMER_LIGHT(0, [=] {
 							try {
 								auto itemType = knownItems.at(form);
 								std::thread([=] {
@@ -286,7 +286,7 @@ struct ci::Object::Impl
 					if (evn->from == owner->pimpl->refID && evn->to == g_thePlayer->formID) //take
 					{
 						auto onConatinerChanged = owner->pimpl->onConatinerChanged;
-						SET_TIMER(0, [=] {
+						SET_TIMER_LIGHT(0, [=] {
 							try {
 								auto itemType = knownItems.at(form);
 								std::thread([=] {
@@ -615,7 +615,7 @@ void ci::Object::SetDisabled(bool disabled)
 	if (ref && ref->baseForm->formType == FormType::Projectile)
 	{
 		const auto refID = pimpl->refID;
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			auto ref = (TESObjectREFR *)LookupFormByID(refID);
 			if (ref)
 				task.func(ref);
@@ -644,7 +644,7 @@ void ci::Object::SetCount(uint32_t count)
 		auto task = ObjectTask{ [=](TESObjectREFR *ref) {
 			const auto refID = ref->formID;
 			cd::GetDisplayName(ref, [count, refID](std::string displayName) {
-				SET_TIMER(0, [=] {
+				SET_TIMER_LIGHT(0, [=] {
 					auto name = displayName;
 
 					auto pos = name.find('(');
@@ -672,7 +672,7 @@ void ci::Object::AddItem(const ItemType *item, uint32_t count)
 	{
 		auto form = LookupFormByID(item->GetFormID());
 
-		SET_TIMER(0, [=] {
+		SET_TIMER_LIGHT(0, [=] {
 			knownItems[form] = item;
 		});
 
@@ -1063,7 +1063,7 @@ void ci::Object::Update_OT()
 			{
 				pimpl->waitingForDespawn = true;
 				std::thread([=] {
-					SET_TIMER(0, [=] {
+					SET_TIMER_LIGHT(0, [=] {
 						SET_TIMER(3000, [=] {
 							std::lock_guard<dlf_mutex> l1(gObjMutex);
 							if (allObjects.find(this) == allObjects.end())
@@ -1196,7 +1196,7 @@ void ci::Object::UpdateContainer()
 {
 	SAFE_CALL("Object", [&] {
 		auto refID = pimpl->refID;
-		SET_TIMER(0, [refID] {
+		SET_TIMER_LIGHT(0, [refID] {
 			auto ref = (TESObjectREFR *)LookupFormByID(refID);
 			if (ref)
 				sd::RemoveAllItems(ref, nullptr, false, true);
