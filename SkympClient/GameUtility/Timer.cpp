@@ -75,15 +75,13 @@ void Timer::SetLight(UInt32 ms, callback fn, uint32_t dbgLine, std::string dbgFu
 {
 	try
 	{
-		std::thread([=] {
-			std::lock_guard<dlf_mutex> l(mutex);
-			Info info;
-			info.callback = fn;
-			info.dbgFunc = dbgFunc;
-			info.dbgLine = dbgLine;
-			info.endMoment = clock() + ms;
-			callbacks.push_back(info);
-		}).detach();
+		Info info;
+		info.callback = fn;
+		info.dbgFunc = dbgFunc;
+		info.dbgLine = dbgLine;
+		info.endMoment = clock() + ms;
+		std::lock_guard<dlf_mutex> l(mutex);
+		callbacks.push_back(info);
 	}
 	catch (const std::exception &e)
 	{
