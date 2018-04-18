@@ -22,8 +22,6 @@
 
 auto version = "1.0.37";
 
-#include "Agent.h"
-
 class ClientLogic : public ci::IClientLogic
 {
 	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
@@ -343,24 +341,6 @@ class ClientLogic : public ci::IClientLogic
 		ci::Chat::AddMessage(net.connectingMsg);
 	}
 
-	void StreamOut(uint16_t playerid)
-	{
-		if (net.peer != nullptr && playerid != net.myID)
-		{
-			RakNet::BitStream bsOut;
-			bsOut.Write(ID_FORGET_PLAYER);
-			bsOut.Write(playerid);
-			net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
-			try {
-				delete players.at(playerid);
-				players.erase(playerid);
-			}
-			catch (...) {
-				ci::Log("WARN:ClientLogic Attempt to streamout unknown player");
-			}
-		}
-	}
-
 	void ProcessPacket(RakNet::Packet *packet)
 	{
 		RakNet::BitStream bsOut;
@@ -676,7 +656,6 @@ class ClientLogic : public ci::IClientLogic
 						if (engine == "RPEngineInput")
 						{
 							ci::Log("ERROR:ClientLogic RemotePlayer is broken " + engine + " isHosted=" + std::to_string(hostedPlayers.count(playerid)));
-							//this->StreamOut(playerid);
 						}
 						else
 						{
