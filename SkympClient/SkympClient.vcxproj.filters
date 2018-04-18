@@ -542,6 +542,9 @@
     <ClInclude Include="GameUtility\TaskRunner.h">
       <Filter>core\GameUtility</Filter>
     </ClInclude>
+    <ClInclude Include="ClientLogic\ClientLogic.h">
+      <Filter>client_logic</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptDragon\plugin.def">
