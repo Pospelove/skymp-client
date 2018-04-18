@@ -55,124 +55,6 @@ class ClientLogic : public ci::IClientLogic
 	uint32_t lastDialogID = ~0;
 	PacketReliability unreliable = PacketReliability::UNRELIABLE;
 
-	class Bot : public SkympAgent
-	{
-	public:
-
-		virtual void Output(std::wstring message, bool isNotification) override
-		{
-			ci::Chat::AddMessage(L"#33CCFF" + this->name + L" << " + message);
-			if (message == L"Connected.")
-			{
-				connectedMoment = clock();
-			}
-		}
-
-		Bot(std::wstring name)
-		{
-			this->ConnectToServer(g_config[CONFIG_IP], 7777, version, "123456", name);
-			this->name = name;
-		}
-
-		~Bot()
-		{
-			this->CloseConnection();
-		}
-
-		void Tick()
-		{
-			this->SkympAgent::Tick();
-		}
-
-	private:
-
-		std::wstring name;
-		clock_t connectedMoment;
-		mutable ci::MovementData md;
-
-		virtual ci::MovementData GetMyMovement() const
-		{
-
-			if (this->md.pos.y == 0)
-			{
-				md = ci::LocalPlayer::GetSingleton()->GetMovementData();
-			}
-			return md;
-		}
-
-		virtual bool AmIOnPause() const
-		{
-			return 0;
-		}
-
-		virtual std::shared_ptr<uint32_t> GetMyNextAnimation() const
-		{
-			return nullptr;
-		}
-
-		virtual ci::AVData GetMyAVData(std::string avName) const
-		{
-			ci::AVData av;
-			av.base = 100;
-			av.modifier = 0;
-			av.percentage = 1;
-			return av;
-		}
-
-		virtual std::vector<uint32_t> GetMyEquippedArmor() const
-		{
-			return {};
-		}
-
-		virtual uint32_t GetMyEquippedWeapon(int32_t handID) const
-		{
-			return ~0;
-		}
-
-		virtual uint32_t GetMyEquippedAmmo() const
-		{
-			return ~0;
-		}
-
-		virtual uint32_t GetMyEquippedSpell(int32_t handID) const
-		{
-			return ~0;
-		}
-
-		virtual bool GetObjectMustBeHostedByMe(uint32_t objectID) const
-		{
-			return false;
-		}
-
-		virtual uint16_t GetObjectHost(uint32_t objectID) const
-		{
-			return ~0;
-		}
-
-		virtual NiPoint3 GetObjectLocalPos(uint32_t objectID) const
-		{
-			return { 0,0,0 };
-		}
-
-		virtual NiPoint3 GetObjectLocalRot(uint32_t objectID) const
-		{
-			return { 0,0,0 };
-		}
-
-		virtual bool IsObjectGrabbedByMe(uint32_t objectID) const
-		{
-			return false;
-		}
-
-		virtual float GetObjectLocalSpeed(uint32_t objectID) const
-		{
-			return 0;
-		}
-	};
-
-	std::map<std::wstring, std::shared_ptr<Bot>> bots;
-	std::list<Bot *> botss;
-
 	bool IsRussianTranslate()
 	{
 		return g_config[CONFIG_TRANSLATE] == "RU" 
@@ -2890,11 +2772,6 @@ class ClientLogic : public ci::IClientLogic
 			}
 		}
 
-		for (auto &pair : bots)
-		{
-			if (pair.second != nullptr)
-				pair.second->Tick();
-		}
 		for (auto &f : fns)
 		{
 			f();
@@ -3056,48 +2933,6 @@ class ClientLogic : public ci::IClientLogic
 				std::exit(0);
 			});
 		}
-		else if (cmdText == L"//obj")
-		{
-			if (obj)
-			{
-				delete obj;
-				obj = nullptr;
-			}
-			else
-			{
-				obj = new ci::Object(0x0005815F, 0x00024E26, 0x000580A2, { 3420, 1021, 7298 }, { 0,0,0 });
-			}
-		}
-		else if (cmdText == L"//qnnu")
-		{
-			ci::Chat::AddMessage(L"#bebebe>> QueueNiNodeUpdate()");
-			ci::ExecuteCommand(ci::CommandType::Console, L"skymp qnnu");
-		}
-		else if (cmdText == L"//ld")
-		{
-			ci::Chat::AddMessage(L"#bebebe>> ApplyLookData()");
-			localPlayer->ApplyLookData(ld);
-		}
-		else if (cmdText == L"//save")
-		{
-			static const auto file = "Debug_SavedWorldPoints.txt";
-			const auto movData = localPlayer->GetMovementData();
-			std::ofstream ofs(file, std::ios::app);
-
-			ofs << "\nSkyMP Debug." << std::endl;
-			
-			static size_t i = 0;
-			ofs << ++i << ") ";
-			ofs << "X=" << movData.pos.x << ' ';
-			ofs << "Y=" << movData.pos.y << ' ';
-			ofs << "Z=" << movData.pos.z << ' ';
-			ofs << "Angle=" << movData.angleZ << ' ';
-			ofs << "Cell=" << std::hex << localPlayer->GetCell() << ' ';
-			ofs << "WorldSpace=" << std::hex << localPlayer->GetWorldSpace() << ' ';
-			ofs << std::endl;
-
-			ci::Chat::AddMessage(L"#bebebe>> World point saved to " + StringToWstring(file));
-		}
 		else if (cmdText == L"//mute")
 		{
 			static bool mute = true;
@@ -3124,39 +2959,6 @@ class ClientLogic : public ci::IClientLogic
 			ci::RemotePlayer::SetTracing(tr);
 			ci::Object::SetTracing(tr);
 			tr = !tr;
-		}
-		else if (cmdText == L"//day")
-		{
-			ci::SetGlobalVariable(0x00000038, 13);
-		}
-		else if (cmdText == L"//worldspaces")
-		{
-			ci::ExecuteCommand(ci::CommandType::Console, L"skymp worldspaces");
-		}
-		else if (cmdText == L"//testld_save")
-		{
-			testLookData = localPlayer->GetLookData();
-			ci::Chat::AddMessage(L"testld_save");
-		}
-		else if (cmdText == L"//testld_spawn")
-		{
-			new ci::RemotePlayer(L"TestPlayer", testLookData, localPlayer->GetPos(), localPlayer->GetCell(), localPlayer->GetWorldSpace(), nullptr, "RPEngineInput", nullptr);
-			ci::Chat::AddMessage(L"testld_spawn");
-			ci::Chat::AddMessage(L"[Test] TintMasks count = " + std::to_wstring(testLookData.tintmasks.size()));
-		}
-		else if (cmdText == L"//enginei")
-		{
-			for (auto p : ps)
-			{
-				p->SetEngine("RPEngineInput");
-			}
-		}
-		else if (cmdText == L"//engineio")
-		{
-			for (auto p : ps)
-			{
-				p->SetEngine("RPEngineIO");
-			}
 		}
 		else if (cmdText == L"//eq")
 		{
@@ -3284,44 +3086,6 @@ class ClientLogic : public ci::IClientLogic
 			}
 			else
 				ci::Chat::AddMessage(L"#BEBEBE" L"DataSearch is disabled on your client");
-		}
-		else if (cmdText == L"//d" || cmdText == L"//a")
-		{
-			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.19");
-		}
-		else if (cmdText == L"//clonenpc" || cmdText == L"//combat" || cmdText == L"//testalch" || cmdText == L"//hit" || cmdText == L"//sit")
-		{
-			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.1");
-		}
-		else if (cmdText == L"//record")
-		{
-			ci::Chat::AddMessage(L"#BEBEBE" L"Removed in 0.14.5");
-		}
-		else if (cmdText == L"//bot")
-		{
-			ci::Chat::AddMessage(L"#BEBEBE" L"Use //bots");
-		}
-		else if (cmdText == L"//farobject")
-		{
-			if (localPlayer->GetName() == L"Pospelov")
-			{
-				ci::Chat::AddMessage(L"#BEBEBETeleporting");
-				ci::DebugMoveFarFarAway();
-			}
-			else
-			{
-				ci::Chat::AddMessage(L"#BEBEBEOnly for Pospelov");
-			}
-		}
-		else if (cmdText == L"//werewolf")
-		{
-			static bool ww = false;
-			ww = !ww;
-			for (auto p : ps)
-			{
-				p->SetWerewolf(ww, false);
-			}
-			localPlayer->SetWerewolf(ww, false);
 		}
 		else if (cmdText == L"//players")
 		{
@@ -3541,81 +3305,11 @@ class ClientLogic : public ci::IClientLogic
 				});
 			}
 		}
-		else if (cmdText == L"//8")
-		{
-			for (auto p : ps)
-			{
-				p->PlayAnimation(8);
-			}
-		}
-		else if (cmdText == L"//swing")
-		{
-			if (arguments.size() != 0)
-			{
-				std::string aeName;
-				if (arguments[0] == L"right")
-				{
-					aeName = "weaponSwing";
-				}
-				if (arguments[0] == L"left")
-				{
-					aeName = "weaponLeftSwing";
-				}
-				if (!aeName.empty())
-				{
-					static uint32_t animID = 1001001000;
-					++animID;
-					ci::RegisterAnimation(aeName, animID);
-					ci::Chat::AddMessage(L"#BEBEBE" + StringToWstring(aeName));
-					for (auto p : ps)
-					{
-						p->PlayAnimation(animID);
-					}
-					localPlayer->PlayAnimation(animID);
-				}
-			}
-		}
 		else if (cmdText == L"//cddbg" || cmdText == L"//cdtrace")
 		{
 			static bool tr = true;
 			ci::TraceCDCalls(tr);
 			tr = !tr;
-		}
-		else if (cmdText == L"//error")
-		{
-			for (auto &pair : players)
-			{
-				auto rPl = dynamic_cast<ci::RemotePlayer *>(pair.second);
-				if (rPl != nullptr)
-				{
-					rPl->TestMakeBroken();
-					ci::Chat::AddMessage(L"#BEBEBE" L"Done");
-				}
-			}
-		}
-		else if (cmdText == L"//bots")
-		{
-			if (!dataSearchEnabled)
-				ci::Chat::AddMessage(L"#BEBEBE" L"You don't have permission");
-
-			if (arguments.empty())
-			{
-				ci::Chat::AddMessage(L"#BEBEBE" L"//bots <count>");
-				return;
-			}
-			for (int32_t i = 0; i < atoi(WstringToString(arguments[0]).data()); ++i)
-			{
-				std::thread([=] {
-					srand(clock());
-					auto layner = new Bot(L"layner" + std::to_wstring(rand() % 100000));
-					while (1)
-					{
-						Sleep(1000);
-						layner->Tick();
-					}
-				}).detach();
-
-			}
 		}
 		else
 		{
