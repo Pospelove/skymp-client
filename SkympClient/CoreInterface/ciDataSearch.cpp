@@ -6,14 +6,6 @@
 
 #include  <iomanip>
 
-class CIAccess
-{
-public:
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
-	}
-};
-
 auto getLocation = [](TESObjectREFR *ref) {
 	auto interior = sd::GetParentCell(ref);
 	if (interior && interior->IsInterior() == false)
@@ -234,11 +226,12 @@ namespace ci
 							ci::Chat::AddMessage(L"#BEBEBE" L"Selected door 2");
 
 							{
-								std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 								ci::DataSearch::TeleportDoorsData result;
 								result.doors[0] = *tpd1;
 								result.doors[1] = tpd;
-								tpdCallbacks(result);
+								ci::IClientLogic::QueueCallback([=] {
+									tpdCallbacks(result);
+								});
 							}
 							tpd1.reset(nullptr);
 						}
@@ -307,8 +300,9 @@ void ci::DataSearch::RequestNavMesh(std::function<void(NavMeshData)> callback)
 					res.formID = form->formID;
 
 					{
-						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-						callback(res);
+						ci::IClientLogic::QueueCallback([=] {
+							callback(res);
+						});
 					}
 					Sleep(50);
 				}
@@ -335,8 +329,9 @@ void ci::DataSearch::RequestContainers(std::function<void(ContainerData)> callba
 		c.refID = ref->GetFormID();
 		if (c.refID > 0xFF000000)
 			return;
-		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-		callback(c);
+		ci::IClientLogic::QueueCallback([=] {
+			callback(c);
+		});
 	});
 }
 
@@ -350,8 +345,9 @@ void ci::DataSearch::RequestDoors(std::function<void(DoorData)> callback)
 		c.pos = cd::GetPosition(ref);
 		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
 		c.refID = ref->GetFormID();
-		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-		callback(c);
+		ci::IClientLogic::QueueCallback([=] {
+			callback(c);
+		});
 	});
 }
 
@@ -368,11 +364,12 @@ void ci::DataSearch::RequestActivators(std::function<void(ActivatorData)> callba
 		c.refID = ref->GetFormID();
 		if (c.refID >= 0xFF000000)
 			return;
-		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
 		auto produceForm = DYNAMIC_CAST<TESProduceForm *, TESForm *>(ref->baseForm);
 		if (produceForm != nullptr && produceForm->produce == nullptr)
 			return;
-		callback(c);
+		ci::IClientLogic::QueueCallback([=] {
+			callback(c);
+		});
 	};
 
 	const auto formTypes = {
@@ -417,8 +414,9 @@ void ci::DataSearch::RequestItems(std::function<void(ItemData)> callback)
 		getFormClassAndSubclass(ref->baseForm, &cl, &subCl);
 		c.cl = (ci::ItemType::Class)ItemClass(cl).GetID();
 		c.subCl = (ci::ItemType::Subclass)ItemSubclass(subCl).GetID();
-		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-		callback(c);
+		ci::IClientLogic::QueueCallback([=] {
+			callback(c);
+		});
 	};
 
 	const auto formTypes = {
@@ -475,8 +473,9 @@ void ci::DataSearch::RequestActors(std::function<void(ActorData)> callback)
 		c.rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
 		c.refID = ref->GetFormID();
 		c.race = ((Actor *)ref)->GetRace()->formID;
-		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-		callback(c);
+		ci::IClientLogic::QueueCallback([=] {
+			callback(c);
+		});
 	});
 }
 
@@ -1104,8 +1103,9 @@ void ci::DataSearch::LuaCodegenStart(std::function<void()> onFinish)
 
 			if (onFinish != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-				onFinish();
+				ci::IClientLogic::QueueCallback([=] {
+					onFinish();
+				});
 			}
 
 		});

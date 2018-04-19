@@ -112,8 +112,9 @@ public:
 			auto &logic = ci::IClientLogic::clientLogic;
 			if (logic)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnWorldInit();
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnWorldInit();
+				});
 			}
 		}
 		catch (...) {
@@ -440,8 +441,9 @@ public:
 							onStartupCalled = true;
 							ci::SetTimer(800, [=] {
 								try {
-									std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-									logic->OnStartup();
+									ci::IClientLogic::QueueCallback([=] {
+										logic->OnStartup();
+									});
 								}
 								catch (...) {
 									ErrorHandling::SendError("ERROR:ClientLogic OnStartup()");
@@ -514,47 +516,32 @@ public:
 
 						if (logic && !lexs.empty() && !lexs[0].empty())
 						{
-							std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-							if (lexs[0][0] == L'/')
-							{
-								const auto cmdText = lexs[0];
-								const std::vector<std::wstring> args = { lexs.begin() + 1, lexs.end() };
-								try {
-									logic->OnChatCommand(cmdText, args);
+							ci::IClientLogic::QueueCallback([=] {
+								if (lexs[0][0] == L'/')
+								{
+									const auto cmdText = lexs[0];
+									const std::vector<std::wstring> args = { lexs.begin() + 1, lexs.end() };
+									try {
+										logic->OnChatCommand(cmdText, args);
+									}
+									catch (...) {
+										ErrorHandling::SendError("ERROR:ClientLogic OnChatCommand()");
+									}
 								}
-								catch (...) {
-									ErrorHandling::SendError("ERROR:ClientLogic OnChatCommand()");
+								else
+								{
+									std::wstring msg;
+									for (auto elem : lexs)
+										msg += elem + L' ';
+									msg.erase(--msg.end());
+									try {
+										logic->OnChatMessage(msg);
+									}
+									catch (...) {
+										ErrorHandling::SendError("ERROR:ClientLogic OnChatMessage()");
+									}
 								}
-							}
-							else
-							{
-								std::wstring msg;
-								for (auto elem : lexs)
-									msg += elem + L' ';
-								msg.erase(--msg.end());
-								try {
-									logic->OnChatMessage(msg);
-								}
-								catch (...) {
-									ErrorHandling::SendError("ERROR:ClientLogic OnChatMessage()");
-								}
-							}
-						}
-					}
-				}
-
-				if (logic)
-				{
-					static clock_t lastOnUpdateCallMoment = 0;
-					if (lastOnUpdateCallMoment + ci::updateRateMS <= clock())
-					{
-						lastOnUpdateCallMoment = clock();
-						try {
-							std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-							logic->OnUpdate();
-						}
-						catch (...) {
-							ErrorHandling::SendError("ERROR:ClientLogic OnUpdate()");
+							});
 						}
 					}
 				}

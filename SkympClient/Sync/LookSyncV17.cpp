@@ -15,8 +15,9 @@ public:
 		auto &logic = ci::IClientLogic::clientLogic;
 		if (logic)
 		{
-			std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-			logic->OnRaceMenuExit();
+			ci::IClientLogic::QueueCallback([=] {
+				logic->OnRaceMenuExit();
+			});
 		}
 	}
 };

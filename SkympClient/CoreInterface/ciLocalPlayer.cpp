@@ -161,8 +161,9 @@ public:
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnItemDropped(itemType, count);
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnItemDropped(itemType, count);
+				});
 			}
 			RegisterRemoveItem(itemType, count);
 		}).detach();
@@ -174,8 +175,9 @@ public:
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnItemUsed(itemType);
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnItemUsed(itemType);
+				});
 			}
 			RegisterRemoveItem(itemType, 1);
 		}).detach();
@@ -187,8 +189,9 @@ public:
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnItemUsedInCraft(itemType, count);
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnItemUsedInCraft(itemType, count);
+				});
 			}
 			RegisterRemoveItem(itemType, count);
 		}).detach();
@@ -200,8 +203,9 @@ public:
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnCraftFinish(isPoison, itemType, craftedItemsCount);
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnCraftFinish(isPoison, itemType, craftedItemsCount);
+				});
 			}
 			RegisterAddItem(itemType, craftedItemsCount);
 		}).detach();
@@ -213,8 +217,9 @@ public:
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnLockpick();
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnLockpick();
+				});
 			}
 		}).detach();
 	}
@@ -225,14 +230,11 @@ public:
 			auto logic = ci::IClientLogic::clientLogic;
 			if (logic != nullptr)
 			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
-				logic->OnItemEnchanting(itemType, ench);
+				ci::IClientLogic::QueueCallback([=] {
+					logic->OnItemEnchanting(itemType, ench);
+				});
 			}
 		}).detach();
-	}
-
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
 	}
 };
 
@@ -485,10 +487,9 @@ public:
 			TESAmmo *ammo = (TESAmmo *)LookupFormByID(evnCopy.ammoID);
 			if (ammo == nullptr)
 				return;
-			std::thread([=] {
-				std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+			ci::IClientLogic::QueueCallback([=] {
 				ci::LocalPlayer::GetSingleton()->onPlayerBowShot(evnCopy.power);
-			}).detach();
+			});
 		};
 		SET_TIMER_LIGHT(0, f);
 		return EventResult::kEvent_Continue;
@@ -1287,10 +1288,9 @@ void SendMagicReleaseEvent(const ci::Spell *spell, SpellItem *spellForm)
 				if (g_thePlayer->IsWeaponDrawn())
 				{
 					auto sendEvent = [=] {
-						std::thread([=] {
-							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+						ci::IClientLogic::QueueCallback([=] {
 							this_->onPlayerMagicRelease(hand);
-						}).detach();
+						});
 					};
 
 
@@ -1882,10 +1882,9 @@ void ci::LocalPlayer::Update()
 
 				if (rawPerksWas.count(perk) == 0 && ignoreList.count(perk->formID) == 0)
 				{
-					std::thread([=] {
-						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+					ci::IClientLogic::QueueCallback([=] {
 						this->onPerkSelect(perk->formID);
-					}).detach();
+					});
 				}
 			}
 			rawPerksWas = std::move(rawPerks);
@@ -1924,13 +1923,12 @@ void ci::LocalPlayer::Update()
 			avDat.base += 1;
 			this->UpdateAVData("perkpoints", avDat);
 
-			std::thread([=] {
-				std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+			ci::IClientLogic::QueueCallback([=] {
 				auto str = (std::string)iav;
 				str[0] = ::toupper(str[0]);
 				for (int64_t i = 0; i != numNewLevels; ++i)
 					ci::LocalPlayer::GetSingleton()->onLevelUp(str);
-			}).detach();
+			});
 			break;
 		}
 	}

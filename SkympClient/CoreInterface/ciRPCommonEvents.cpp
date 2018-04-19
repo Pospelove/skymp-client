@@ -29,10 +29,9 @@ public:
 					auto onActivate = pl->pimpl->onActivate;
 					if (onActivate != nullptr)
 					{
-						std::thread([=] {
-							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+						ci::IClientLogic::QueueCallback([=] {
 							onActivate();
-						}).detach();
+						});
 					}
 					return EventResult::kEvent_Continue;
 				}
@@ -144,10 +143,9 @@ private:
 			if (isTargetLocal)
 			{
 				auto localPl = ci::LocalPlayer::GetSingleton();
-				std::thread([=] {
-					std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+				ci::IClientLogic::QueueCallback([=] {
 					localPl->onHit(hitEventData);
-				}).detach();
+				});
 			}
 			else
 			{
@@ -167,10 +165,9 @@ private:
 					auto onHit = pl->pimpl->onHit;
 					if (onHit)
 					{
-						std::thread([=] {
-							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+						ci::IClientLogic::QueueCallback([=] {
 							onHit(hitEventData);
-						}).detach();
+						});
 					}
 					else
 						pl->pimpl->broken = true;

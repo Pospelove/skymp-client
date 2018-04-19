@@ -188,17 +188,12 @@ class CIAccess
 public:
 	static void OnPoisonAttack()
 	{
-		std::thread([=] {
-			auto logic = ci::IClientLogic::clientLogic;
-			if (logic != nullptr)
-			{
-				std::lock_guard<ci::Mutex> l(logic->callbacksMutex);
+		auto logic = ci::IClientLogic::clientLogic;
+		if (logic != nullptr)
+		{
+			ci::IClientLogic::QueueCallback([=] {
 				logic->OnPoisonAttack();
-			}
-		}).detach();
-	}
-
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
+			});
+		}
 	}
 };

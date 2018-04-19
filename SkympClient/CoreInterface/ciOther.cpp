@@ -18,14 +18,6 @@
 
 extern LockTimer closeCursorMenuLock;
 
-class CIAccess
-{
-public:
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
-	}
-};
-
 namespace ci
 {
 
@@ -186,14 +178,16 @@ namespace ci
 	{
 		if (ms == 0)
 		{
-			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-			return fn();
+			ci::IClientLogic::QueueCallback([=] {
+				return fn();
+			});
 		}
 
 		std::thread([=] {
 			Sleep(ms);
-			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-			fn();
+			ci::IClientLogic::QueueCallback([=] {
+				fn();
+			});
 		}).detach();
 	}
 

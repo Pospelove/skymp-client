@@ -97,8 +97,9 @@ namespace ci
 		*/
 		virtual void OnItemEnchanting(const ci::ItemType *itemType, const ci::Enchantment *ench) = 0;
 
+		static void QueueCallback(std::function<void()> fn);
+
 	protected:
 		 static IClientLogic *clientLogic;
-		 static Mutex callbacksMutex;
 	};
 }

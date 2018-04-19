@@ -6,14 +6,6 @@
 #include "SKSE/PluginAPI.h"
 #include "Skyrim\Camera\PlayerCamera.h"
 
-class CIAccess
-{
-public:
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
-	}
-};
-
 namespace ci
 {
 	dlf_mutex gObjMutex{ "ci_object_cont" };
@@ -191,8 +183,9 @@ struct ci::Object::Impl
 					auto onActivate = owner->pimpl->onActivate;
 					auto resendOnActivate = [=] {
 						SET_TIMER_LIGHT(0, [=] {
-							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-							onActivate(false, ci::LocalPlayer::GetSingleton());
+							ci::IClientLogic::QueueCallback([=] {
+								onActivate(false, ci::LocalPlayer::GetSingleton());
+							});
 						});
 					};
 
@@ -211,15 +204,14 @@ struct ci::Object::Impl
 					auto onActivate = owner->pimpl->onActivate;
 					auto refID = owner->pimpl->refID;
 					owner->UpdateContainer();
-					std::thread([=] {
-						std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+					ci::IClientLogic::QueueCallback([=] {
 						ci::IActor *srcActor = RemotePlayer::LookupByFormID(casterRefID);
-						if(casterRefID == g_thePlayer->formID)
+						if (casterRefID == g_thePlayer->formID)
 							srcActor = ci::LocalPlayer::GetSingleton();
 						if (srcActor == nullptr)
 							return;
 						onActivate(isOpening, srcActor);
-					}).detach();
+					});
 				}
 			}
 			return EventResult::kEvent_Continue;
@@ -260,8 +252,9 @@ struct ci::Object::Impl
 								auto itemType = knownItems.at(form);
 								std::thread([=] {
 									{
-										std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-										onConatinerChanged(itemType, count, true);
+										ci::IClientLogic::QueueCallback([=] {
+											onConatinerChanged(itemType, count, true);
+										});
 									}
 									std::lock_guard<dlf_mutex> l(localPlMutex);
 									if (inventory[itemType] > count)
@@ -291,8 +284,9 @@ struct ci::Object::Impl
 								auto itemType = knownItems.at(form);
 								std::thread([=] {
 									{
-										std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-										onConatinerChanged(itemType, count, false);
+										ci::IClientLogic::QueueCallback([=] {
+											onConatinerChanged(itemType, count, false);
+										});
 									}
 									std::lock_guard<dlf_mutex> l(localPlMutex);
 									inventory[itemType] += count;
@@ -388,10 +382,9 @@ struct ci::Object::Impl
 					auto onHit = obj->pimpl->onHit;
 					if (onHit)
 					{
-						std::thread([=] {
-							std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
+						ci::IClientLogic::QueueCallback([=] {
 							onHit(hitEventData);
-						}).detach();
+						});
 					}
 				}
 			}).detach();

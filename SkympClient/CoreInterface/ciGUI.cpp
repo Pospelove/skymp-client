@@ -47,22 +47,15 @@ void ci::Chat::SetRussianUser()
 		TheChat->SetRussianUser(true);
 }
 
-class CIAccess
-{
-public:
-	static ci::Mutex &GetMutex() {
-		return ci::IClientLogic::callbacksMutex;
-	}
-};
-
 void ci::Dialog::Show(const std::wstring &title, Style dialogStyle, const std::wstring &text, int32_t defaultIndex, Callback callback)
 {
 	SkyUILib::ShowPlayerDialog(title, (int32_t)dialogStyle, text, defaultIndex, [=](SkyUILib::DialogResult result) {
 		ci::Dialog::Result ciResult;
 		ciResult.inputText = StringToWstring(result.inputText);
 		ciResult.listItem = result.listItem;
-		std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-		return callback(ciResult);
+		ci::IClientLogic::QueueCallback([=] {
+			callback(ciResult);
+		});
 	});
 }
 
@@ -133,37 +126,34 @@ void ci::Text3D::SetPos(const NiPoint3 &pos)
 void ci::Text3D::SetPosSource(std::function<NiPoint3()> fn)
 {
 	SET_TIMER_LIGHT(5, [=] {
-
-		NiPoint3 fnRes;
-		{
-			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-			fnRes = fn();
-		}
-
-		std::lock_guard<dlf_mutex> l(textsM);
-		if (texts.find(this) == texts.end())
-			return;
-		std::lock_guard<dlf_mutex> l1(pimpl->label.m);
-		this->SetPos(fnRes);
-		this->SetPosSource(fn);
+		ci::IClientLogic::QueueCallback([=] {
+			const NiPoint3 fnRes = fn();
+			SET_TIMER_LIGHT(0, [=] {
+				std::lock_guard<dlf_mutex> l(textsM);
+				if (texts.find(this) == texts.end())
+					return;
+				std::lock_guard<dlf_mutex> l1(pimpl->label.m);
+				this->SetPos(fnRes);
+				this->SetPosSource(fn);
+			});
+		});
 	});
 }
 
 void ci::Text3D::SetTextSource(std::function<std::wstring()> fn)
 {
 	SET_TIMER_LIGHT(200, [=] {
-		std::wstring fnRes;
-		{
-			std::lock_guard<ci::Mutex> l(CIAccess::GetMutex());
-			fnRes = fn();
-		}
-
-		std::lock_guard<dlf_mutex> l(textsM);
-		if (texts.find(this) == texts.end())
-			return;
-		std::lock_guard<dlf_mutex> l1(pimpl->label.m);
-		this->SetText(fnRes);
-		this->SetTextSource(fn);
+		ci::IClientLogic::QueueCallback([=] {
+			const std::wstring fnRes = fn();
+			SET_TIMER_LIGHT(0, [=] {
+				std::lock_guard<dlf_mutex> l(textsM);
+				if (texts.find(this) == texts.end())
+					return;
+				std::lock_guard<dlf_mutex> l1(pimpl->label.m);
+				this->SetText(fnRes);
+				this->SetTextSource(fn);
+			});
+		});
 	});
 }
 
