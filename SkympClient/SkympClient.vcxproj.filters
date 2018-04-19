@@ -223,6 +223,39 @@
     <ClCompile Include="GameUtility\TaskRunner.cpp">
       <Filter>core\GameUtility</Filter>
     </ClCompile>
+    <ClCompile Include="ClientLogic\ItemTypes.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Objects.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Players.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Connection.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Game.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\DataSearch.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\3DTexts.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Messages.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Commands.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Magic.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\Recipes.cpp">
+      <Filter>client_logic\Handlers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -275,6 +308,9 @@
     </Filter>
     <Filter Include="core_interface\ciIActor">
       <UniqueIdentifier>{1d8ac879-7db8-492c-87cb-85f3bb6ce3ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="client_logic\Handlers">
+      <UniqueIdentifier>{48af2ce2-3eb4-45f6-a975-41af73ca5542}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

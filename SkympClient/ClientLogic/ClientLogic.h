@@ -11,8 +11,8 @@
 #pragma comment(lib, "Ws2_32.lib")
 #include <RakPeer.h>
 
-#include "Serialization.h"
 #include "Config.h"
+#include "Serialization.h"
 #include "MessageID.h"
 #include "EncodeCyrillic.h"
 #include "Tests.h"
@@ -95,6 +95,34 @@ public:
 	};
 
 	using EffectIndex = uint32_t;
+
+	ClientLogic();
+
+	void InitItemTypesHandlers();
+	void InitObjectsHandlers();
+	void InitPlayersHandlers();
+	void InitConnectionHandlers();
+	void InitGameHandlers();
+	void InitDataSearchHandlers();
+	void Init3DTextsHandlers();
+	void InitMessagesHandlers();
+	void InitCommandsHandlers();
+	void InitMagicHandlers();
+	void InitRecipesHandlers();
+
+	std::map<RakNet::MessageID, std::function<void(RakNet::BitStream &, RakNet::Packet *)>> packetHandlers;
+
+	void SetPacketHandlerEx(RakNet::MessageID packetID, std::function<void(RakNet::BitStream &, RakNet::Packet *)> handler)
+	{
+		packetHandlers[packetID] = handler;
+	}
+
+	void SetPacketHandler(RakNet::MessageID packetID, std::function<void(RakNet::BitStream &)> handler)
+	{
+		packetHandlers[packetID] = [=](RakNet::BitStream &bs, RakNet::Packet *p) {
+			handler(bs);
+		};
+	}
 
 	ci::LocalPlayer *const localPlayer = ci::LocalPlayer::GetSingleton();
 	ci::LookData ld;

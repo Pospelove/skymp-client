@@ -3,7 +3,15 @@
 #include <fstream>
 #include <unordered_map>
 
-std::unordered_map<std::string, std::string> g_config;
+using cfg_t = std::unordered_map<std::string, std::string>;
+
+inline cfg_t &GetCfg() {
+	static cfg_t cfg;
+	return cfg;
+}
+
+#define g_config (GetCfg())
+
 #define CONFIG_NAME std::string("name")
 #define CONFIG_IP std::string("server_ip")
 #define CONFIG_PORT std::string("server_port")
@@ -15,9 +23,9 @@ std::unordered_map<std::string, std::string> g_config;
 #define CONFIG_CHAT_OFFSET_X std::string("chat_offset_x")
 #define CONFIG_CHAT_OFFSET_Y std::string("chat_offset_y")
 
-const auto cfgFile = "skymp_config.ini";
+#define cfgFile "skymp_config.ini"
 
-int read_cfg()
+inline int32_t read_cfg()
 {
 	int lines = 0;
 	std::ifstream is_file(cfgFile);

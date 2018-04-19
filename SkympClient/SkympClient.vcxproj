@@ -116,7 +116,18 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ClientLogic\3DTexts.cpp" />
     <ClCompile Include="ClientLogic\ClientLogic.cpp" />
+    <ClCompile Include="ClientLogic\Commands.cpp" />
+    <ClCompile Include="ClientLogic\Connection.cpp" />
+    <ClCompile Include="ClientLogic\DataSearch.cpp" />
+    <ClCompile Include="ClientLogic\Game.cpp" />
+    <ClCompile Include="ClientLogic\ItemTypes.cpp" />
+    <ClCompile Include="ClientLogic\Magic.cpp" />
+    <ClCompile Include="ClientLogic\Messages.cpp" />
+    <ClCompile Include="ClientLogic\Objects.cpp" />
+    <ClCompile Include="ClientLogic\Players.cpp" />
+    <ClCompile Include="ClientLogic\Recipes.cpp" />
     <ClCompile Include="Common\clip.cpp" />
     <ClCompile Include="Common\clip_win.cpp" />
     <ClCompile Include="Common\ErrorHandling.cpp" />
