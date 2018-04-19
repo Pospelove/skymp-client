@@ -261,11 +261,8 @@ void ClientLogic::OnWorldInit()
 
 		localPlayer->onHit.Add([=](ci::HitEventData evn) {
 			try {
-				auto source = players.at((uint16_t)atoi(evn.hitSrcMark.data()));
-				if (!source)
-					ci::Log("ERROR:ClientLogic Invalid hit source");
-				else
-					this->OnHit(localPlayer, source, evn);
+				const auto source = players.at((uint16_t)atoi(evn.hitSrcMark.data()));
+				this->OnHit(localPlayer, source, evn);
 			}
 			catch (...) {
 				ci::Log("ERROR:ClientLogic LocalPlayer OnHit()");
