@@ -1,5 +1,40 @@
 #include "ClientLogic.h"
 
+
+void ClientLogic::OnActivate(ci::IActor *self)
+{
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_ACTIVATE);
+	const auto id = GetID(self);
+	bsOut.Write((uint32_t)0);
+	bsOut.Write(id);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnHit(ci::IActor *hitTarget, ci::IActor *hitSource, const ci::HitEventData &eventData)
+{
+	const auto playerID = GetID(hitTarget);
+	const auto weaponID = GetID(eventData.weapon);
+	const auto spellID = GetID(eventData.spell);
+	const auto sourceID = GetID(hitSource);
+
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_HIT_PLAYER);
+	bsOut.Write(playerID);
+	bsOut.Write(weaponID);
+	bsOut.Write(eventData.powerAttack);
+	bsOut.Write(spellID);
+	bsOut.Write(sourceID);
+	net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+
+	if (tracehost)
+	{
+		std::wstringstream ss;
+		ss << L"#BEBEBE" << L"OnHit Source = " << sourceID << L"OnHit Target = " << playerID;
+		ci::Chat::AddMessage(ss.str());
+	}
+}
+
 void ClientLogic::InitPlayersHandlers()
 {
 	this->SetPacketHandler(ID_PLAYER_CREATE, [this](RakNet::BitStream &bsIn) {

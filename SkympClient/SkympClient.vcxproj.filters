@@ -256,6 +256,12 @@
     <ClCompile Include="ClientLogic\Recipes.cpp">
       <Filter>client_logic\Handlers</Filter>
     </ClCompile>
+    <ClCompile Include="ClientLogic\CLHelper.cpp">
+      <Filter>client_logic\ClientLogic</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientLogic\CLPhysics.cpp">
+      <Filter>client_logic\ClientLogic</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -311,6 +317,9 @@
     </Filter>
     <Filter Include="client_logic\Handlers">
       <UniqueIdentifier>{48af2ce2-3eb4-45f6-a975-41af73ca5542}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="client_logic\ClientLogic">
+      <UniqueIdentifier>{ab6821de-529f-47b3-8659-179b8be34c64}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -1,5 +1,51 @@
 #include "ClientLogic.h"
 
+void ClientLogic::OnActivate(ci::Object *self, bool isOpen, ci::IActor *source)
+{
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_ACTIVATE);
+	const auto id = GetID(self);
+	const auto sourceId = GetID(source);
+	bsOut.Write(id);
+	bsOut.Write((uint8_t)isOpen);
+	bsOut.Write(sourceId);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnContainerChanged(ci::Object *self, const ci::ItemType *itemType, uint32_t count, bool isAdd)
+{
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_CONTAINER_CHANGED);
+
+	uint32_t itemTypeID;
+	for (auto it = itemTypes.begin(); it != itemTypes.end(); ++it)
+		if (it->second == itemType)
+		{
+			itemTypeID = it->first;
+			break;
+		}
+	bsOut.Write(itemTypeID);
+	bsOut.Write(count);
+	bsOut.Write((uint32_t)isAdd);
+	bsOut.Write(GetID(self));
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnHit(ci::Object *hitTarget, const ci::HitEventData &eventData)
+{
+	const auto objectID = GetID(hitTarget);
+	const auto weaponID = GetID(eventData.weapon);
+	const auto spellID = GetID(eventData.spell);
+
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_HIT_OBJECT);
+	bsOut.Write(objectID);
+	bsOut.Write(weaponID);
+	bsOut.Write(eventData.powerAttack);
+	bsOut.Write(spellID);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
 void ClientLogic::InitObjectsHandlers()
 {
 	this->SetPacketHandler(ID_OBJECT_CREATE, [this](RakNet::BitStream &bsIn) {

@@ -117,7 +117,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ClientLogic\3DTexts.cpp" />
+    <ClCompile Include="ClientLogic\CLHelper.cpp" />
     <ClCompile Include="ClientLogic\ClientLogic.cpp" />
+    <ClCompile Include="ClientLogic\CLPhysics.cpp" />
     <ClCompile Include="ClientLogic\Commands.cpp" />
     <ClCompile Include="ClientLogic\Connection.cpp" />
     <ClCompile Include="ClientLogic\DataSearch.cpp" />

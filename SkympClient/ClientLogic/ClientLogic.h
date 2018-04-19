@@ -161,7 +161,6 @@ public:
 	Net net;
 	AVNamesHandler av;
 	ci::Signal<void()> testUpd;
-	std::list<std::function<void()>> fns;
 
 	bool IsRussianTranslate();
 	bool IsHorseBase(uint32_t baseNpc);
@@ -178,7 +177,6 @@ public:
 	void ConnectToServer(const std::string &host, uint16_t port, const std::string &hardcodedPassword, const std::string &password, const std::wstring &nickname);
 	void ProcessPacket(RakNet::Packet *packet);
 	void SendAnimation(uint32_t animID, uint16_t source);
-	void RespawnPlayers();
 	void ExecuteCommand(std::string cmd);
 
 	void OnStartup() override;

@@ -1,5 +1,46 @@
 #include "ClientLogic.h"
 
+void ClientLogic::OnDialogResponse(uint32_t dialogID, ci::Dialog::Result result)
+{
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_DIALOG_RESPONSE);
+	bsOut.Write((uint16_t)result.inputText.size());
+	const auto inputText = WstringToString(result.inputText);
+	for (auto it = inputText.begin(); it != inputText.end(); ++it)
+		bsOut.Write(*it);
+	bsOut.Write(result.listItem);
+
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnRaceMenuExit()
+{
+	ci::SetTimer(1300, [&] {
+		auto newLook = localPlayer->GetLookData();
+		ld = newLook;
+
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_UPDATE_LOOK);
+		Serialize(bsOut, newLook);
+
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	});
+}
+
+void ClientLogic::OnLockpick()
+{
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_LOCKPICK);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnPoisonAttack()
+{
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_POISON_ATTACK);
+	net.peer->Send(&bsOut, MEDIUM_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
 void ClientLogic::InitGameHandlers()
 {
 	this->SetPacketHandler(ID_MOVE_TO, [this](RakNet::BitStream &bsIn) {
@@ -13,10 +54,6 @@ void ClientLogic::InitGameHandlers()
 		bsIn.Read(in.pos.z);
 		bsIn.Read(in.angleZ);
 		bsIn.Read(in.cellOrWorldspace);
-
-		std::stringstream ss;
-		ss << in.pos.x << " " << in.pos.y << " " << in.pos.z << " " << in.angleZ << " " << in.cellOrWorldspace;
-		//ci::Chat::AddMessage(StringToWstring(ss.str()));
 
 		lastLocation = in.cellOrWorldspace;
 

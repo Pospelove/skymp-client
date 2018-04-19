@@ -1,5 +1,84 @@
 #include "ClientLogic.h"
 
+void ClientLogic::OnEffectLearned(uint32_t itemTypeID, EffectIndex i)
+{
+	const bool learned = true;
+
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_LEARN_EFFECT);
+	bsOut.Write(itemTypeID);
+	bsOut.Write((uint32_t)i);
+	bsOut.Write(learned);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+}
+
+void ClientLogic::OnItemDropped(const ci::ItemType *itemType, uint32_t count)
+{
+	const uint32_t itemTypeID = GetID(itemType);
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_DROPITEM);
+	bsOut.Write(itemTypeID);
+	bsOut.Write(count);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnItemUsed(const ci::ItemType *itemType)
+{
+	// shitfix doubling this callback:
+	static bool send = true;
+	if (send)
+	{
+		const uint32_t itemTypeID = GetID(itemType);
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_USEITEM);
+		bsOut.Write(itemTypeID);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+	}
+	send = !send;
+}
+
+void ClientLogic::OnItemUsedInCraft(const ci::ItemType *itemType, uint32_t count)
+{
+	const uint32_t itemTypeID = GetID(itemType);
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_CRAFT_INGREDIENT);
+	bsOut.Write(itemTypeID);
+	bsOut.Write(count);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnCraftFinish(bool isPoison, const ci::ItemType *itemType, uint32_t numCraftedItems)
+{
+	RakNet::BitStream bsOut;
+
+	bool isAlchemy = itemType == nullptr;
+	if (isAlchemy)
+	{
+		bsOut.Write(ID_CRAFT_FINISH_ALCHEMY);
+		bsOut.Write((uint64_t)isPoison);
+	}
+	else
+	{
+		const uint32_t itemTypeID = GetID(itemType);
+		bsOut.Write(ID_CRAFT_FINISH);
+		bsOut.Write(itemTypeID);
+		bsOut.Write(numCraftedItems);
+	}
+
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
+void ClientLogic::OnItemEnchanting(const ci::ItemType *itemType, const ci::Enchantment *ench)
+{
+	const uint32_t itemTypeID = GetID(itemType);
+	const uint32_t enchID = GetID(ench);
+	RakNet::BitStream bsOut;
+	bsOut.Write(ID_ENCHANTING_ITEM);
+	bsOut.Write(itemTypeID);
+	bsOut.Write(enchID);
+	net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE_ORDERED, NULL, net.remote, false);
+}
+
 void ClientLogic::InitItemTypesHandlers()
 {
 	this->SetPacketHandler(ID_LEARN_EFFECT, [this](RakNet::BitStream &bsIn) {
