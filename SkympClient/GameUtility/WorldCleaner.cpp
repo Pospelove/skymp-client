@@ -27,7 +27,6 @@ void WorldCleaner::SetFormProtected(RefHandle formID, bool val)
 
 	if (formID)
 	{
-		std::lock_guard<dlf_mutex> l(this->mutex);
 		if (sums[formID] > 0)
 			this->protectedForms.insert(formID);
 		else
@@ -43,7 +42,6 @@ bool WorldCleaner::IsFormProtected(RefHandle formID) const
 		return true;
 	if (!formID)
 		return false;
-	std::lock_guard<dlf_mutex> l(this->mutex);
 	return this->protectedForms.find(formID) != this->protectedForms.end();
 }
 
