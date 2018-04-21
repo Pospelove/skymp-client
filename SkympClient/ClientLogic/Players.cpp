@@ -455,14 +455,10 @@ void ClientLogic::InitPlayersHandlers()
 						itemType->GenPotionName();
 
 					players.at(playerID)->AddItem(itemType, count, silent);
-					if (playerID == net.myID)
-						numItems[itemType] += count;
 				}
 				else
 				{
 					players.at(playerID)->RemoveItem(itemType, count, silent);
-					if (playerID == net.myID)
-						numItems[itemType] -= count;
 				}
 
 

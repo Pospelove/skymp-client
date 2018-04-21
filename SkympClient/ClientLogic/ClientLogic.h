@@ -140,7 +140,6 @@ public:
 	std::map<uint32_t, ci::Recipe *> recipes;
 	std::map<uint16_t, uint32_t> baseNPCs;
 	std::set<uint16_t> hostedPlayers;
-	std::map<const ci::ItemType *, int32_t> numItems; // localPlayer
 	struct {
 		std::list<std::shared_ptr<uint32_t>> hitAnims;
 	} dbg;
