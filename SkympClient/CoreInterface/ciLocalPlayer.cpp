@@ -1812,161 +1812,179 @@ void ci::LocalPlayer::Update()
 {
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 
-	// Block save loading
-	{
-		static bool init = false;
-		if (!init)
+	SAFE_CALL("LocalPlayer", [&] {
+		// Block save loading
 		{
-			class Sink : public BSTEventSink<TESLoadGameEvent>
+			static bool init = false;
+			if (!init)
 			{
-			public:
-				virtual	EventResult	ReceiveEvent(TESLoadGameEvent * evn, BSTEventSource<TESLoadGameEvent> * source)
+				class Sink : public BSTEventSink<TESLoadGameEvent>
 				{
-					std::exit(0);
-				}
-			};
-			static Sink sink;
-			g_loadGameEventSource.AddEventSink(&sink);
+				public:
+					virtual	EventResult	ReceiveEvent(TESLoadGameEvent * evn, BSTEventSource<TESLoadGameEvent> * source)
+					{
+						std::exit(0);
+					}
+				};
+				static Sink sink;
+				g_loadGameEventSource.AddEventSink(&sink);
+			}
 		}
-	}
+	});
 
 	// Shitfix of enabled fast traveling
 	sd::EnableFastTravel(false);
-
+	
 	// Update location id
-	auto getLocation = [](TESObjectREFR *ref) {
-		auto interior = sd::GetParentCell(ref);
-		if (interior && interior->IsInterior() == false)
-			interior = nullptr;
-		if (interior != nullptr)
-			return interior->formID;
-		else
-			return ref->GetWorldSpace()->formID;
-	};
-	localPlLocationID = getLocation(g_thePlayer);
+	SAFE_CALL("LocalPlayer", [&] {
+		auto getLocation = [](TESObjectREFR *ref) {
+			auto interior = sd::GetParentCell(ref);
+			if (interior && interior->IsInterior() == false)
+				interior = nullptr;
+			if (interior != nullptr)
+				return interior->formID;
+			else
+				return ref->GetWorldSpace()->formID;
+		};
+		localPlLocationID = getLocation(g_thePlayer);
+	});
 
 	// Detect perk select
-	if (allPerks.empty())
-	{
-		for (uint32_t id = 0x000153CD; id <= 0x0010FE04; ++id)
+	SAFE_CALL("LocalPlayer", [&] {
+		if (allPerks.empty())
 		{
-			auto perk = (BGSPerk *)LookupFormByID(id);
-			if (perk != nullptr && perk->formType == FormType::Perk)
-				allPerks.push_back(perk);
-		}
-	}
-
-	auto pp = this->GetAVData("PerkPoints");
-	if (pp.base + pp.modifier > g_thePlayer->numPerkPoints)
-	{
-		pp.base = g_thePlayer->numPerkPoints;
-		pp.modifier = 0;
-		this->UpdateAVData("PerkPoints", pp);
-
-		decltype(rawPerksWas) rawPerks;
-		for (auto perk : allPerks)
-		{
-			if (sd::HasPerk(g_thePlayer, perk))
-				rawPerks.insert(perk);
-		}
-		if (rawPerks != rawPerksWas)
-		{
-			for (auto perk : rawPerks)
+			for (uint32_t id = 0x000153CD; id <= 0x0010FE04; ++id)
 			{
-				static const std::set<uint32_t> ignoreList = {
-					94492, 94494, 1071619,
-					1071146, 1041156, 1006895,
-					987561, 715781, 684636,
-					178717, 849800, 847916
-				};
-
-				if (rawPerksWas.count(perk) == 0 && ignoreList.count(perk->formID) == 0)
-				{
-					ci::IClientLogic::QueueCallback([=] {
-						this->onPerkSelect(perk->formID);
-					});
-				}
+				auto perk = (BGSPerk *)LookupFormByID(id);
+				if (perk != nullptr && perk->formType == FormType::Perk)
+					allPerks.push_back(perk);
 			}
-			rawPerksWas = std::move(rawPerks);
 		}
-	}
+	});
+
+	SAFE_CALL("LocalPlayer", [&] {
+		auto pp = this->GetAVData("PerkPoints");
+		if (pp.base + pp.modifier > g_thePlayer->numPerkPoints)
+		{
+			pp.base = g_thePlayer->numPerkPoints;
+			pp.modifier = 0;
+			this->UpdateAVData("PerkPoints", pp);
+
+			decltype(rawPerksWas) rawPerks;
+			for (auto perk : allPerks)
+			{
+				if (sd::HasPerk(g_thePlayer, perk))
+					rawPerks.insert(perk);
+			}
+			if (rawPerks != rawPerksWas)
+			{
+				for (auto perk : rawPerks)
+				{
+					static const std::set<uint32_t> ignoreList = {
+						94492, 94494, 1071619,
+						1071146, 1041156, 1006895,
+						987561, 715781, 684636,
+						178717, 849800, 847916
+					};
+
+					if (rawPerksWas.count(perk) == 0 && ignoreList.count(perk->formID) == 0)
+					{
+						ci::IClientLogic::QueueCallback([=] {
+							this->onPerkSelect(perk->formID);
+						});
+					}
+				}
+				rawPerksWas = std::move(rawPerks);
+			}
+		}
+	});
 
 	// Update perks
-	static decltype(localPlPerks) lastPerks;
-	if (lastPerks != localPlPerks)
-	{
-		for (auto p : lastPerks)
-			//sd::RemovePerk(g_thePlayer, (BGSPerk *)LookupFormByID(p->GetFormID()))
-			;
-		for (auto p : localPlPerks)
-			AddPerkWithRequirements(p);
-		lastPerks = localPlPerks;
-	}
+	SAFE_CALL("LocalPlayer", [&] {
+		static decltype(localPlPerks) lastPerks;
+		if (lastPerks != localPlPerks)
+		{
+			for (auto p : lastPerks)
+				//sd::RemovePerk(g_thePlayer, (BGSPerk *)LookupFormByID(p->GetFormID()))
+				;
+			for (auto p : localPlPerks)
+				AddPerkWithRequirements(p);
+			lastPerks = localPlPerks;
+		}
+	});
 
 	// Detect levelup
-	for (auto &iav : { "health", "stamina", "magicka" })
-	{
-		auto v = (sd::GetBaseActorValue(g_thePlayer, (char *)iav));
-		if (int64_t(v - localPlAVData[iav].base) % 10 == 0 && v - localPlAVData[iav].base > 0)
+	SAFE_CALL("LocalPlayer", [&] {
+		for (auto &iav : { "health", "stamina", "magicka" })
 		{
-			auto numNewLevels = int64_t(v - localPlAVData[iav].base) / 10;
+			auto v = (sd::GetBaseActorValue(g_thePlayer, (char *)iav));
+			if (int64_t(v - localPlAVData[iav].base) % 10 == 0 && v - localPlAVData[iav].base > 0)
+			{
+				auto numNewLevels = int64_t(v - localPlAVData[iav].base) / 10;
 
-			auto avDat = this->GetAVData(iav);
-			avDat.base += 10.0f;
-			this->UpdateAVData(iav, avDat);
+				auto avDat = this->GetAVData(iav);
+				avDat.base += 10.0f;
+				this->UpdateAVData(iav, avDat);
 
-			avDat = this->GetAVData("level");
-			avDat.base += 1;
-			this->UpdateAVData("level", avDat);
+				avDat = this->GetAVData("level");
+				avDat.base += 1;
+				this->UpdateAVData("level", avDat);
 
-			avDat = this->GetAVData("perkpoints");
-			avDat.base += 1;
-			this->UpdateAVData("perkpoints", avDat);
+				avDat = this->GetAVData("perkpoints");
+				avDat.base += 1;
+				this->UpdateAVData("perkpoints", avDat);
 
-			ci::IClientLogic::QueueCallback([=] {
-				auto str = (std::string)iav;
-				str[0] = ::toupper(str[0]);
-				for (int64_t i = 0; i != numNewLevels; ++i)
-					ci::LocalPlayer::GetSingleton()->onLevelUp(str);
-			});
-			break;
+				ci::IClientLogic::QueueCallback([=] {
+					auto str = (std::string)iav;
+					str[0] = ::toupper(str[0]);
+					for (int64_t i = 0; i != numNewLevels; ++i)
+						ci::LocalPlayer::GetSingleton()->onLevelUp(str);
+				});
+				break;
+			}
 		}
-	}
+	});
 
 	// Apply skill points percentage
-	static clock_t lastApply = 0;
-	if (clock() - lastApply > 1000)
-	{
-		auto &skills = g_thePlayer->skills;
-		for (auto skill : sskills)
+	SAFE_CALL("LocalPlayer", [&] {
+		static clock_t lastApply = 0;
+		if (clock() - lastApply > 1000)
 		{
-			const UInt32 avId = LookupActorValueByName(skill.data());
-			const SInt32 skillId = skills->ResolveAdvanceableSkillId(avId);
-			skills->data->levelData[skillId].pointsMax = 100 * 1000 * 1000;
-			skills->data->levelData[skillId].points = localPlSkillPercents[skill] * 1000 * 1000;
+			auto &skills = g_thePlayer->skills;
+			for (auto skill : sskills)
+			{
+				const UInt32 avId = LookupActorValueByName(skill.data());
+				const SInt32 skillId = skills->ResolveAdvanceableSkillId(avId);
+				skills->data->levelData[skillId].pointsMax = 100 * 1000 * 1000;
+				skills->data->levelData[skillId].points = localPlSkillPercents[skill] * 1000 * 1000;
+			}
 		}
-	}
-	if (clock() - lastIncrementSkill > 5000)
-	{
-		for (auto &p : skillTasks)
-			p.second();
-		skillTasks.clear();
-	}
+		if (clock() - lastIncrementSkill > 5000)
+		{
+			for (auto &p : skillTasks)
+				p.second();
+			skillTasks.clear();
+		}
+	});
 
 	// Blocking mounted fighting
-	const bool onMount = this->IsOnMount();
-	static bool wasOnMount = false;
-	if (onMount != wasOnMount)
-	{
-		PlayerControls_::SetEnabled(Control::Fighting, !onMount);
-		wasOnMount = onMount;
-	}
+	SAFE_CALL("LocalPlayer", [&] {
+		const bool onMount = this->IsOnMount();
+		static bool wasOnMount = false;
+		if (onMount != wasOnMount)
+		{
+			PlayerControls_::SetEnabled(Control::Fighting, !onMount);
+			wasOnMount = onMount;
+		}
+	});
 
-	if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
-	{
-		static auto deathH = new DeathHandler;
-		deathH->Update();
-	}
+	SAFE_CALL("LocalPlayer", [&] {
+		if (SyncOptions::GetSingleton()->GetInt("SAFE_DEATH"))
+		{
+			static auto deathH = new DeathHandler;
+			deathH->Update();
+		}
+	});
 
 	using EventT = TESActiveEffectApplyRemoveEvent;
 
@@ -2057,14 +2075,18 @@ void ci::LocalPlayer::Update()
 		}
 	});
 
-	PreventKillmoves<0>();
-	PreventKillmoves<1>();
+	SAFE_CALL("LocalPlayer", [&] {
+		PreventKillmoves<0>();
+		PreventKillmoves<1>();
+	});
 
-	PreventMagicEffects<0>();
-	PreventMagicEffects<1>();
+	SAFE_CALL("LocalPlayer", [&] {
+		PreventMagicEffects<0>();
+		PreventMagicEffects<1>();
+	});
 
 
-	{
+	SAFE_CALL("LocalPlayer", [&] {
 		clock_t lastCasting = 0;
 		const bool isCasting = sd::Obscript::IsCasting(g_thePlayer) > 0;
 		if (isCasting)
@@ -2094,7 +2116,7 @@ void ci::LocalPlayer::Update()
 			}
 			wasCasting = isCasting;
 		}
-		
+
 		const bool needBlock = clock() - lastCasting < 1000;
 		static bool needBlockWas = false;
 		if (needBlock != needBlockWas)
@@ -2102,14 +2124,16 @@ void ci::LocalPlayer::Update()
 			needBlockWas = needBlock;
 			PlayerControls_::SetEnabled(Control::Menu, !needBlock);
 		}
-	}
+	});
 
-	UpdateSpellsCost();
+	SAFE_CALL("LocalPlayer", UpdateSpellsCost);
 
-	const auto spell0 = this->GetEquippedSpell(0), 
-		spell1 = this->GetEquippedSpell(1);
-	SendMagicReleaseEvent<0>(spell0, spell0 ? (SpellItem *)LookupFormByID(spell0->GetFormID()) : nullptr);
-	SendMagicReleaseEvent<1>(spell1, spell1 ? (SpellItem *)LookupFormByID(spell1->GetFormID()) : nullptr);
+	SAFE_CALL("LocalPlayer", [&] {
+		const auto spell0 = this->GetEquippedSpell(0),
+			spell1 = this->GetEquippedSpell(1);
+		SendMagicReleaseEvent<0>(spell0, spell0 ? (SpellItem *)LookupFormByID(spell0->GetFormID()) : nullptr);
+		SendMagicReleaseEvent<1>(spell1, spell1 ? (SpellItem *)LookupFormByID(spell1->GetFormID()) : nullptr);
+	});
 
 	SAFE_CALL("LocalPlayer", [&] {
 		this->UpdateActiveEffects();
