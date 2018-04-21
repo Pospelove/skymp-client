@@ -73,7 +73,6 @@ void ClientLogic::OnChatCommand(const std::wstring &cmdText, const std::vector<s
 	{
 		static bool tr = true;
 		ci::RemotePlayer::SetTracing(tr);
-		ci::Object::SetTracing(tr);
 		tr = !tr;
 	}
 	else if (cmdText == L"//eq")

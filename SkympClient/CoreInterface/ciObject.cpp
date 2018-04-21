@@ -120,7 +120,6 @@ struct ci::Object::Impl
 	NiPoint3 lastPos = { 0,0,0 };
 
 	bool isNative = false;
-	bool waitingForDespawn = false;
 	SpawnStage spawnStage;
 	std::vector<ObjectTask> simpleTasks;
 	std::vector<ObjectTask> inventoryTasks;
@@ -814,40 +813,6 @@ uint8_t ci::Object::GetLockLevel() const
 	return pimpl->lockLevel;
 }
 
-uint32_t ci::Object::GetRandomRefID(bool ignoreCamera)
-{
-	std::vector<uint32_t> refIDs;
-	{
-		std::lock_guard<dlf_mutex> l(gObjMutex);
-		for (auto object : allObjects)
-		{
-			auto id = object->GetRefID();
-			auto ref = (TESObjectREFR *)LookupFormByID(id);
-			if (ref != nullptr)
-			{
-				auto pos = cd::GetPosition(ref);
-				if (ignoreCamera || (!PlayerCamera::GetSingleton()->IsInScreen(pos)
-					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,64 })
-					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,64,0 })
-					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 64,0,0 })
-					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,0,-64 })
-					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ 0,-64,0 })
-					&& !PlayerCamera::GetSingleton()->IsInScreen(pos + NiPoint3{ -64,0,0 })))
-				{
-					refIDs.push_back(id);
-				}
-			}
-		}
-	}
-	try {
-		return refIDs.at(rand() % refIDs.size());
-	}
-	catch (...) {
-		ErrorHandling::SendError("ERROR:Object GetRandomRefID()");
-		return 0x00000000;
-	}
-}
-
 uint32_t ci::Object::GetFarObject()
 {
 	uint32_t farRefID = 0;
@@ -870,18 +835,6 @@ uint32_t ci::Object::GetFarObject()
 		}
 	}
 	return farRefID;
-}
-
-void ci::Object::SetTracing(bool trace)
-{
-	std::lock_guard<dlf_mutex> l(gObjMutex);
-	
-	static std::function<void()> f = [] {
-		std::lock_guard<dlf_mutex> l(gObjMutex);
-		ci::Chat::AddMessage(L"allObjects size is " + std::to_wstring(allObjects.size()));
-	};
-
-	traceTask = trace ? f : nullptr;
 }
 
 void ci::Object::Update()
@@ -958,7 +911,6 @@ void ci::Object::Update()
 	// no break
 	case SpawnStage::Persistent:
 	{
-		pimpl->waitingForDespawn = false;
 		auto ref = (TESObjectREFR *)LookupFormByID(pimpl->refID);
 		if (ref && ref->formType == FormType::Reference)
 		{
@@ -1045,32 +997,6 @@ void ci::Object::Update()
 	}
 }
 
-void ci::Object::Update_OT()
-{
-	SAFE_CALL("Object", [&] {
-		std::lock_guard<dlf_mutex> l1(pimpl->mutex);
-
-		if (MenuManager::GetSingleton()->IsMenuOpen("Main Menu"))
-		{
-			if (!pimpl->waitingForDespawn)
-			{
-				pimpl->waitingForDespawn = true;
-				std::thread([=] {
-					SET_TIMER_LIGHT(0, [=] {
-						SET_TIMER(3000, [=] {
-							std::lock_guard<dlf_mutex> l1(gObjMutex);
-							if (allObjects.find(this) == allObjects.end())
-								return;
-							std::lock_guard<dlf_mutex> l(pimpl->mutex);
-							this->ForceDespawn("Game reinit");
-						});
-					});
-				}).detach();
-			}
-		}
-	});
-}
-
 void ci::Object::UpdateAll()
 {
 	std::lock_guard<dlf_mutex> l(gObjMutex);
@@ -1101,25 +1027,6 @@ void ci::Object::UpdateAll()
 			globalTasks.end()
 		);
 	});
-}
-
-void ci::Object::UpdateAll_OT()
-{
-	enum {
-		UpdateAll_OT_Delay = 333
-	};
-	static clock_t lastUpdateAllOT = 0;
-
-	if (lastUpdateAllOT + UpdateAll_OT_Delay < clock())
-	{
-		lastUpdateAllOT = clock();
-		SAFE_CALL("Object", [&] {
-			std::lock_guard<dlf_mutex> l(gObjMutex);
-			std::for_each(allObjects.begin(), allObjects.end(), [](ci::Object *object) {
-				object->Update_OT();
-			});
-		});
-	}
 }
 
 void ci::Object::ForceSpawn()

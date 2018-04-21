@@ -94,15 +94,11 @@ namespace ci
 			Motion_Character,
 		};
 
-		static uint32_t GetRandomRefID(bool ignoreCamera);
-		static uint32_t GetFarObject();
-		static void SetTracing(bool trace);
-
 	private:
+		static uint32_t GetFarObject();
 		static void UpdateAll();
-		static void UpdateAll_OT();
+		static void UpdateAll_OT() {};
 		void Update();
-		void Update_OT();
 		void ForceSpawn();
 		void ForceDespawn(const std::string &reason);
 		void UpdateContainer();
