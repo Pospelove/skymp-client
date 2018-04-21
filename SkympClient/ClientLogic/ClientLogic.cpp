@@ -48,6 +48,7 @@ void ClientLogic::ProcessPacket(RakNet::Packet *packet)
 	RakNet::BitStream bsIn(&packet->data[1], packet->length, false);
 	const auto messageID = (packet->data[0]);
 	try {
+		ci::Chat::AddMessage(StringToWstring(GetPacketName(messageID)), false);
 		this->packetHandlers.at(messageID)(bsIn, packet);
 	}
 	catch (...) {
