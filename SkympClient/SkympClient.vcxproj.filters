@@ -262,6 +262,21 @@
     <ClCompile Include="ClientLogic\CLPhysics.cpp">
       <Filter>client_logic\ClientLogic</Filter>
     </ClCompile>
+    <ClCompile Include="ImGui\imgui.cpp">
+      <Filter>core\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGui\imgui_demo.cpp">
+      <Filter>core\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGui\imgui_draw.cpp">
+      <Filter>core\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGui\imgui_impl_dx9.cpp">
+      <Filter>core\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Overlay\ImGuiManager.cpp">
+      <Filter>core\Overlay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -320,6 +335,9 @@
     </Filter>
     <Filter Include="client_logic\ClientLogic">
       <UniqueIdentifier>{ab6821de-529f-47b3-8659-179b8be34c64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\ImGui">
+      <UniqueIdentifier>{29fc10db-205a-446a-9fca-aac1931aef91}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -589,6 +607,30 @@
     </ClInclude>
     <ClInclude Include="ClientLogic\ClientLogic.h">
       <Filter>client_logic</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\imconfig.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\imgui.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\imgui_impl_dx9.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\imgui_internal.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\stb_rect_pack.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\stb_textedit.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGui\stb_truetype.h">
+      <Filter>core\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay\ImGuiManager.h">
+      <Filter>core\Overlay</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

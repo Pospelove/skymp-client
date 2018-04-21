@@ -1002,7 +1002,7 @@ namespace input
 			return 0;
 		}
 
-		int ScanCodeToVirtualKey(int _scanCode) const
+		inline int ScanCodeToVirtualKey(int _scanCode) const
 		{
 			if (_scanCode < SC_MAX)
 				return (int)mScanCodeToVirtualKey[_scanCode];
@@ -1036,19 +1036,19 @@ namespace input
 #endif
 	};
 
-	const Table& getTable()
+	inline const Table& getTable()
 	{
 		static Table table;
 		return table;
 	}
 
-	int VirtualKeyToScanCode(WPARAM _virtualKey)
+	inline int VirtualKeyToScanCode(WPARAM _virtualKey)
 	{
 		const Table& table = getTable();
 		return table.VirtualKeyToScanCode(_virtualKey);
 	}
 
-	int ScanCodeToVirtualKey(int _scanCode)
+	inline int ScanCodeToVirtualKey(int _scanCode)
 	{
 		const Table& table = getTable();
 		return table.ScanCodeToVirtualKey(_scanCode);
@@ -1072,7 +1072,7 @@ namespace input
 
 #if MYGUI_PLATFORM == MYGUI_PLATFORM_WIN32
 
-	int VirtualKeyToText(WPARAM _virtualKey)
+	inline int VirtualKeyToText(WPARAM _virtualKey)
 	{
 		static WCHAR deadKey = 0;
 
@@ -1130,7 +1130,7 @@ namespace input
 		return 0;
 	}
 
-	int ScanCodeToText(int _scanCode)
+	inline int ScanCodeToText(int _scanCode)
 	{
 		HKL  layout = GetKeyboardLayout(0);
 		unsigned int vk = MapVirtualKeyEx((UINT)_scanCode, 3 /*MAPVK_VSC_TO_VK_EX*/, layout);

@@ -4,6 +4,7 @@
 #include <functional>
 #include <mutex>
 #include <vector>
+#include <string>
 
 template <class Func>
 class Signal
@@ -21,14 +22,17 @@ public:
 	void operator()(Args... args)
 	{
 		std::lock_guard<std::mutex> l(mutex);
+		int32_t i = 0;
 		for (auto itor : mFunctions)
 		{
+			++i;
 			try {
 				if (itor != nullptr)
 					itor(args...);
 			}
 			catch (...) {
-				ErrorHandling::SendError("ERROR:Signal Bad signal");
+				auto str = "ERROR:Signal Bad signal " + std::to_string(i);
+				ErrorHandling::SendError(str.data());
 			}
 		}
 	}

@@ -2,7 +2,13 @@
 #include "../Overlay/GUI.h"
 #include "../Overlay/Chat.h"
 #include "../Overlay/3DText.h"
+#include "../Overlay/ImGuiManager.h"
 #include "CoreInterface.h"
+
+void ci::ImGui::Init()
+{
+	static auto *manager = new ImGuiManager;
+}
 
 void ci::Chat::Init(int32_t ox, int32_t oy)
 {

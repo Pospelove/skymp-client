@@ -5,6 +5,11 @@
 
 namespace ci
 {
+	namespace ImGui
+	{
+		void Init();
+	}
+
 	namespace Chat
 	{
 		void Init(int32_t offsetX, int32_t offsetY);

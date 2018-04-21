@@ -6,6 +6,8 @@
 
 namespace ci
 {
+	void NuklearExample();
+
 	void SetSyncOption(std::string optionName, std::string value);
 
 	void SetVolume(unsigned long volume);

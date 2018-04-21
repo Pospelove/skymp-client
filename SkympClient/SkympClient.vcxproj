@@ -186,6 +186,10 @@
     <ClCompile Include="GameUtility\TaskRunner.cpp" />
     <ClCompile Include="GameUtility\Timer.cpp" />
     <ClCompile Include="GameUtility\WorldCleaner.cpp" />
+    <ClCompile Include="ImGui\imgui.cpp" />
+    <ClCompile Include="ImGui\imgui_demo.cpp" />
+    <ClCompile Include="ImGui\imgui_draw.cpp" />
+    <ClCompile Include="ImGui\imgui_impl_dx9.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mhook\mhook.cpp" />
     <ClCompile Include="Overlay\Chat.cpp" />
@@ -193,6 +197,7 @@
     <ClCompile Include="Overlay\Input.cpp" />
     <ClCompile Include="Overlay\3DText.cpp" />
     <ClCompile Include="Overlay\Loadscreen.cpp" />
+    <ClCompile Include="Overlay\ImGuiManager.cpp" />
     <ClCompile Include="ScriptDragon\plugin.cpp" />
     <ClCompile Include="SKSEOriginal\Utilities.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -271,6 +276,13 @@
     <ClInclude Include="GameUtility\TaskRunner.h" />
     <ClInclude Include="GameUtility\Timer.h" />
     <ClInclude Include="GameUtility\WorldCleaner.h" />
+    <ClInclude Include="ImGui\imconfig.h" />
+    <ClInclude Include="ImGui\imgui.h" />
+    <ClInclude Include="ImGui\imgui_impl_dx9.h" />
+    <ClInclude Include="ImGui\imgui_internal.h" />
+    <ClInclude Include="ImGui\stb_rect_pack.h" />
+    <ClInclude Include="ImGui\stb_textedit.h" />
+    <ClInclude Include="ImGui\stb_truetype.h" />
     <ClInclude Include="Mhook\mhook.h" />
     <ClInclude Include="Overlay\Chat.h" />
     <ClInclude Include="Overlay\GUI.h" />
@@ -278,6 +290,7 @@
     <ClInclude Include="Overlay\InputConverter.h" />
     <ClInclude Include="Overlay\3DText.h" />
     <ClInclude Include="Overlay\Loadscreen.h" />
+    <ClInclude Include="Overlay\ImGuiManager.h" />
     <ClInclude Include="ScriptDragon\enums.h" />
     <ClInclude Include="ScriptDragon\invoke.h" />
     <ClInclude Include="ScriptDragon\obscript.h" />
