@@ -17,6 +17,7 @@ struct ci::Model::Impl
 	std::wstring name = L" ";
 	bool despawnFlag = false;
 	clock_t spawnMoment = 0;
+	std::function<bool()> condition = [] {return true; };
 };
 
 ci::Model::Model()
@@ -79,6 +80,12 @@ void ci::Model::Despawn(const std::wstring &reason)
 	ci::Log(L"DBG:Model Forced despawn " + reason);
 }
 
+void ci::Model::SetSpawnCondition(std::function<bool()> condition)
+{
+	std::lock_guard<dlf_mutex> l(pimpl->m);
+	pimpl->condition = condition;
+}
+
 void ci::Model::Update()
 {
 	std::lock_guard<dlf_mutex> l(pimpl->m);
@@ -106,7 +113,10 @@ void ci::Model::Update()
 		{
 			if (distance <= SyncOptions::GetRespawnRadius(isInterior))
 			{
-				this->SpawnActor();
+				if (pimpl->condition())
+				{
+					this->SpawnActor();
+				}
 			}
 		}
 	}

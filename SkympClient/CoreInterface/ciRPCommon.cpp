@@ -69,6 +69,13 @@ namespace ci
 		avData.modifier = 0;
 		avData.percentage = 1;
 		this->UpdateAVData("invisibility", avData);
+
+		const clock_t ctorMoment = clock();
+
+		pimpl->model.SetSpawnCondition([this, ctorMoment] {
+			return (clock() - ctorMoment) / float(CLOCKS_PER_SEC) >= 1.0 
+				&& this->GetAVData("Health").percentage > 0;
+		});
 	}
 
 	RemotePlayer::~RemotePlayer()

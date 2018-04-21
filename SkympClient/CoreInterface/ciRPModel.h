@@ -24,6 +24,7 @@ namespace ci
 		void SetTints(const TintMasks &tints);
 		void SetName(const std::wstring &name);
 		void Despawn(const std::wstring &reason);
+		void SetSpawnCondition(std::function<bool()> condition);
 
 		void Update();
 
