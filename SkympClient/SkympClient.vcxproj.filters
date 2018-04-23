@@ -380,7 +380,7 @@
       <Filter>core\lua</Filter>
     </ClCompile>
     <ClCompile Include="CoreInterface\ciScript.cpp">
-      <Filter>core_interface</Filter>
+      <Filter>core_interface\ciScript</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -449,6 +449,9 @@
     </Filter>
     <Filter Include="core\Scripting">
       <UniqueIdentifier>{baf00332-da0d-49da-8eec-22cfea824618}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core_interface\ciScript">
+      <UniqueIdentifier>{7c71bda7-1897-4481-b9dc-c2472c1753c5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -828,7 +831,10 @@
       <Filter>core\lua</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciScript.h">
-      <Filter>core_interface</Filter>
+      <Filter>core_interface\ciScript</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciScriptAPI.h">
+      <Filter>core_interface\ciScript</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

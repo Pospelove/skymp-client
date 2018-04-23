@@ -278,6 +278,7 @@
     <ClInclude Include="CoreInterface\ciRPPackageApplier.h" />
     <ClInclude Include="CoreInterface\ciRPPlaceMarker.h" />
     <ClInclude Include="CoreInterface\ciScript.h" />
+    <ClInclude Include="CoreInterface\ciScriptAPI.h" />
     <ClInclude Include="CoreInterface\ciSpell.h" />
     <ClInclude Include="CoreInterface\ciTypes.h" />
     <ClInclude Include="CoreInterface\ciMain.h" />
