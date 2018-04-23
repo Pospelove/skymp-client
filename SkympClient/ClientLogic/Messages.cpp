@@ -328,10 +328,6 @@ void ClientLogic::OnChatCommand(const std::wstring &cmdText, const std::vector<s
 			});
 		}
 	}
-	else if (cmdText == L"//imgui")
-	{
-		ci::ImGui::Init();
-	}
 	else if (cmdText == L"//clone")
 	{
 		static uint32_t counter = 0;

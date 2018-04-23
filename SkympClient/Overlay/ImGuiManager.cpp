@@ -7,7 +7,109 @@
 #include "../ImGui/imgui_impl_dx9.h"
 #include "../Overlay/InputConverter.h"
 
+extern "C" {
+#include "../lua/lua.h"
+#include "../lua/lualib.h"
+#include "../lua/lauxlib.h"
+}
+#include <LuaBridge\LuaBridge.h>
+
 #include "../CoreInterface/CoreInterface.h"
+
+class CIAccess
+{
+public:
+	static ci::IClientLogic *GetLogic()
+	{
+		return ci::IClientLogic::clientLogic;
+	}
+};
+
+std::string current_directory()
+{
+	char pBuf[512];
+	int len = 512;
+	int bytes = GetModuleFileNameA(NULL, pBuf, len);
+	if (bytes)
+	{
+		pBuf[bytes - (sizeof "tesv.exe")] = 0;
+		return pBuf;
+	}
+	else
+		return "";
+}
+
+class LuaApi
+{
+public:
+	LuaApi()
+	{
+		logic = CIAccess::GetLogic();
+
+		L = luaL_newstate();
+		luaL_openlibs(L);
+		lua_pcall(L, 0, 0, 0);
+
+		luabridge::getGlobalNamespace(L)
+			.addFunction("print", print)
+			;
+
+		const auto scriptPath = current_directory() + "/script.lua";
+
+		const auto dofileSuccess = !luaL_dofile(L, scriptPath.data());
+		if (!dofileSuccess)
+		{
+			const std::string err = lua_tostring(L, -1);
+			print("[system] " + err);
+		}
+		else
+		{
+			print("[system] Ok");
+		}
+	}
+
+	void Render()
+	{
+		try {
+			auto render = luabridge::getGlobal(L, "Render");
+			if (render.isFunction())
+			{
+				const auto res = render();
+				static bool sent = false;
+				if (!sent)
+				{
+					sent = true;
+					print("[system] Render Ok");
+				}
+			}
+			else
+			{
+				static bool sent = false;
+				if (!sent)
+				{
+					sent = true;
+					print("[system] Render not found");
+				}
+			}
+		}
+		catch (const std::exception &e) {
+			print("[system] Render err " + (std::string)e.what());
+		}
+		catch (...) {
+			print("[system] Render unk err");
+		}
+	}
+
+private:
+
+	static void print(std::string s)
+	{
+		std::ofstream("lua.log", std::ios::app) << s << std::endl;
+	}
+
+	lua_State *L;
+	ci::IClientLogic *logic;
+};
 
 struct ImGuiManager::Impl
 {
@@ -100,6 +202,15 @@ ImGuiManager::ImGuiManager() : pImpl(new Impl)
 	TheIInputHook->AddListener(listener);
 }
 
+std::function<void()> renderHook;
+dlf_mutex renderHookMutex{"imguimanager_render_hook"};
+
+void ImGuiManager::SetGlobalRenderHook(std::function<void()> fn)
+{
+	std::lock_guard<dlf_mutex> l(renderHookMutex);
+	renderHook = fn;
+}
+
 void ImGuiManager::Render()
 {
 	static bool show_demo_window = true;
@@ -140,9 +251,9 @@ void ImGuiManager::Render()
 
 	ImGui_ImplDX9_NewFrame();
 
-	// 1. Show a simple window.
-	// Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
 	{
+		std::lock_guard<dlf_mutex> l(renderHookMutex);
+		renderHook();
 	}
 
 	// Rendering

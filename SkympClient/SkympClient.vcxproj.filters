@@ -379,6 +379,9 @@
     <ClCompile Include="lua\lzio.c">
       <Filter>core\lua</Filter>
     </ClCompile>
+    <ClCompile Include="CoreInterface\ciScript.cpp">
+      <Filter>core_interface</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -443,6 +446,9 @@
     </Filter>
     <Filter Include="core\lua">
       <UniqueIdentifier>{52e71389-e6f9-4477-b63a-09a7f1db7bdb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\Scripting">
+      <UniqueIdentifier>{baf00332-da0d-49da-8eec-22cfea824618}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -820,6 +826,9 @@
     </ClInclude>
     <ClInclude Include="lua\lzio.h">
       <Filter>core\lua</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciScript.h">
+      <Filter>core_interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

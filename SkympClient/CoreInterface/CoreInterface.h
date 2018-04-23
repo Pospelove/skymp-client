@@ -23,6 +23,7 @@
 #include "ciLocalPlayer.h"
 #include "ciRemotePlayer.h"
 #include "ciDataSearch.h"
+#include "ciScript.h"
 #include "ciMain.h"
 
 #endif

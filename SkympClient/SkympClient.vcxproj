@@ -160,6 +160,7 @@
     <ClCompile Include="CoreInterface\ciRPModel.cpp" />
     <ClCompile Include="CoreInterface\ciRPPackageApplier.cpp" />
     <ClCompile Include="CoreInterface\ciRPPlaceMarker.cpp" />
+    <ClCompile Include="CoreInterface\ciScript.cpp" />
     <ClCompile Include="CoreInterface\ciSpell.cpp" />
     <ClCompile Include="CoreInterface\ciTypes.cpp" />
     <ClCompile Include="Costile\Costile2.cpp" />
@@ -276,6 +277,7 @@
     <ClInclude Include="CoreInterface\ciRPModel.h" />
     <ClInclude Include="CoreInterface\ciRPPackageApplier.h" />
     <ClInclude Include="CoreInterface\ciRPPlaceMarker.h" />
+    <ClInclude Include="CoreInterface\ciScript.h" />
     <ClInclude Include="CoreInterface\ciSpell.h" />
     <ClInclude Include="CoreInterface\ciTypes.h" />
     <ClInclude Include="CoreInterface\ciMain.h" />

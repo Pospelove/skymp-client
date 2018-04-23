@@ -6,6 +6,8 @@ public:
 	ImGuiManager();
 	~ImGuiManager();
 
+	static void SetGlobalRenderHook(std::function<void()> fn);
+
 private:
 	void Render();
 

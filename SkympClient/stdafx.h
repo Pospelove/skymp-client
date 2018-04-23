@@ -69,5 +69,6 @@
 
 std::string WstringToString(const std::wstring &wstring);
 std::wstring StringToWstring(const std::string &string);
+std::string WstringToUtf(const std::wstring &string);
 
 #endif

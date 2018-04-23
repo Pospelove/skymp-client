@@ -48,7 +48,7 @@ void ClientLogic::ProcessPacket(RakNet::Packet *packet)
 	RakNet::BitStream bsIn(&packet->data[1], packet->length, false);
 	const auto messageID = (packet->data[0]);
 	try {
-		ci::Chat::AddMessage(StringToWstring(GetPacketName(messageID)), false);
+		//ci::Chat::AddMessage(StringToWstring(GetPacketName(messageID)), false);
 		this->packetHandlers.at(messageID)(bsIn, packet);
 	}
 	catch (...) {
@@ -161,6 +161,8 @@ void ClientLogic::OnStartup()
 				v = { v.begin() + 1, v.end() };
 		}
 
+	ci::ImGui::Init();
+
 	ci::Chat::Init(
 		atoi(g_config[CONFIG_CHAT_OFFSET_X].data()),
 		atoi(g_config[CONFIG_CHAT_OFFSET_Y].data())
@@ -169,6 +171,18 @@ void ClientLogic::OnStartup()
 	ci::LocalPlayer::GetSingleton()->SetName(L"Player");
 
 	ci::SetUpdateRate(1);
+
+	auto script = new ci::Script("skymp.lua");
+	if (script->IsValid())
+	{
+		ci::Log(L"DBG:ClientLogic skymp.lua loaded");
+	}
+	else
+	{
+		std::wstringstream ss;
+		ss << L"ERROR:ClientLogic skymp.lua failed with error: " << StringToWstring(script->GetLastError());
+		ci::Log(ss.str());
+	}
 
 	if (cfgNumLines == 0)
 	{
