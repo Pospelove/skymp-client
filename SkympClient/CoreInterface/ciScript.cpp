@@ -156,8 +156,11 @@ void ci::Script::Register()
 {
 	luabridge::getGlobalNamespace(pImpl->L)
 		.beginNamespace("skymp")
-		.addFunction("write", api::write)
 		.addFunction("on", api::on)
+
+		.beginNamespace("ci")
+		.addFunction("write", api::ci::write)
+		.endNamespace()
 
 		.beginNamespace("gui")
 		.addFunction("begin", api::gui::begin)

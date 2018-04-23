@@ -3,11 +3,6 @@
 
 namespace api
 {
-	void write(const std::string &s)
-	{
-		ci::Chat::AddMessage(StringToWstring(s));
-	}
-
 	void on(const std::string &eventName, luabridge::LuaRef fn)
 	{
 		if (gContext == nullptr)
@@ -28,6 +23,14 @@ namespace api
 		else
 		{
 			gContext->on.erase(eventName);
+		}
+	}
+
+	namespace ci
+	{
+		void write(const std::string &s)
+		{
+			::ci::Chat::AddMessage(StringToWstring(s));
 		}
 	}
 
