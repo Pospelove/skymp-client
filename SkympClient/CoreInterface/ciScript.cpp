@@ -163,7 +163,7 @@ void ci::Script::Register()
 		.endNamespace()
 
 		.beginNamespace("gui")
-		.addFunction("begin", api::gui::begin)
+		.addFunction("window", api::gui::window)
 		.addFunction("endWindow", api::gui::endWindow)
 		.addFunction("button", api::gui::button)
 		.endNamespace()

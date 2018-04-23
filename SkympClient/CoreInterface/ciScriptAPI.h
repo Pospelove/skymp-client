@@ -38,7 +38,7 @@ namespace api
 	{
 #define IMGUIDEF(type, luaFuncDeclaration, lambdaToReturn) type luaFuncDeclaration {if (gContext == nullptr) return type(); if (GetContextThread() == Thread::DirectX) return lambdaToReturn(); ErrorHandling::SendError("FATAL:Lua gui member called from non-DirectX thread"); std::exit(0); }
 
-		IMGUIDEF(bool, begin(std::string name, ImGuiWindowFlags flags), [&] {
+		IMGUIDEF(bool, window(std::string name, ImGuiWindowFlags flags), [&] {
 			bool p_open = true;
 			ImGui::Begin(name.data(), &p_open, flags);
 			return p_open;
