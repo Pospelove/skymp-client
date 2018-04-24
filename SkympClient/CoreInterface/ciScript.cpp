@@ -18,6 +18,34 @@ enum class Thread
 	ClientLogic,
 };
 
+
+class GContextM
+{
+public:
+	static dlf_mutex &GetMutex()
+	{
+		static GContextM gcm;
+		return *gcm.mPtr;
+	}
+
+private:
+	GContextM()
+	{
+		static dlf_mutex m = { "ci_script_gcontext" };
+		m.set_limit(750);
+		mPtr = &m;
+	}
+
+	dlf_mutex *mPtr;
+};
+
+auto &gContextM = GContextM::GetMutex();
+
+void s()
+{
+	gContextM.set_limit(5000);
+}
+
 struct ci::Script::Impl
 {
 	lua_State *L = nullptr;
@@ -26,34 +54,9 @@ struct ci::Script::Impl
 	std::string lastError = "";
 	std::map<std::string,std::function<void()>> on;
 	Thread thr = Thread::Unknown;
-	dlf_mutex m{ "ci_script_impl" };
 };
 
 ci::Script::Impl *gContext = nullptr;
-
-inline Thread GetContextThread()
-{
-	std::lock_guard<dlf_mutex> l(gContext->m);
-	return gContext ? gContext->thr : Thread::Unknown;
-}
-
-class ContextGuard
-{
-public:
-	ContextGuard(std::unique_ptr<ci::Script::Impl> &ptr, Thread thr)
-	{
-		ptr->m.lock();
-		gContext = ptr.get();
-		gContext->thr = thr;
-	}
-
-	~ContextGuard()
-	{
-		gContext->thr = Thread::Unknown;
-		gContext->m.unlock();
-		gContext = nullptr;
-	}
-};
 
 class ImGuiHook
 {
@@ -108,9 +111,13 @@ ci::Script::Script(const std::string &scriptName)
 	this->Register();
 
 	{
-		ContextGuard cg(pImpl, Thread::ClientLogic);
-		pImpl->thr = Thread::ClientLogic;
-		const auto dofileSuccess = !luaL_dofile(L, pImpl->scriptName.data());
+		bool dofileSuccess;
+		{
+			std::lock_guard<dlf_mutex> l(gContextM);
+			pImpl->thr = Thread::ClientLogic;
+			gContext = pImpl.get();
+			dofileSuccess = !luaL_dofile(L, pImpl->scriptName.data());
+		}
 		if (dofileSuccess)
 		{
 			pImpl->isValid = true;
@@ -123,7 +130,9 @@ ci::Script::Script(const std::string &scriptName)
 
 	// Register for 'render' event
 	ImGuiHook::GetSingleton()->SignalAdd((size_t)this, [this] {
-		ContextGuard cg(pImpl, Thread::DirectX);
+		std::lock_guard<dlf_mutex> l(gContextM);
+		pImpl->thr = Thread::DirectX;
+		gContext = pImpl.get();
 		try {
 			pImpl->on.at("render")();
 		}
@@ -149,6 +158,27 @@ std::string ci::Script::GetLastError() const
 	return pImpl->lastError;
 }
 
+void ci::Script::TriggerEvent(const std::string &eventName)
+{
+	static auto thrid = GetCurrentThreadId();
+	if (thrid != GetCurrentThreadId())
+	{
+		ErrorHandling::SendError("DBG:Lua TriggerEvent() Bad thread %d %d", thrid, GetCurrentThreadId());
+		thrid = GetCurrentThreadId();
+	}
+
+	std::lock_guard<dlf_mutex> l(gContextM);
+	pImpl->thr = Thread::ClientLogic;
+	gContext = pImpl.get();
+	try {
+		if (pImpl->on.count(eventName))
+			pImpl->on[eventName]();
+	}
+	catch (const std::exception &e) {
+		ErrorHandling::SendError("ERROR:Lua TriggerEvent('%s') %s", eventName.data(), e.what());
+	}
+}
+
 // Should be included here
 #include "ciScriptAPI.h"
 
@@ -159,8 +189,57 @@ void ci::Script::Register()
 		.addFunction("on", api::on)
 
 		.beginNamespace("ci")
-		.addFunction("write", api::ci::write)
+		// ciOther.cpp
+		.addFunction("printNote", api::_ci_::printNote)
+		.addFunction("setSyncOption", api::_ci_::setSyncOption)
+		.addFunction("setVolume", api::_ci_::setVolume)
+		.addFunction("isKeyPressed", api::_ci_::isKeyPressed)
+		.addFunction("hotLoadPlugin", api::_ci_::hotLoadPlugin)
+		.addFunction("debugMoveFarFarAway", api::_ci_::debugMoveFarFarAway)
+		.addFunction("executeCommand", api::_ci_::executeCommand)
+		.addFunction("registerAnimation", api::_ci_::registerAnimation)
+		.addFunction("isCombatAnim", api::_ci_::isCombatAnim)
+		.addFunction("showRaceMenu", api::_ci_::showRaceMenu)
+		.addFunction("showMainMenu", api::_ci_::showMainMenu)
+		.addFunction("setTimer", api::_ci_::setTimer)
+		.addFunction("isLoadScreenOpen", api::_ci_::isLoadScreenOpen)
+		.addFunction("isInPause", api::_ci_::isInPause)
+		.addFunction("isWorldspace", api::_ci_::isWorldspace)
+		.addFunction("isCell", api::_ci_::isCell)
+		.addFunction("setWeather", api::_ci_::setWeather)
+		.addFunction("setWeatherType", api::_ci_::setWeatherType)
+		.addFunction("setGlobalVariable", api::_ci_::setGlobalVariable)
+		.addFunction("log", api::_ci_::log)
+		.addFunction("traceCDCalls", api::_ci_::traceCDCalls)
+		.addFunction("removeAllKeywords", api::_ci_::removeAllKeywords)
+		.addFunction("addKeyword", api::_ci_::addKeyword)
+		.addFunction("showSkympLogo", api::_ci_::showSkympLogo)
+		.addFunction("hideSkympLogo", api::_ci_::hideSkympLogo)
+		.addFunction("setControlEnabled", api::_ci_::setControlEnabled)
 		.endNamespace()
+
+		.beginNamespace("ci").beginClass<api::_ci_::Text3D>("Text3D")
+		.addConstructor<void (*)(std::string, float, float, float)>()
+		.addFunction("destroy", &api::_ci_::Text3D::destroy)
+		.addFunction("setText", &api::_ci_::Text3D::setText)
+		.addFunction("setPos", &api::_ci_::Text3D::setPos)
+		.addFunction("setFontHeight", &api::_ci_::Text3D::setFontHeight)
+		.addFunction("getText", &api::_ci_::Text3D::getText)
+		.addFunction("getX", &api::_ci_::Text3D::getX)
+		.addFunction("getY", &api::_ci_::Text3D::getY)
+		.addFunction("getZ", &api::_ci_::Text3D::getZ)
+		.addFunction("setVisible", &api::_ci_::Text3D::setVisible)
+		.addFunction("setDrawDistance", &api::_ci_::Text3D::setDrawDistance)
+		.endClass().endNamespace()
+
+		.beginNamespace("ci").beginNamespace("config")
+		.addFunction("__index", api::_ci_::config::__index)
+		.endNamespace().endNamespace()
+
+		.beginNamespace("ci").beginNamespace("chat")
+		.addFunction("addMessage", api::_ci_::chat::addMessage)
+		.addFunction("clear", api::_ci_::chat::clear)
+		.endNamespace().endNamespace()
 
 		.beginNamespace("gui")
 		.addFunction("window", api::gui::window)

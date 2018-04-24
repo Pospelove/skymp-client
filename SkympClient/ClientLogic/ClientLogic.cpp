@@ -2,6 +2,8 @@
 
 auto clientLogic = new ClientLogic;
 
+std::vector<std::shared_ptr<ci::Script>> scripts;
+
 ClientLogic::ClientLogic()
 {
 	this->InitItemTypesHandlers();
@@ -172,7 +174,7 @@ void ClientLogic::OnStartup()
 
 	ci::SetUpdateRate(1);
 
-	auto script = new ci::Script("skymp.lua");
+	std::shared_ptr<ci::Script> script{ new ci::Script("skymp.lua") };
 	if (script->IsValid())
 	{
 		ci::Log(L"DBG:ClientLogic skymp.lua loaded");
@@ -183,6 +185,7 @@ void ClientLogic::OnStartup()
 		ss << L"ERROR:ClientLogic skymp.lua failed with error: " << StringToWstring(script->GetLastError());
 		ci::Log(ss.str());
 	}
+	scripts.push_back(script);
 
 	if (cfgNumLines == 0)
 	{
@@ -449,6 +452,9 @@ void ClientLogic::OnUpdate()
 			ci::Log("ERROR:ClientLogic OnUpdate()");
 		}
 	}
+
+	for (auto &script : scripts)
+		script->TriggerEvent("update");
 }
 
 void ClientLogic::UpdateCombat()
