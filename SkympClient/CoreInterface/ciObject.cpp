@@ -901,11 +901,6 @@ void ci::Object::Update()
 				if (NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() >= SyncOptions::GetRespawnRadius(isInterior))
 					return this->ForceDespawn("Object is too far");
 			});
-
-			SAFE_CALL("Object", [&] {
-				if (pimpl->locationID != worldSpaceID && pimpl->locationID != localPlCell->formID)
-					return this->ForceDespawn("Wrong Cell/WorldSpace");
-			});
 		}
 	}
 	// no break
