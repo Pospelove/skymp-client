@@ -94,6 +94,8 @@ namespace ci
 			Motion_Character,
 		};
 
+		uint32_t GetRefID() const;
+
 	private:
 		static uint32_t GetFarObject();
 		static void UpdateAll();
@@ -102,7 +104,6 @@ namespace ci
 		void ForceSpawn();
 		void ForceDespawn(const std::string &reason);
 		void UpdateContainer();
-		uint32_t GetRefID() const;
 
 		struct Impl;
 		Impl *pimpl;

@@ -1124,5 +1124,6 @@ void ci::Object::ForceDespawn(const std::string &r)
 
 uint32_t ci::Object::GetRefID() const
 {
+	std::lock_guard<dlf_mutex> l(pimpl->mutex);
 	return pimpl->refID;
 }

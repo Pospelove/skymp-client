@@ -471,6 +471,197 @@ namespace api
 			std::shared_ptr<Impl> pImpl{ new Impl };
 		};
 
+		class Object
+		{
+		public:
+			Object(uint32_t refID, uint32_t baseID, float x, float y, float z, float ax, float ay, float az) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				pImpl->object = new ci::Object(refID, baseID, ci::LocalPlayer::GetSingleton()->GetLocation() , { x,y,z }, { ax, ay, az });
+			}
+
+			void destroy() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+				{
+					delete pImpl->object;
+					pImpl->object = nullptr;
+				}
+			}
+
+			void setDestroyed(bool v) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetDestroyed(v);
+			}
+
+			void setOpen(bool v) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetOpen(v);
+			}
+
+			void blockActivation(bool v) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->BlockActivation(v);
+			}
+
+			void setPos(float x, float y, float z) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetPosition({ x, y, z });
+			}
+
+			void setAngle(float x, float y, float z) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetAngle({ x, y, z });
+			}
+
+			void translateTo(float x, float y, float z, float ax, float ay, float az, float speed, float rotSpeed) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->TranslateTo({ x,y,z }, { ax,ay,az }, speed, rotSpeed);
+			}
+
+			void setName(const std::string &name) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetName(StringToWstring(name));
+			}
+
+			void setLocked(bool locked) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->Lock(locked);
+			}
+
+			void setMotionType(int32_t type) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetMotionType(type);
+			}
+
+			void setDisabled(bool disabled) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetDisabled(disabled);
+			}
+
+			// TODO: void setBase(...) {}
+
+			void setCount(uint32_t count) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetCount(count);
+			}
+
+			// TODO: void addItem(...) {}
+
+			// TODO: void removeItem(...) {}
+
+			void respawn() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->Respawn();
+			}
+
+			void setLockLevel(uint8_t lockLevel) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->SetLockLevel(lockLevel);
+			}
+			
+			void activate() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->object)
+					pImpl->object->Activate();
+			}
+
+			float getX() const {
+				return this->getPos().x;
+			}
+
+			float getY() const {
+				return this->getPos().y;
+			}
+
+			float getZ() const {
+				return this->getPos().z;
+			}
+
+			float getAngleX() const {
+				return this->getRot().x;
+			}
+
+			float getAngleY() const {
+				return this->getRot().y;
+			}
+
+			float getAngleZ() const {
+				return this->getRot().z;
+			}
+
+			bool isGrabbed() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object && pImpl->object->IsGrabbed();
+			}
+
+			bool isCrosshairRef() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object && pImpl->object->IsCrosshairRef();
+			}
+
+			float getSpeed() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetSpeed() : 0.0f;
+			}
+
+			uint32_t getBase() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetBase(): 0;
+			}
+
+			int32_t getMotionType() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetMotionType() : 0;
+			}
+
+			bool isActivationBlocked() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->IsActivationBlocked() : 0;
+			}
+
+			uint8_t getLockLevel() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetLockLevel() : 0;
+			}
+
+			uint32_t getFormID() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetRefID() : 0;
+			}
+
+
+		private:
+			NiPoint3 getPos() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetPos() : NiPoint3(0, 0, 0);
+			}
+
+			NiPoint3 getRot() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->object ? pImpl->object->GetRot() : NiPoint3(0, 0, 0);
+			}
+
+			struct Impl
+			{
+				ci::Object *object = nullptr;
+			};
+
+			std::shared_ptr<Impl> pImpl{ new Impl };
+		};
+
 		namespace config
 		{
 
