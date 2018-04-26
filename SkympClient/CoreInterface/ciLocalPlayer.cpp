@@ -69,7 +69,7 @@ dlf_mutex localPlMutex{"ci_localplayer"};
 std::wstring *localPlName = nullptr;
 UInt32 localPlCellID = 0,
 localPlWorldSpaceID = 0;
-ci::LookData localPlLookData = {};
+ci::LookData localPlLookDataOut = {};
 ci::MovementData localPlMovementData = {};
 uint32_t localPlCrosshairRef = 0;
 std::vector<const ci::ItemType *> localPlEquippedArmor = {};
@@ -984,8 +984,16 @@ ci::LookData lastAppliedLook;
 
 void ci::LocalPlayer::ApplyLookData(const LookData &lookData)
 {
+	{
+		std::lock_guard<dlf_mutex> l(localPlMutex);
+		localPlLookDataOut = lookData;
+	}
 	TaskRunner<TASK_RUNNER_1000_MS>::AddTask([=] {
 		lookSync->Apply(lookData, g_thePlayer);
+		{
+			std::lock_guard<dlf_mutex> l(localPlMutex);
+			localPlLookDataOut = lookData;
+		}
 	}, 0);
 }
 
@@ -1047,7 +1055,7 @@ ci::LookData ci::LocalPlayer::GetLookData() const
 	std::lock_guard<dlf_mutex> l(localPlMutex);
 	//if (mayReturn0())
 	//	localPlLookData = {};
-	return localPlLookData;
+	return localPlLookDataOut;
 }
 
 ci::MovementData ci::LocalPlayer::GetMovementData() const
@@ -2370,8 +2378,10 @@ void ci::LocalPlayer::Update()
 	});
 
 	SAFE_CALL("LocalPlayer", [&] {
-		auto lookData = lookSync->GetFromPlayer();
-		localPlLookData = lookData;
+		static ci::LookData lastLd;
+		const auto lookData = lookSync->GetFromPlayer();
+		if (lastLd != lookData)
+			lastLd = localPlLookDataOut = lookData;
 	});
 
 	auto movData = MovementData_::GetFromPlayer();
