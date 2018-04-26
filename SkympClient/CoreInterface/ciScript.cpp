@@ -111,11 +111,30 @@ ci::Script::Script(const std::string &scriptName)
 	this->Register();
 
 	{
+		
 		bool dofileSuccess;
 		{
 			std::lock_guard<dlf_mutex> l(gContextM);
 			pImpl->thr = Thread::ClientLogic;
 			gContext = pImpl.get();
+			const bool doStringSuccess = !luaL_dostring(L, "skymp.ci.console.__index = function(table, key)\
+				return function(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)\
+				local args = { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 }\
+				local str = key\
+				for i = 1, #args do\
+					if args[i] ~= nil then\
+						str = str .. ' ' ..tostring(args[i])\
+						end\
+						end\
+						skymp.ci.executeCommand(0, str)\
+						end\
+						end");
+			if (!doStringSuccess)
+			{
+				const std::string err = lua_tostring(L, -1);
+				ci::Log("FATAL:Lua luaL_dostring %s", err.data());
+				std::exit(0);
+			}
 			dofileSuccess = !luaL_dofile(L, pImpl->scriptName.data());
 		}
 		if (dofileSuccess)
@@ -180,13 +199,22 @@ void ci::Script::TriggerEvent(const std::string &eventName)
 }
 
 // Should be included here
+#include "ciScriptTypes.h"
 #include "ciScriptAPI.h"
+
+void dummy1()
+{
+}
 
 void ci::Script::Register()
 {
 	luabridge::getGlobalNamespace(pImpl->L)
 		.beginNamespace("skymp")
 		.addFunction("on", api::on)
+
+		.beginNamespace("ci").beginNamespace("console")
+		.addFunction("__index", dummy1)
+		.endNamespace().endNamespace()
 
 		.beginNamespace("ci")
 		// ciOther.cpp
@@ -230,6 +258,16 @@ void ci::Script::Register()
 		.addFunction("getZ", &api::_ci_::Text3D::getZ)
 		.addFunction("setVisible", &api::_ci_::Text3D::setVisible)
 		.addFunction("setDrawDistance", &api::_ci_::Text3D::setDrawDistance)
+		.endClass().endNamespace()
+
+		.beginNamespace("ci").beginClass<api::_ci_::Actor>("Actor")
+		.addConstructor<void(*)(std::string, float, float, float)>()
+		.addStaticFunction("getLocalPlayer", &api::_ci_::Actor::getLocalPlayer)
+		.addFunction("destroy", &api::_ci_::Actor::destroy)
+		.addFunction("getMovement", &api::_ci_::Actor::getMovement)
+		.addFunction("applyMovement", &api::_ci_::Actor::applyMovement)
+		.addFunction("getLook", &api::_ci_::Actor::getLook)
+		.addFunction("applyLook", &api::_ci_::Actor::applyLook)
 		.endClass().endNamespace()
 
 		.beginNamespace("ci").beginNamespace("config")

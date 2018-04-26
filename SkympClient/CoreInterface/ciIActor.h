@@ -73,7 +73,7 @@ namespace ci
 
 		virtual ~IActor() {}
 
-	protected:
+	//protected:
 		virtual uint32_t GetRefID() const = 0;
 	};
 }

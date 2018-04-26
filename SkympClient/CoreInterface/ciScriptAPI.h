@@ -46,7 +46,6 @@ namespace api
 	namespace _ci_
 	{
 #define ASSERT_THREAD(thr) {if (gContext == nullptr) {ErrorHandling::SendError("FATAL:Lua gContext was nullptr"); std::exit(0);} if (gContext->thr != thr) {ErrorHandling::SendError("FATAL:Lua ci member called from non-ClientLogic thread"); std::exit(0);} }
-//#define CIDEF(type, luaFuncDeclaration, lambdaToReturn) type luaFuncDeclaration ASSERT_THREAD(Thread::ClientLogic, type())
 
 		void printNote(const std::string &s) {
 			ASSERT_THREAD(Thread::ClientLogic);
@@ -271,6 +270,204 @@ namespace api
 			}
 
 			ci::Text3D *text;
+		};
+
+		class Actor
+		{
+		public:
+			Actor(std::string name, float x, float y, float z) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				pImpl->actor = new ci::RemotePlayer(StringToWstring(name), {}, { x,y,z }, ci::LocalPlayer::GetSingleton()->GetCell(), ci::LocalPlayer::GetSingleton()->GetWorldSpace(), nullptr, "RPEngineInput", nullptr);
+			}
+
+			static Actor getLocalPlayer() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return Actor();
+			}
+
+			void destroy() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor && pImpl->actor != getLocalPlayer().pImpl->actor)
+				{
+					delete pImpl->actor;
+					pImpl->actor = nullptr;
+				}
+			}
+
+			luabridge::LuaRef getMovement() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				luabridge::LuaRef result{ gContext->L };
+				result = luabridge::Nil();
+
+				if (pImpl->actor)
+				{
+					try {
+						result = Convert::ToTable(gContext->L, pImpl->actor->GetMovementData());
+					}
+					catch (const std::exception &e) {
+						ErrorHandling::SendError("ERROR:Lua Actor.getMovement() %s", e.what());
+					}
+				}
+
+				return result;
+			}
+
+			void applyMovement(luabridge::LuaRef movement) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+				{
+					try {
+						return pImpl->actor->ApplyMovementData(Convert::FromTable<ci::MovementData>(movement));
+					}
+					catch (const std::exception &e) {
+						ErrorHandling::SendError("ERROR:Lua Actor.applyMovement() %s", e.what());
+					}
+				}
+			}
+
+			luabridge::LuaRef getLook() {
+				ASSERT_THREAD(Thread::ClientLogic);
+				luabridge::LuaRef result{ gContext->L };
+				result = luabridge::Nil();
+
+				if (pImpl->actor)
+				{
+					try {
+						result = Convert::ToTable(gContext->L, pImpl->actor->GetLookData());
+					}
+					catch (const std::exception &e) {
+						ErrorHandling::SendError("ERROR:Lua Actor.getLook() %s", e.what());
+					}
+				}
+				
+				return result;
+			}
+
+			void applyLook(luabridge::LuaRef look) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+				{
+					try {
+						return pImpl->actor->ApplyLookData(Convert::FromTable<ci::LookData>(look));
+					}
+					catch (const std::exception &e) {
+						ErrorHandling::SendError("ERROR:Lua Actor.applyLook() %s", e.what());
+					}
+				}
+			}
+
+			void setName(std::string name) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					return pImpl->actor->SetName(StringToWstring(name));
+			}
+
+			void setPos(float x, float y, float z) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					return pImpl->actor->SetPos({ x, y, z });
+			}
+
+			void setAngleZ(float a) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					return pImpl->actor->SetAngleZ(a);
+			}
+
+			void setCell(uint32_t cell) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					return pImpl->actor->SetCell(cell);
+			}
+
+			void setWorldSpace(uint32_t wp) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					return pImpl->actor->SetWorldSpace(wp);
+			}
+
+			void playAnimation(uint32_t animId) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					pImpl->actor->PlayAnimation(animId);
+			}
+
+			void updateAVData(std::string avName, float base, float mod, float percentage) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					pImpl->actor->UpdateAVData(avName, { base, mod, percentage });
+			}
+
+			void setWerewolf(bool ww, luabridge::LuaRef skipAnim) {
+				ASSERT_THREAD(Thread::ClientLogic);
+				if (pImpl->actor)
+					pImpl->actor->SetWerewolf(ww, skipAnim);
+			}
+
+			std::string getName() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->actor ? WstringToString(pImpl->actor->GetName()) : "";
+			}
+
+			float getX() const {
+				return getPos().x;
+			}
+
+			float getY() const {
+				return getPos().y;
+			}
+
+			float getZ() const {
+				return getPos().z;
+			}
+
+			float getAngleZ() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->actor ? pImpl->actor->GetAngleZ() : 0.0f;
+			}
+
+			uint32_t getCell() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->actor ? pImpl->actor->GetCell() : 0;
+			}
+
+			uint32_t getWorldSpace() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->actor ? pImpl->actor->GetWorldSpace() : 0;
+			}
+
+			luabridge::LuaRef getAVData(std::string avName) const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				luabridge::LuaRef result{ gContext->L };
+				result = luabridge::newTable(gContext->L);
+				const auto avd = pImpl->actor ? pImpl->actor->GetAVData(avName) : ci::AVData();
+				result["base"] = avd.base;
+				result["modifier"] = avd.modifier;
+				result["percentage"] = avd.percentage;
+				return result;
+			}
+
+			uint32_t getFormID() const {
+				ASSERT_THREAD(Thread::ClientLogic);
+				return pImpl->actor ? pImpl->actor->GetRefID() : 0;
+			}
+
+		private:
+			NiPoint3 getPos() const {
+				return pImpl->actor ? pImpl->actor->GetPos() : NiPoint3(0, 0, 0);
+			}
+
+			Actor() {
+				pImpl->actor = ci::LocalPlayer::GetSingleton();
+			}
+
+
+			struct Impl
+			{
+				ci::IActor *actor = nullptr;
+			};
+
+			std::shared_ptr<Impl> pImpl{ new Impl };
 		};
 
 		namespace config

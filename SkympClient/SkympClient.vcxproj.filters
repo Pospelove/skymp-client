@@ -836,6 +836,9 @@
     <ClInclude Include="CoreInterface\ciScriptAPI.h">
       <Filter>core_interface\ciScript</Filter>
     </ClInclude>
+    <ClInclude Include="CoreInterface\ciScriptTypes.h">
+      <Filter>core_interface\ciScript</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptDragon\plugin.def">
