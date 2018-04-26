@@ -4,6 +4,12 @@ auto clientLogic = new ClientLogic;
 
 std::vector<std::shared_ptr<ci::Script>> scripts;
 
+inline void TriggerEvent(const char *eventName)
+{
+	for (auto &script : scripts)
+		script->TriggerEvent(eventName);
+}
+
 ClientLogic::ClientLogic()
 {
 	this->InitItemTypesHandlers();
@@ -236,6 +242,8 @@ void ClientLogic::OnStartup()
 		else
 			ci::Chat::AddMessage(L"Press T and type your name");
 	}
+
+	TriggerEvent("startup");
 }
 
 void ClientLogic::OnWorldInit()
@@ -292,6 +300,8 @@ void ClientLogic::OnWorldInit()
 	}
 
 	firstInit = false;
+
+	TriggerEvent("worldInit");
 }
 
 void ClientLogic::OnUpdate()
@@ -456,8 +466,7 @@ void ClientLogic::OnUpdate()
 		}
 	}
 
-	for (auto &script : scripts)
-		script->TriggerEvent("update");
+	TriggerEvent("update");
 }
 
 void ClientLogic::UpdateCombat()
