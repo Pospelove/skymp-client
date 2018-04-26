@@ -577,16 +577,9 @@ void ci::Object::SetMotionType(int32_t type)
 	std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 	auto task = ObjectTask{ [=](TESObjectREFR *ref) {
-		auto refID = ref->formID;
-		//SET_TIMER(100, [=] {
-			//auto ref = (TESObjectREFR *)LookupFormByID(refID);
-			//if (ref != nullptr)
-			{
-				sd::SetMotionType(ref, type, true);
-				if (type == Motion_Dynamic)
-					sd::ApplyHavokImpulse(ref, 0.0, 0.0, -1.0, 0.75);
-			}
-		//});
+		sd::SetMotionType(ref, type, true);
+		if (type == Motion_Dynamic)
+			sd::ApplyHavokImpulse(ref, 0.0, 0.0, -1.0, 0.75);
 	} };
 	pimpl->overridableTasks[OverrideChannel::SetMotionType] = task;
 	pimpl->motionType = type;
