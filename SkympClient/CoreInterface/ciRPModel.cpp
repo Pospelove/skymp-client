@@ -113,9 +113,12 @@ void ci::Model::Update()
 		{
 			if (distance <= SyncOptions::GetRespawnRadius(isInterior))
 			{
-				if (pimpl->condition())
+				if ((clock() - this->GetSpawnMoment()) / float(CLOCKS_PER_SEC) >= 1.0)
 				{
-					this->SpawnActor();
+					if (pimpl->condition())
+					{
+						this->SpawnActor();
+					}
 				}
 			}
 		}
