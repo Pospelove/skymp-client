@@ -43,7 +43,6 @@ namespace ci
 
 		Object(uint32_t existingReferenceID, 
 			uint32_t baseID, 
-			uint32_t locationID, 
 			NiPoint3 pos, 
 			NiPoint3 rot, 
 			OnActivate onActivate = nullptr,
@@ -58,7 +57,6 @@ namespace ci
 		void SetAngle(NiPoint3 rot);
 		void TranslateTo(NiPoint3 pos, NiPoint3 rot, float speed, float rotSpeed);
 		void SetName(const std::wstring &name);
-		bool SetLocation(uint32_t locationID);
 		void Lock(bool locked);
 		void SetMotionType(int32_t type);
 		void SetDisabled(bool disabled);

@@ -141,15 +141,13 @@ void ci::Dispenser::Fire(const ItemType *bow, const ItemType *ammo, float power)
 void ci::Dispenser::Create()
 {
 	SAFE_CALL("Dispenser", [&] {
-		const auto location = ci::LocalPlayer::GetSingleton()->GetLocation();
 		if (pimpl->dispenser == nullptr)
 		{
 			pimpl->dispenser.reset(
-				new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, location, { 0,0,0 }, { 0,0,0 })
+				new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, { 0,0,0 }, { 0,0,0 })
 			);
 			pimpl->dispenser->SetMotionType(Object::Motion_Keyframed);
 		}
-		pimpl->dispenser->SetLocation(location);
 	});
 }
 
@@ -157,6 +155,6 @@ void ci::Dispenser::Destroy()
 {
 	SAFE_CALL("Dispenser", [&] {
 		if (pimpl->dispenser != nullptr)
-			pimpl->dispenser->SetLocation(-1);
+			pimpl->dispenser.reset();
 	});
 }

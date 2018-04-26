@@ -90,7 +90,7 @@ void ClientLogic::InitObjectsHandlers()
 			}
 		};
 
-		objects[id] = new ci::Object(isNative ? id : 0, baseFormID, /*locationID*/localPlayer->GetLocation(), pos, rot, onActivate, onContainerChanged, onHit);
+		objects[id] = new ci::Object(isNative ? id : 0, baseFormID, pos, rot, onActivate, onContainerChanged, onHit);
 		objects[id]->SetDestroyed(true);
 		objects[id]->SetMotionType(ci::Object::Motion_Keyframed);
 		objectsInfo[id] = {};
@@ -143,8 +143,6 @@ void ClientLogic::InitObjectsHandlers()
 					obj->SetAngle(rot);
 				}
 			}
-			//obj->SetLocation(locationID);
-			obj->SetLocation(localPlayer->GetLocation());
 
 			objectsInfo[id].isHostable = isHostable;
 			if (isHostable == false)

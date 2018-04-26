@@ -659,12 +659,11 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->pathToTarget == nullptr)
 		{
-			pimpl->pathToTarget.reset(new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, this->GetLocationID(), { 0,0,0 }, { 0,0,0 }));
+			pimpl->pathToTarget.reset(new ci::Object(0, ID_TESObjectSTAT::XMarkerHeading, { 0,0,0 }, { 0,0,0 }));
 		}
 		if (pimpl->pathToTarget != nullptr)
 		{
 			pimpl->pathToTarget->SetPosition(pos);
-			pimpl->pathToTarget->SetLocation(this->GetLocationID());
 		}
 		pimpl->pathingSpeedmult = walking ? 140 : 600;
 	}
@@ -674,7 +673,7 @@ namespace ci
 		std::lock_guard<dlf_mutex> l(pimpl->mutex);
 		if (pimpl->pathToTarget != nullptr)
 		{
-			pimpl->pathToTarget->SetLocation(~0);
+			pimpl->pathToTarget.reset();
 		}
 	}
 

@@ -104,7 +104,6 @@ struct ci::Object::Impl
 	uint32_t refID = 0;
 	uint32_t baseID = 0;
 
-	uint32_t locationID = 0;
 	NiPoint3 pos, rot, posData;
 	std::wstring name;
 	bool destroyed = true, open = true, blockedActivation = true, grabbed = false;
@@ -394,7 +393,6 @@ struct ci::Object::Impl
 
 ci::Object::Object(uint32_t existingReferenceID, 
 	uint32_t baseID, 
-	uint32_t locationID, 
 	NiPoint3 pos, 
 	NiPoint3 rot, 
 	OnActivate onActivate, 
@@ -411,7 +409,6 @@ ci::Object::Object(uint32_t existingReferenceID,
 	pimpl->refID = existingReferenceID;
 	pimpl->baseID = baseID;
 	pimpl->isNative = (existingReferenceID != 0);
-	pimpl->locationID = locationID;
 	pimpl->pos = pos;
 	pimpl->rot = rot;
 
@@ -552,14 +549,6 @@ void ci::Object::SetName(const std::wstring &name)
 	} };
 	pimpl->overridableTasks[OverrideChannel::SetName] = task;
 	pimpl->name = name;
-}
-
-bool ci::Object::SetLocation(uint32_t locationID)
-{
-	if (pimpl->isNative)
-		return false;
-	pimpl->locationID = locationID;
-	return true;
 }
 
 void ci::Object::Lock(bool lock)
@@ -855,9 +844,7 @@ void ci::Object::Update()
 	{
 		SAFE_CALL("Object", [&] {
 			if (markerFormID && localPlCell
-				&& NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() < SyncOptions::GetRespawnRadius(isInterior)
-				//&& (pimpl->locationID == worldSpaceID || pimpl->locationID == localPlCell->formID)
-				)
+				&& NiPoint3{ pimpl->pos - cd::GetPosition(g_thePlayer) }.Length() < SyncOptions::GetRespawnRadius(isInterior))
 			{
 				auto marker = (TESObjectREFR *)LookupFormByID(markerFormID);
 				if (marker && marker->formType == FormType::Reference)

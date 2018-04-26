@@ -74,7 +74,7 @@ void ci::InvisibleFox::CreateTheFox()
 		if (pimpl->myPseudoFox == nullptr)
 		{
 			pimpl->myPseudoFox.reset(
-				new ci::Object(0x00000000, ID_TESObjectSTAT::XMarkerHeading, ci::LocalPlayer::GetSingleton()->GetLocation(), { 0,0,0 }, { 0,0,0 })
+				new ci::Object(0x00000000, ID_TESObjectSTAT::XMarkerHeading, { 0,0,0 }, { 0,0,0 })
 			);
 			pimpl->myPseudoFox->SetMotionType(Object::Motion_Keyframed);
 		}

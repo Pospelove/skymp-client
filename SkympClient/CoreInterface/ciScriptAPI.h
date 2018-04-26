@@ -476,7 +476,7 @@ namespace api
 		public:
 			Object(uint32_t refID, uint32_t baseID, float x, float y, float z, float ax, float ay, float az) {
 				ASSERT_THREAD(Thread::ClientLogic);
-				pImpl->object = new ci::Object(refID, baseID, ci::LocalPlayer::GetSingleton()->GetLocation() , { x,y,z }, { ax, ay, az });
+				pImpl->object = new ci::Object(refID, baseID , { x,y,z }, { ax, ay, az });
 			}
 
 			void destroy() {
