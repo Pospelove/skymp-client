@@ -8,8 +8,10 @@
 
 #include "..\Skyrim\include\Skyrim\NetImmerse\NiPoint3.h"
 
-#include "ciGUI.h"
-#include "ciOther.h"
+// '+' means existing lua api
+
+#include "ciGUI.h" // +
+#include "ciOther.h" // +
 #include "ciTypes.h"
 #include "ciObject.h"
 #include "ciMagicEffect.h"

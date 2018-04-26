@@ -174,18 +174,21 @@ void ClientLogic::OnStartup()
 
 	ci::SetUpdateRate(1);
 
-	std::shared_ptr<ci::Script> script{ new ci::Script("skymp.lua") };
-	if (script->IsValid())
+	for (auto i = 0; i != 1; ++i)
 	{
-		ci::Log(L"DBG:ClientLogic skymp.lua loaded");
+		std::shared_ptr<ci::Script> script{ new ci::Script("skymp.lua") };
+		if (script->IsValid())
+		{
+			ci::Log(L"DBG:ClientLogic skymp.lua loaded");
+		}
+		else
+		{
+			std::wstringstream ss;
+			ss << L"ERROR:ClientLogic skymp.lua failed with error: " << StringToWstring(script->GetLastError());
+			ci::Log(ss.str());
+		}
+		scripts.push_back(script);
 	}
-	else
-	{
-		std::wstringstream ss;
-		ss << L"ERROR:ClientLogic skymp.lua failed with error: " << StringToWstring(script->GetLastError());
-		ci::Log(ss.str());
-	}
-	scripts.push_back(script);
 
 	if (cfgNumLines == 0)
 	{
