@@ -454,6 +454,7 @@ namespace api
 
 		private:
 			NiPoint3 getPos() const {
+				ASSERT_THREAD(Thread::ClientLogic);
 				return pImpl->actor ? pImpl->actor->GetPos() : NiPoint3(0, 0, 0);
 			}
 
