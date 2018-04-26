@@ -4,10 +4,10 @@ auto clientLogic = new ClientLogic;
 
 std::vector<std::shared_ptr<ci::Script>> scripts;
 
-inline void TriggerEvent(const char *eventName)
+inline void TriggerEvent(const char *eventName, const std::string &argumentsLuaTable = "{}")
 {
 	for (auto &script : scripts)
-		script->TriggerEvent(eventName);
+		script->TriggerEvent(eventName, argumentsLuaTable);
 }
 
 ClientLogic::ClientLogic()

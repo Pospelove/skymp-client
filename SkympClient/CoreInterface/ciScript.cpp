@@ -52,7 +52,7 @@ struct ci::Script::Impl
 	std::string scriptName;
 	bool isValid = false;
 	std::string lastError = "";
-	std::map<std::string,std::function<void()>> on;
+	std::map<std::string,std::function<void(luabridge::LuaRef)>> on;
 	Thread thr = Thread::Unknown;
 };
 
@@ -153,7 +153,7 @@ ci::Script::Script(const std::string &scriptName)
 		pImpl->thr = Thread::DirectX;
 		gContext = pImpl.get();
 		try {
-			pImpl->on.at("render")();
+			pImpl->on.at("render")(luabridge::newTable(gContext->L));
 		}
 		catch (...) {
 		}
@@ -177,7 +177,7 @@ std::string ci::Script::GetLastError() const
 	return pImpl->lastError;
 }
 
-void ci::Script::TriggerEvent(const std::string &eventName)
+void ci::Script::TriggerEvent(const std::string &eventName, const std::string &t)
 {
 	static auto thrid = GetCurrentThreadId();
 	if (thrid != GetCurrentThreadId())
@@ -190,8 +190,11 @@ void ci::Script::TriggerEvent(const std::string &eventName)
 	pImpl->thr = Thread::ClientLogic;
 	gContext = pImpl.get();
 	try {
+		const auto luaCode = "return " + t;
+		const bool suc = !luaL_dostring(gContext->L, luaCode.data());
+		const auto evn = suc ? luabridge::LuaRef::fromStack(gContext->L, -1) : luabridge::newTable(gContext->L);
 		if (pImpl->on.count(eventName))
-			pImpl->on[eventName]();
+			pImpl->on[eventName](evn);
 	}
 	catch (const std::exception &e) {
 		ErrorHandling::SendError("ERROR:Lua TriggerEvent('%s') %s", eventName.data(), e.what());

@@ -14,9 +14,9 @@ namespace api
 
 		if (fn.isFunction())
 		{
-			auto cppFn = [eventName, fn] {
+			auto cppFn = [eventName, fn](luabridge::LuaRef argsTable) {
 				try {
-					fn();
+					fn(argsTable);
 				}
 				catch (std::exception &e) {
 					ErrorHandling::SendError("FATAL:Lua skymp.on('%s', ...) %s", eventName.data(), e.what());
@@ -31,9 +31,9 @@ namespace api
 			else
 			{
 				auto prevHandlers = gContext->on[eventName];
-				gContext->on[eventName] = [prevHandlers, cppFn] {
-					prevHandlers();
-					cppFn();
+				gContext->on[eventName] = [prevHandlers, cppFn](luabridge::LuaRef argsTable) {
+					prevHandlers(argsTable);
+					cppFn(argsTable);
 				};
 			}
 		}

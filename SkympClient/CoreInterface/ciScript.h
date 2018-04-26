@@ -11,7 +11,7 @@ namespace ci
 
 		bool IsValid() const;
 		std::string GetLastError() const;
-		void TriggerEvent(const std::string &luaEventName);
+		void TriggerEvent(const std::string &luaEventName, const std::string &argumentsTable);
 
 		struct Impl;
 
