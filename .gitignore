@@ -1,0 +1,11 @@
+Debug
+Release
+SkympClient/Debug
+SkympClient/Release
+Skyrim/Debug
+Skyrim/Release
+SKSE/Debug
+SKSE/Release
+RakNet/Debug
+RakNet/Release
+.vc
