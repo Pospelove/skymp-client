@@ -6,7 +6,12 @@ namespace ci
 	class Script
 	{
 	public:
-		Script(const std::string &scriptName);
+		struct Impls
+		{
+			const std::function<void(const char *)> sendServerEvent;
+		};
+
+		Script(const std::string &scriptName, const Impls &impls);
 		~Script();
 
 		bool IsValid() const;

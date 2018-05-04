@@ -176,6 +176,7 @@ public:
 	void ConnectToServer(const std::string &host, uint16_t port, const std::string &hardcodedPassword, const std::string &password, const std::wstring &nickname);
 	void ProcessPacket(RakNet::Packet *packet);
 	void SendAnimation(uint32_t animID, uint16_t source);
+	void SendEvent(const std::string &eventName, const std::string &eventData);
 	void ExecuteCommand(std::string cmd);
 
 	void OnStartup() override;
@@ -209,4 +210,6 @@ public:
 	void UpdateEquippedAmmo();
 	void UpdateKnownEffects();
 	void UpdateWerewolfs();
+
+	ci::Script::Impls GetScriptImpls() const;
 };

@@ -1,5 +1,6 @@
 #include "../stdafx.h"
 #include "CoreInterface.h"
+#include "ciScriptLuaLibs.h"
 
 extern "C" {
 #include "../lua/lua.h"
@@ -54,6 +55,7 @@ struct ci::Script::Impl
 	std::string lastError = "";
 	std::map<std::string,std::function<void(luabridge::LuaRef)>> on;
 	Thread thr = Thread::Unknown;
+	std::unique_ptr<Impls> funcImpls;
 };
 
 ci::Script::Impl *gContext = nullptr;
@@ -97,10 +99,12 @@ private:
 	dlf_mutex m{"ci_script_imguihook"};
 };
 
-ci::Script::Script(const std::string &scriptName)
+ci::Script::Script(const std::string &scriptName, const Impls &impls)
 {
 	pImpl.reset(new Impl);
 	pImpl->scriptName = scriptName;
+
+	pImpl->funcImpls.reset(new Impls(impls));
 
 	pImpl->L = luaL_newstate();
 	auto L = pImpl->L;
@@ -117,6 +121,7 @@ ci::Script::Script(const std::string &scriptName)
 			std::lock_guard<dlf_mutex> l(gContextM);
 			pImpl->thr = Thread::ClientLogic;
 			gContext = pImpl.get();
+
 			const bool doStringSuccess = !luaL_dostring(L, "skymp.ci.console.__index = function(table, key)\
 				return function(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)\
 				local args = { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 }\
@@ -132,7 +137,7 @@ ci::Script::Script(const std::string &scriptName)
 			if (!doStringSuccess)
 			{
 				const std::string err = lua_tostring(L, -1);
-				ci::Log("FATAL:Lua luaL_dostring %s", err.data());
+				ci::Log("FATAL:Lua luaL_dostring console %s", err.data());
 				std::exit(0);
 			}
 			dofileSuccess = !luaL_dofile(L, pImpl->scriptName.data());
@@ -214,6 +219,11 @@ void ci::Script::Register()
 	luabridge::getGlobalNamespace(pImpl->L)
 		.beginNamespace("skymp")
 		.addFunction("on", api::on)
+		.addFunction("sendServerEvent", api::sendServerEvent)
+
+		.beginNamespace("server")
+		.addFunction("__index", dummy1)
+		.endNamespace()
 
 		.beginNamespace("ci").beginNamespace("console")
 		.addFunction("__index", dummy1)

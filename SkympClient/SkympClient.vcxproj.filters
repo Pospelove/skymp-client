@@ -382,6 +382,9 @@
     <ClCompile Include="CoreInterface\ciScript.cpp">
       <Filter>core_interface\ciScript</Filter>
     </ClCompile>
+    <ClCompile Include="ClientLogic\CLScriptImpls.cpp">
+      <Filter>client_logic\ClientLogic</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -837,6 +840,9 @@
       <Filter>core_interface\ciScript</Filter>
     </ClInclude>
     <ClInclude Include="CoreInterface\ciScriptTypes.h">
+      <Filter>core_interface\ciScript</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreInterface\ciScriptLuaLibs.h">
       <Filter>core_interface\ciScript</Filter>
     </ClInclude>
   </ItemGroup>

@@ -120,6 +120,7 @@
     <ClCompile Include="ClientLogic\CLHelper.cpp" />
     <ClCompile Include="ClientLogic\ClientLogic.cpp" />
     <ClCompile Include="ClientLogic\CLPhysics.cpp" />
+    <ClCompile Include="ClientLogic\CLScriptImpls.cpp" />
     <ClCompile Include="ClientLogic\Commands.cpp" />
     <ClCompile Include="ClientLogic\Connection.cpp" />
     <ClCompile Include="ClientLogic\DataSearch.cpp" />
@@ -279,6 +280,7 @@
     <ClInclude Include="CoreInterface\ciRPPlaceMarker.h" />
     <ClInclude Include="CoreInterface\ciScript.h" />
     <ClInclude Include="CoreInterface\ciScriptAPI.h" />
+    <ClInclude Include="CoreInterface\ciScriptLuaLibs.h" />
     <ClInclude Include="CoreInterface\ciScriptTypes.h" />
     <ClInclude Include="CoreInterface\ciSpell.h" />
     <ClInclude Include="CoreInterface\ciTypes.h" />

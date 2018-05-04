@@ -182,7 +182,7 @@ void ClientLogic::OnStartup()
 
 	for (auto i = 0; i != 1; ++i)
 	{
-		std::shared_ptr<ci::Script> script{ new ci::Script("skymp.lua") };
+		std::shared_ptr<ci::Script> script{ new ci::Script("skymp.lua", this->GetScriptImpls()) };
 		if (script->IsValid())
 		{
 			ci::Log(L"DBG:ClientLogic skymp.lua loaded");

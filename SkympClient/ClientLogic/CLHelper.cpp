@@ -95,3 +95,22 @@ void ClientLogic::SendAnimation(uint32_t animID, uint16_t source)
 	bsOut.Write(source);
 	net.peer->Send(&bsOut, LOW_PRIORITY, unreliable, NULL, net.remote, false);
 }
+
+void ClientLogic::SendEvent(const std::string &eventName, const std::string &eventData)
+{
+	try {
+		RakNet::BitStream bsOut;
+		bsOut.Write(ID_EVENT);
+
+		const std::string str = "{ \"eventName\":\"" + eventName + "\", \"eventDataStr\":\"" + eventData + "\" }";
+
+		for (auto ch : str)
+			bsOut.Write(ch);
+		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
+
+		ci::Chat::AddMessage((StringToWstring(str.data())));
+	}
+	catch (const std::exception &e) {
+		ci::Log("ERROR:ClientLogic SendEvent(%s, %s) %s", eventName.data(), eventData.data(), e.what());
+	}
+}

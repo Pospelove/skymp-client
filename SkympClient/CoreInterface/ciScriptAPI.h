@@ -5,6 +5,32 @@
 // However config will be placed to namespace ci
 #include "../ClientLogic/Config.h"
 
+#define ASSERT_THREAD(thr) {\
+	if (gContext == nullptr) {\
+		ci::Log("FATAL:Lua gContext was nullptr"); std::exit(0);\
+	}\
+	if (gContext->thr != thr) {\
+		ci::Log("FATAL:Lua ci member called from wrong thread (must be %d)", (int32_t)thr); std::exit(0);\
+	}\
+}
+
+luabridge::LuaRef REQUIRE_JSON()
+{
+	const auto jsonLibStr = codesStringToNormalString(LUA_JSON_CODES);
+	const bool doStringSuccess = !luaL_dostring(gContext->L, jsonLibStr.data());
+	if (!doStringSuccess)
+	{
+		const std::string err = lua_tostring(gContext->L, -1);
+		ci::Log("FATAL:Lua luaL_dostring json %s", err.data());
+		std::exit(0);
+	}
+	else
+	{
+		const auto json = luabridge::LuaRef::fromStack(gContext->L, -1);
+		return json;
+	}
+}
+
 namespace api
 {
 	void on(const std::string &eventName, luabridge::LuaRef fn)
@@ -43,10 +69,32 @@ namespace api
 		}
 	}
 
+	void sendServerEvent(const std::string &eventName, luabridge::LuaRef table)
+	{
+		try {
+			ASSERT_THREAD(Thread::ClientLogic);
+			auto json = REQUIRE_JSON();
+
+			luabridge::LuaRef toSeri = luabridge::newTable(gContext->L);
+			toSeri["eventName"] = eventName;
+			toSeri["evenetData"] = table;
+
+			std::string toSend = json["stringify"](toSeri);
+
+			if (gContext->funcImpls->sendServerEvent != nullptr)
+			{
+				gContext->funcImpls->sendServerEvent((char *)toSend.data());
+			}
+			else
+				ci::Log("ERROR:ScriptAPI sendServerEvent is nullptr");
+		}
+		catch (std::exception &e) {
+			ci::Log("ERROR:ScriptAPI sendServerEvent %s", e.what());
+		}
+	}
+
 	namespace _ci_
 	{
-#define ASSERT_THREAD(thr) {if (gContext == nullptr) {ErrorHandling::SendError("FATAL:Lua gContext was nullptr"); std::exit(0);} if (gContext->thr != thr) {ErrorHandling::SendError("FATAL:Lua ci member called from non-ClientLogic thread"); std::exit(0);} }
-
 		void printNote(const std::string &s) {
 			ASSERT_THREAD(Thread::ClientLogic);
 			ci::Chat::AddMessage(StringToWstring(s), true);
