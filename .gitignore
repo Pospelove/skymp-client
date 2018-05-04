@@ -8,4 +8,10 @@ SKSE/Debug
 SKSE/Release
 RakNet/Debug
 RakNet/Release
-.vc
+.vs/*
+*.bat
+*.rar
+*.zip
+*.tmp
+*.TMP
+requirements/skymp_config.ini
