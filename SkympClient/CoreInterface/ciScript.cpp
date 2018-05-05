@@ -140,6 +140,14 @@ ci::Script::Script(const std::string &src, const Impls &impls)
 				ci::Log("FATAL:Lua luaL_dostring console %s", err.data());
 				std::exit(0);
 			}
+
+			const bool serverDoStringSuccess = !luaL_dostring(L, "skymp.server.__index = function(table, key) return function(eventData) skymp.sendServerEvent(key, eventData) end end");
+			if (!serverDoStringSuccess)
+			{
+				const std::string err = lua_tostring(L, -1);
+				ci::Log("FATAL:Lua luaL_dostring server %s", err.data());
+				std::exit(0);
+			}
 			dofileSuccess = !luaL_dostring(L, pImpl->src.data());
 		}
 		if (dofileSuccess)
