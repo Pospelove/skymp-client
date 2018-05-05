@@ -382,8 +382,8 @@
     <ClCompile Include="CoreInterface\ciScript.cpp">
       <Filter>core_interface\ciScript</Filter>
     </ClCompile>
-    <ClCompile Include="ClientLogic\CLScriptImpls.cpp">
-      <Filter>client_logic\ClientLogic</Filter>
+    <ClCompile Include="ClientLogic\Script.cpp">
+      <Filter>client_logic\Handlers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

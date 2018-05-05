@@ -2,14 +2,6 @@
 
 auto clientLogic = new ClientLogic;
 
-std::vector<std::shared_ptr<ci::Script>> scripts;
-
-inline void TriggerEvent(const char *eventName, const std::string &argumentsLuaTable = "{}")
-{
-	for (auto &script : scripts)
-		script->TriggerEvent(eventName, argumentsLuaTable);
-}
-
 ClientLogic::ClientLogic()
 {
 	this->InitItemTypesHandlers();
@@ -23,6 +15,7 @@ ClientLogic::ClientLogic()
 	this->InitCommandsHandlers();
 	this->InitRecipesHandlers();
 	this->InitMagicHandlers();
+	this->InitScriptHandlers();
 }
 
 void ClientLogic::PrintStartupInfo()
@@ -179,22 +172,6 @@ void ClientLogic::OnStartup()
 	ci::LocalPlayer::GetSingleton()->SetName(L"Player");
 
 	ci::SetUpdateRate(1);
-
-	for (auto i = 0; i != 1; ++i)
-	{
-		std::shared_ptr<ci::Script> script{ new ci::Script("skymp.lua", this->GetScriptImpls()) };
-		if (script->IsValid())
-		{
-			ci::Log(L"DBG:ClientLogic skymp.lua loaded");
-		}
-		else
-		{
-			std::wstringstream ss;
-			ss << L"ERROR:ClientLogic skymp.lua failed with error: " << StringToWstring(script->GetLastError());
-			ci::Log(ss.str());
-		}
-		scripts.push_back(script);
-	}
 
 	if (cfgNumLines == 0)
 	{

@@ -11,7 +11,7 @@ namespace ci
 			const std::function<void(const char *)> sendServerEvent;
 		};
 
-		Script(const std::string &scriptName, const Impls &impls);
+		Script(const std::string &scriptNameOrSrc, const Impls &impls);
 		~Script();
 
 		bool IsValid() const;

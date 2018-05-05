@@ -45,6 +45,7 @@ enum : RakNet::MessageID {
 	ID_MESSAGE,
 	ID_LEARN_EFFECT, //
 	ID_EVENT,
+	ID_SCRIPT,
 
 	// client <---- server
 	ID_WRONG_PASS,//

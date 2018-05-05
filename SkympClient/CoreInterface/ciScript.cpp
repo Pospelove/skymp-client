@@ -50,7 +50,7 @@ void s()
 struct ci::Script::Impl
 {
 	lua_State *L = nullptr;
-	std::string scriptName;
+	std::string src;
 	bool isValid = false;
 	std::string lastError = "";
 	std::map<std::string,std::function<void(luabridge::LuaRef)>> on;
@@ -99,10 +99,10 @@ private:
 	dlf_mutex m{"ci_script_imguihook"};
 };
 
-ci::Script::Script(const std::string &scriptName, const Impls &impls)
+ci::Script::Script(const std::string &src, const Impls &impls)
 {
 	pImpl.reset(new Impl);
-	pImpl->scriptName = scriptName;
+	pImpl->src = src;
 
 	pImpl->funcImpls.reset(new Impls(impls));
 
@@ -140,7 +140,7 @@ ci::Script::Script(const std::string &scriptName, const Impls &impls)
 				ci::Log("FATAL:Lua luaL_dostring console %s", err.data());
 				std::exit(0);
 			}
-			dofileSuccess = !luaL_dofile(L, pImpl->scriptName.data());
+			dofileSuccess = !luaL_dostring(L, pImpl->src.data());
 		}
 		if (dofileSuccess)
 		{

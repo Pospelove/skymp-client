@@ -109,6 +109,7 @@ public:
 	void InitCommandsHandlers();
 	void InitMagicHandlers();
 	void InitRecipesHandlers();
+	void InitScriptHandlers();
 
 	std::map<RakNet::MessageID, std::function<void(RakNet::BitStream &, RakNet::Packet *)>> packetHandlers;
 
@@ -161,6 +162,8 @@ public:
 	AVNamesHandler av;
 	ci::Signal<void()> testUpd;
 
+	std::vector<std::shared_ptr<ci::Script>> scripts;
+
 	bool IsRussianTranslate();
 	bool IsHorseBase(uint32_t baseNpc);
 
@@ -212,4 +215,5 @@ public:
 	void UpdateWerewolfs();
 
 	ci::Script::Impls GetScriptImpls() const;
+	void TriggerEvent(const char *name, const std::string &data = "{}");
 };

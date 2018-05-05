@@ -73,11 +73,11 @@ namespace api
 	{
 		try {
 			ASSERT_THREAD(Thread::ClientLogic);
-			auto json = REQUIRE_JSON();
+			static auto json = REQUIRE_JSON();
 
 			luabridge::LuaRef toSeri = luabridge::newTable(gContext->L);
 			toSeri["eventName"] = eventName;
-			toSeri["evenetData"] = table;
+			toSeri["eventData"] = table;
 
 			std::string toSend = json["stringify"](toSeri);
 

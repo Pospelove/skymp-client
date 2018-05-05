@@ -120,7 +120,6 @@
     <ClCompile Include="ClientLogic\CLHelper.cpp" />
     <ClCompile Include="ClientLogic\ClientLogic.cpp" />
     <ClCompile Include="ClientLogic\CLPhysics.cpp" />
-    <ClCompile Include="ClientLogic\CLScriptImpls.cpp" />
     <ClCompile Include="ClientLogic\Commands.cpp" />
     <ClCompile Include="ClientLogic\Connection.cpp" />
     <ClCompile Include="ClientLogic\DataSearch.cpp" />
@@ -131,6 +130,7 @@
     <ClCompile Include="ClientLogic\Objects.cpp" />
     <ClCompile Include="ClientLogic\Players.cpp" />
     <ClCompile Include="ClientLogic\Recipes.cpp" />
+    <ClCompile Include="ClientLogic\Script.cpp" />
     <ClCompile Include="Common\clip.cpp" />
     <ClCompile Include="Common\clip_win.cpp" />
     <ClCompile Include="Common\ErrorHandling.cpp" />
