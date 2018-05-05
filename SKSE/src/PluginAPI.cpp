@@ -428,6 +428,21 @@ BSTEventSource<SKSENiNodeUpdateEvent> * SKSEMessagingInterface::GetEventDispatch
 BOOL APIENTRY ScriptDragon_DllMain(HMODULE, DWORD, LPVOID);
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
+	{
+		WCHAR localeName[8] = { 0 };
+		GetUserDefaultLocaleName(localeName, 8);
+		bool isRussian = (std::wstring(localeName, 5) == L"ru-RU");
+		std::string str = std::to_string((size_t)FindWindowA(NULL, "SkyMP Launcher"));
+		if (str == "0")
+		{
+			if (isRussian)
+				MessageBoxA(0, "Пожалуйста, запустите игру с помощью лаунчера SkyMP", "Skyrim", MB_ICONERROR);
+			if (!isRussian)
+				MessageBoxA(0, "Use launcher to start game", "Skyrim", MB_ICONERROR);
+			std::exit(1);
+		}
+	}
+
 	char path[MAX_PATH];
 
 	switch (fdwReason)
