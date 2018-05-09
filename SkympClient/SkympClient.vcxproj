@@ -188,6 +188,7 @@
     <ClCompile Include="GameUtility\TaskRunner.cpp" />
     <ClCompile Include="GameUtility\Timer.cpp" />
     <ClCompile Include="GameUtility\WorldCleaner.cpp" />
+    <ClCompile Include="ImGui\cimgui.cpp" />
     <ClCompile Include="ImGui\imgui.cpp" />
     <ClCompile Include="ImGui\imgui_demo.cpp" />
     <ClCompile Include="ImGui\imgui_draw.cpp" />
@@ -316,6 +317,7 @@
     <ClInclude Include="GameUtility\TaskRunner.h" />
     <ClInclude Include="GameUtility\Timer.h" />
     <ClInclude Include="GameUtility\WorldCleaner.h" />
+    <ClInclude Include="ImGui\cimgui.h" />
     <ClInclude Include="ImGui\imconfig.h" />
     <ClInclude Include="ImGui\imgui.h" />
     <ClInclude Include="ImGui\imgui_impl_dx9.h" />

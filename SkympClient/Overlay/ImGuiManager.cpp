@@ -25,6 +25,21 @@ public:
 	}
 };
 
+extern "C" {
+	__declspec(dllexport) void skymp_render_hook()
+	{
+		uint64_t g = 100;
+		std::vector<int32_t> v;
+		std::map<size_t, int32_t> m;
+		for (int32_t i = (int32_t)g; i != 1000; ++i)
+		{
+			v.push_back(i);
+			m[i] = i;
+		}
+		v.resize(10000);
+	}
+}
+
 std::string current_directory()
 {
 	char pBuf[512];
@@ -252,6 +267,7 @@ void ImGuiManager::Render()
 	ImGui_ImplDX9_NewFrame();
 
 	{
+		skymp_render_hook();
 		std::lock_guard<dlf_mutex> l(renderHookMutex);
 		renderHook();
 	}

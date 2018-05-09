@@ -2,6 +2,12 @@
 
 auto clientLogic = new ClientLogic;
 
+extern "C" {
+	__declspec(dllexport) int skymp_frida() {
+		return 108;
+	}
+}
+
 ClientLogic::ClientLogic()
 {
 	this->InitItemTypesHandlers();
@@ -146,6 +152,8 @@ void ClientLogic::UpdateNetworking()
 
 void ClientLogic::OnStartup()
 {
+	new ci::Script(" ", {});
+
 	ci::SetVolume(-1);
 
 	for (int32_t i = 0; i != 1024; ++i)
