@@ -1,0 +1,24 @@
+{
+  "name": "skymp-client",
+  "version": "1.0.0",
+  "description": "Плагин для The Elder Scrolls V: Skyrim, позволяющий играть онлайн на серверах SkyMP.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "node pack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://pospelovlm@bitbucket.org/skymp_team/skymp-client.git"
+  },
+  "author": "Pospelov",
+  "license": "UNLICENSED",
+  "homepage": "https://bitbucket.org/skymp_team/skymp-client#readme",
+  "dependencies": {
+    "discord.js": "^11.3.2",
+    "fs-extra": "^6.0.1"
+  }
+}

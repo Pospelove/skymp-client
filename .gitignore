@@ -15,3 +15,4 @@ RakNet/Release
 *.tmp
 *.TMP
 requirements/skymp_config.ini
+node_modules
