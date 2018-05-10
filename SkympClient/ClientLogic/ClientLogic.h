@@ -21,7 +21,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-#define version "1.0.37"
+#define version "1.1"
 
 class ClientLogic : public ci::IClientLogic
 {
