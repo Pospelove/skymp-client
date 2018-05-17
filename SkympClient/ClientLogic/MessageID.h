@@ -139,6 +139,8 @@ static const std::vector<const char *> gPacketNames = {
 	// client <---> server
 	"ID_MESSAGE",
 	"ID_LEARN_EFFECT",
+	"ID_EVENT",
+	"ID_SCRIPT",
 
 	// client <---- server
 	"ID_WRONG_PASS",
@@ -191,7 +193,9 @@ static const std::vector<const char *> gPacketNames = {
 inline const char *GetPacketName(RakNet::MessageID id)
 {
 	try {
-		return gPacketNames.at(id - ID_USER_PACKET_ENUM);
+		auto res = gPacketNames.at(id - ID_USER_PACKET_ENUM);
+		ci::Log(std::to_string(id) + " " + res);
+		return res;
 	}
 	catch (...) {
 		return "";

@@ -4,6 +4,38 @@
 #include "../SKSEOriginal/Utilities.h"
 
 
+extern "C" {
+	__declspec(dllexport) uint8_t skymp_keyboard_hook(uint8_t code, const char *type)
+	{
+		__asm {
+			nop
+			nop
+			nop
+			nop
+			nop
+		}
+		return code;
+	}
+	__declspec(dllexport) uint8_t skymp_mouse_hook(uint8_t code, const char *type, int32_t x, int32_t y, int32_t z)
+	{
+		__asm {
+			nop
+			nop
+			nop
+			nop
+			nop
+		}
+		return code;
+	}
+
+	void __declspec(dllexport) setInputEnabled(bool enabled) {
+		TheIInputHook->SetInputEnabled(enabled);
+	}
+
+	bool __declspec(dllexport) isMenuOpen(const char *menuName) {
+		return MenuManager::GetSingleton()->IsMenuOpen(menuName);
+	}
+}
 
 #define IMPL_DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
 	EXTERN_C const GUID name \
@@ -13,6 +45,7 @@ IMPL_DEFINE_GUID(GUID_SysMouse, 0x6F1D2B60, 0xD5A0, 0x11CF, 0xBF, 0xC7, 0x44, 0x
 IMPL_DEFINE_GUID(GUID_SysKeyboard, 0x6F1D2B61, 0xD5A0, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
 
 IInputHook* TheIInputHook = nullptr;
+
 
 class InputHook : public IInputHook
 {
@@ -70,12 +103,12 @@ void InputHook::ProcessKeyboardData(uint8_t* apData)
 			if (keydown)
 			{
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnPress(idx);
+					(*it)->OnPress(skymp_keyboard_hook(idx, "press"));
 			}
 			else
 			{
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnRelease(idx);
+					(*it)->OnRelease(skymp_keyboard_hook(idx, "release"));
 			}
 		}
 	}
@@ -92,10 +125,14 @@ void InputHook::ProcessMouseData(DIMOUSESTATE2* apMouseState)
 	POINT pos;
 	GetCursorPos(&pos);
 	for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
+	{
 		(*it)->OnMouseMove(pos.x, pos.y, 0);
+		// minus perfomance
+		//skymp_mouse_hook(0, "move", pos.x, pos.y, 0);
+	}
 
 	for (auto i = 0; i < 4; ++i)
-	{
+	{ 
 		uint8_t state = apMouseState->rgbButtons[i];
 		if (state != m_mouseBuffer[i])
 		{
@@ -103,12 +140,12 @@ void InputHook::ProcessMouseData(DIMOUSESTATE2* apMouseState)
 			if (state & 0x80)
 			{
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnMousePress(i);
+					(*it)->OnMousePress(skymp_mouse_hook(i, "press", pos.x, pos.y, 0));
 			}
 			else
 			{
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnMouseRelease(i);
+					(*it)->OnMouseRelease(skymp_mouse_hook(i, "release", pos.x, pos.y, 0));
 			}
 		}
 	}
@@ -175,6 +212,7 @@ public:
 
 			return ret;
 		}
+		return DI_OK;
 
 	}
 

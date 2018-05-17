@@ -3,8 +3,21 @@
 auto clientLogic = new ClientLogic;
 
 extern "C" {
-	__declspec(dllexport) int skymp_frida() {
-		return 108;
+	__declspec(dllexport) void sendEvent(const char *name, const char *data)
+	{
+		clientLogic->SendEvent(name, data);
+	}
+}
+
+extern "C" {
+	__declspec(dllexport) void skymp_packet_hook(const char *packetName, void *data, int32_t len) {
+		__asm {
+			nop
+			nop
+			nop
+			nop
+			nop
+		};
 	}
 }
 
@@ -56,6 +69,8 @@ void ClientLogic::ProcessPacket(RakNet::Packet *packet)
 	const auto messageID = (packet->data[0]);
 	try {
 		//ci::Chat::AddMessage(StringToWstring(GetPacketName(messageID)), false);
+		if (GetPacketName(messageID) != std::string()) 
+			skymp_packet_hook(GetPacketName(messageID), packet->data + 1, packet->length);
 		this->packetHandlers.at(messageID)(bsIn, packet);
 	}
 	catch (...) {
@@ -174,20 +189,23 @@ void ClientLogic::OnStartup()
 
 	ci::Chat::Init(
 		atoi(g_config[CONFIG_CHAT_OFFSET_X].data()),
-		atoi(g_config[CONFIG_CHAT_OFFSET_Y].data())
+		atoi(g_config[CONFIG_CHAT_OFFSET_Y].data()),
+		TRUE
 	);
-	ci::Chat::AddMessage(L"#eeeeeeSkyMP " + StringToWstring(version) + L" Client Started");
+	ci::Chat::AddMessage(L"SkyMP " + StringToWstring(version) + L" Client Started");
 	ci::LocalPlayer::GetSingleton()->SetName(L"Player");
 
 	ci::SetUpdateRate(1);
 
 	if (cfgNumLines == 0)
 	{
-		ci::Chat::AddMessage(L"#eeeeee" + StringToWstring(cfgFile) + L" not found");
+		ci::Chat::AddMessage(StringToWstring(cfgFile) + L" not found");
 		return;
 	}
 
-	if (IsRussianTranslate())
+	if (g_config[CONFIG_TRANSLATE] == "RU"
+		|| g_config[CONFIG_TRANSLATE] == "Ru"
+		|| g_config[CONFIG_TRANSLATE] == "ru")
 		ci::Chat::SetRussianUser();
 
 	const auto drawDistance = g_config[CONFIG_DRAW_DISTANCE];
@@ -222,10 +240,8 @@ void ClientLogic::OnStartup()
 	}
 	else
 	{
-		if (IsRussianTranslate())
-			ci::Chat::AddMessage(L"Нажмите T и введите Ваш никнейм");
-		else
-			ci::Chat::AddMessage(L"Press T and type your name");
+		ci::Log("FATAL:ClientLogic no name");
+		std::exit(0);
 	}
 
 	TriggerEvent("startup");

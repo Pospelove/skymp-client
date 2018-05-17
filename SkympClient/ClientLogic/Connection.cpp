@@ -68,56 +68,23 @@ void ClientLogic::InitConnectionHandlers()
 	});
 
 	this->SetPacketHandler(ID_INVALID_PASSWORD, [this](RakNet::BitStream &bsIn) {
-		if (IsRussianTranslate())
-		{
-			ci::Chat::AddMessage(L"Ваш клиент устарел.");
-			ci::Chat::AddMessage(L"Пожалуйста, установите новую версию клиента.");
-			ci::Chat::AddMessage(L"Используйте /q, чтобы выйти.");
-		}
-		else
-		{
-			ci::Chat::AddMessage(L"Incompatible client version");
-			ci::Chat::AddMessage(L"/q to exit");
-		}
+		ci::Log(L"FATAL:ClientLogic bad version");
+		std::exit(0);
 	});
 
 	this->SetPacketHandler(ID_WRONG_PASS, [this](RakNet::BitStream &bsIn) {
-		if (IsRussianTranslate())
-		{
-			ci::Chat::AddMessage(L"Неправильный пароль (" + StringToWstring(net.password) + L")");
-		}
-		else
-		{
-			ci::Chat::AddMessage(L"Wrong password (" + StringToWstring(net.password) + L")");
-		}
 	});
 
 	this->SetPacketHandler(ID_NAME_INVALID, [this](RakNet::BitStream &bsIn) {
-		if (IsRussianTranslate())
-		{
-			ci::Chat::AddMessage(L"Имя может содержать только символы A-Z, a-z, 0-9 и некоторые спец. символы");
-		}
-		else
-		{
-			ci::Chat::AddMessage(L"Name can only contain A-Z, a-z, 0-9");
-		}
 	});
 
 	this->SetPacketHandler(ID_NAME_ALREADY_USED, [this](RakNet::BitStream &bsIn) {
-		if (IsRussianTranslate())
-		{
-			ci::Chat::AddMessage(L"Игрок " + net.nickname + L" уже есть на сервере.");
-		}
-		else
-		{
-			ci::Chat::AddMessage(L"Player " + net.nickname + L" is already connected to the server");
-		}
 	});
 
 	this->SetPacketHandler(ID_WELCOME, [this](RakNet::BitStream &bsIn) {
 		//ci::Chat::AddMessage(L"Successful handshake.");
 		Sleep(1);
-		ci::Chat::AddMessage(L"Connected.");
+		//ci::Chat::AddMessage(L"Connected.");
 		bsIn.Read((uint16_t &)net.myID);
 		players[net.myID] = ci::LocalPlayer::GetSingleton();
 		net.fullyConnected = true;
@@ -135,7 +102,7 @@ void ClientLogic::InitConnectionHandlers()
 					bsIn.Read(ch);
 					pluginBinray.push_back(ch);
 				}
-				ci::Chat::AddMessage(L"Loading a plugin (" + std::to_wstring(pluginBinray.size()) + L" bytes)");
+				//ci::Chat::AddMessage(L"Loading a plugin (" + std::to_wstring(pluginBinray.size()) + L" bytes)");
 				ci::HotLoadPlugin(pluginBinray);
 			}
 		}

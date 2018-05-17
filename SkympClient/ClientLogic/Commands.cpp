@@ -1,5 +1,20 @@
 #include "ClientLogic.h"
 
+extern "C" {
+	__declspec(dllexport) void skymp_event_hook(const char *data)
+	{
+		__asm
+		{
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+		};
+	}
+}
+
 void ClientLogic::InitCommandsHandlers()
 {
 	this->SetPacketHandler(ID_COMMAND, [this](RakNet::BitStream &bsIn) {
@@ -14,10 +29,13 @@ void ClientLogic::InitCommandsHandlers()
 
 		enum {
 			CommandTypeSkymp = 2,
+			CommandTypeJSON = 3,
 		};
 
 		if ((int32_t)t == CommandTypeSkymp)
 			this->ExecuteCommand(str);
+		else if (int32_t(t) == CommandTypeJSON)
+			skymp_event_hook(str.data());
 		else
 			ci::ExecuteCommand(t, str);
 	});

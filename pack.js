@@ -5,14 +5,15 @@ var path = require('path');
 const CLIENT_LOGIC_H = path.join(__dirname, 'SkympClient/ClientLogic/ClientLogic.h');
 let clh = fs.readFileSync(CLIENT_LOGIC_H, 'utf-8');
 let ver = '';
-try {
-    ver = eval(clh.split('#define version ').pop().split('class ClientLogic : public ci::IClientLogic')[0]);
-} catch(e) {
-    console.log('unable to detect version');
-    return;
-}
+let strings = clh.split(/\r?\n/);
+strings.forEach(el => {
+    let tokens = el.split(' ');
+    if (tokens[0] == '#define' && tokens[1] == 'version' && tokens[2] != undefined) {
+        ver = tokens[2].split('"')[1];
+    }
+});
 
-if (ver.length == 0 || ver.length >= 5) {
+if (ver.length == 0 || ver.length >= 10) {
     console.log('unable to detect version');
     return;
 }

@@ -144,14 +144,14 @@ void Chat::SetTyping(bool aForceHide)
 
 	if (aForceHide == false /*&& MyGUI::InputManager::getInstance().isFocusKey() == false*/)
 	{
-		TheGUI->SetCursor(true);
+		///TheGUI->SetCursor(true);
 		MyGUI::InputManager::getInstance().setKeyFocusWidget(m_pEdit);
 		m_pEdit->setAlpha(0.81);
 		m_pEdit->setColour(cBlack);
 	}
 	else
 	{
-		TheGUI->SetCursor(false);
+		///TheGUI->SetCursor(false);
 		MyGUI::InputManager::getInstance().resetKeyFocusWidget();
 		m_pEdit->setOnlyText("");
 		m_pEdit->setAlpha(0.00);

@@ -1,6 +1,39 @@
 #include "../stdafx.h"
 #include "PlayerControls.h"
 
+extern "C" {
+	__declspec(dllexport) bool setControlEnabled(const char *name, bool enabled)
+	{
+		static std::map<std::string, Control> m;
+		if (m.empty())
+		{
+			m["Movement"] = Control::Movement;
+			m["Fighting"] = Control::Fighting;
+			m["CamSwitch"] = Control::CamSwitch;
+			m["Looking"] = Control::Looking;
+			m["Sneaking"] = Control::Sneaking;
+			m["Menu"] = Control::Menu;
+			m["Activate"] = Control::Activate;
+			m["JournalTabs"] = Control::JournalTabs;
+			m["SaveGame"] = Control::SaveGame;
+			m["Wait"] = Control::Wait;
+			m["FastTravel"] = Control::FastTravel;
+			m["Console"] = Control::Console;
+			m["BeastForm"] = Control::BeastForm;
+		}
+		try {
+			auto c = m[name];
+			SET_TIMER_LIGHT(0, [=] {
+				PlayerControls_::SetEnabled(c, enabled);
+			});
+			return true;
+		}
+		catch (...) {
+			return false;
+		}
+	};
+}
+
 namespace PlayerControls_
 {
 	enum {

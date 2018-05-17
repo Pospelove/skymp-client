@@ -238,7 +238,7 @@ void ImGuiManager::Render()
 	// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.turn;
 
 	ImGuiIO& io = ImGui::GetIO();
-	io.MouseDrawCursor = true;
+	io.MouseDrawCursor = false;
 
 	{
 		io.MouseDown[0] = sd::GetKeyPressed(VK_LBUTTON);
@@ -267,7 +267,10 @@ void ImGuiManager::Render()
 	ImGui_ImplDX9_NewFrame();
 
 	{
+		clock_t was = clock();
 		skymp_render_hook();
+		if(clock() - was > 10)
+			ci::Log("TIME" + std::to_string(clock() - was));
 		std::lock_guard<dlf_mutex> l(renderHookMutex);
 		renderHook();
 	}

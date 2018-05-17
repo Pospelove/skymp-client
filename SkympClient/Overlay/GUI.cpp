@@ -437,3 +437,11 @@ int32_t GUI::ScanCodeToText(int32_t v)
 {
 	return input::ScanCodeToText(v);
 }
+
+extern "C" {
+	__declspec (dllexport) void gui_show_cursor(bool show) 
+	{
+		if (TheGUI)
+			TheGUI->SetCursor(show);
+	}
+}

@@ -163,3 +163,10 @@ BOOL APIENTRY ScriptDragon_DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpRe
 	}
 	return TRUE;
 }
+
+extern "C" {
+	__declspec(dllexport) bool GetKeyPressed(char key)
+	{
+		return sd::GetKeyPressed(key);
+	}
+}

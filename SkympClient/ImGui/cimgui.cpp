@@ -1010,9 +1010,17 @@ CIMGUI_API bool igDragIntRange2(CONST char *label, int *v_current_min, int *v_cu
 	return ImGui::DragIntRange2(label, v_current_min, v_current_max, v_speed, v_min, v_max, display_format, display_format_max);
 }
 
+int dummy_callback(ImGuiTextEditCallbackData *data)
+{
+	return 0;
+}
+
+
 // Widgets: Input
 CIMGUI_API bool igInputText(CONST char *label, char *buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiTextEditCallback callback, void *user_data)
 {
+	if (!callback) 
+		callback = dummy_callback;
 	return ImGui::InputText(label, buf, buf_size, flags, callback, user_data);
 }
 

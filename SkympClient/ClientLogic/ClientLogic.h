@@ -21,7 +21,7 @@
 #define MAX_PASSWORD							(32u)
 #define ADD_PLAYER_ID_TO_NICKNAME_LABEL			FALSE
 
-#define version "1.1"
+#define version "1.1.1"
 
 class ClientLogic : public ci::IClientLogic
 {
@@ -164,7 +164,6 @@ public:
 
 	std::vector<std::shared_ptr<ci::Script>> scripts;
 
-	bool IsRussianTranslate();
 	bool IsHorseBase(uint32_t baseNpc);
 
 	uint16_t GetID(const ci::IActor *player);

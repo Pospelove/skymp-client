@@ -1,12 +1,5 @@
 #include "ClientLogic.h"
 
-bool ClientLogic::IsRussianTranslate()
-{
-	return g_config[CONFIG_TRANSLATE] == "RU"
-		|| g_config[CONFIG_TRANSLATE] == "Ru"
-		|| g_config[CONFIG_TRANSLATE] == "ru";
-}
-
 bool ClientLogic::IsHorseBase(uint32_t baseNpc)
 {
 	static const std::set<uint32_t> horseIds = {
@@ -102,13 +95,13 @@ void ClientLogic::SendEvent(const std::string &eventName, const std::string &eve
 		RakNet::BitStream bsOut;
 		bsOut.Write(ID_EVENT);
 
-		const std::string str = "{ \"eventName\":\"" + eventName + "\", \"eventDataStr\":\"" + eventData + "\" }";
+		const std::string str = "{ \"eventName\":\"" + eventName + "\", \"eventDataStr\":" + eventData + " }";
 
 		for (auto ch : str)
 			bsOut.Write(ch);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
 
-		ci::Chat::AddMessage((StringToWstring(str.data())));
+		ci::Log((StringToWstring(str.data())));
 	}
 	catch (const std::exception &e) {
 		ci::Log("ERROR:ClientLogic SendEvent(%s, %s) %s", eventName.data(), eventData.data(), e.what());

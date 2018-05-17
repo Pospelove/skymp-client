@@ -12,7 +12,7 @@ namespace ci
 
 	namespace Chat
 	{
-		void Init(int32_t offsetX, int32_t offsetY);
+		void Init(int32_t offsetX, int32_t offsetY, bool guiOnly);
 		void SetRussianUser();
 
 		// pass " " to clear the chat

@@ -10,7 +10,7 @@ void ci::ImGui::Init()
 	static auto *manager = new ImGuiManager;
 }
 
-void ci::Chat::Init(int32_t ox, int32_t oy)
+void ci::Chat::Init(int32_t ox, int32_t oy, bool guiOnly)
 {
 	if (!TheGUI)
 	{
@@ -20,7 +20,7 @@ void ci::Chat::Init(int32_t ox, int32_t oy)
 		auto &onReset = g_pIDirect3DDevice9->OnReset;
 		onReset.Add(std::bind(&GUI::OnLostDevice, TheGUI, std::placeholders::_1));
 	}
-	if (!TheChat)
+	if (!TheChat && !guiOnly)
 		TheChat = new ::Chat(ox, oy);
 }
 
