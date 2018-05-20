@@ -33,51 +33,9 @@ namespace LookData_
 
 	void Apply(const ci::LookData &lookData, Actor *actor);
 
-	void QueueNiNodeUpdate(Actor *actor, int32_t numCalls = 0)
+	void QueueNiNodeUpdate(Actor *actor)
 	{
-		enum {
-			Simple,
-			VeryFatAndDeprecated
-		};
-
-		const int32_t mode = Simple;
-
-		switch (mode)
-		{
-		case Simple:
-			cd::QueueNiNodeUpdate(actor, {});
-			return;
-		case VeryFatAndDeprecated:
-			if (!actor)
-				return;
-			auto npc = (TESNPC *)actor->baseForm;
-			if (actor != g_thePlayer)
-			{
-				return cd::QueueNiNodeUpdate(actor);
-			}
-
-			if (npc->numHeadParts == 0)
-			{
-				if (numCalls < 3)
-				{
-					SET_TIMER(50, [=] {
-						QueueNiNodeUpdate(g_thePlayer, numCalls + 1);
-					});
-				}
-				else
-				{
-					isReapply = true;
-					Apply(lookToReapply, g_thePlayer);
-				}
-			}
-			else
-			{
-				const cd::Value<Actor> cdActor = actor;
-				cd::QueueNiNodeUpdate(cdActor, [cdActor] {
-				});
-			}
-			return;
-		}
+		actor->QueueNiNodeUpdate(1);
 	}
 
 #define PREFIX "actors\\character\\character assets\\tintmasks\\"

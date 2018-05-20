@@ -136,7 +136,7 @@ void ClientLogic::InitPlayersHandlers()
 		{
 			baseNPCs[id] = baseNpc;
 			newPl->SetBaseNPC(baseNpc);
-			if (IsHorseBase(baseNpc)) // лошадиный позор
+			if (IsHorseBase(baseNpc)) // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 			{
 				auto p = new ci::RemotePlayer(
 					newPl->GetName() + L" ",
@@ -236,7 +236,7 @@ void ClientLogic::InitPlayersHandlers()
 
 			switch (objectsInfo[furnitureID].type)
 			{
-				// Что происходит ниже? Я ни*** не понимаю..
+				// пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ? пїЅ пїЅпїЅ*** пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ..
 			case Type::Furniture:
 			{
 				if (pl == localPlayer)

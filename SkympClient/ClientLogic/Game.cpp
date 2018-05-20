@@ -70,7 +70,7 @@ void ClientLogic::InitGameHandlers()
 				&& in.pos.x != -std::numeric_limits<float>::infinity() && in.pos.y != -std::numeric_limits<float>::infinity() && in.pos.z != -std::numeric_limits<float>::infinity())
 			{
 				auto distance = (localPlayer->GetPos() - in.pos).Length();
-				if (distance > 32.0)
+				if (distance > 32.0 || localPlayer->GetPos().Length() <= 32.0)
 					localPlayer->SetPos(in.pos);
 			}
 
