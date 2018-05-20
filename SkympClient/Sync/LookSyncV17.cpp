@@ -36,6 +36,7 @@ namespace LookData_
 	void QueueNiNodeUpdate(Actor *actor)
 	{
 		actor->QueueNiNodeUpdate(1);
+		sd::Resurrect(actor);
 	}
 
 #define PREFIX "actors\\character\\character assets\\tintmasks\\"

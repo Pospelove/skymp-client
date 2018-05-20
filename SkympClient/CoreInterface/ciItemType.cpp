@@ -220,17 +220,17 @@ bool ItemType::IsCustomPotion() const {
 void ItemType::SetWeight(float w)
 {
 	auto item = pimpl->item;
-	SET_TIMER_LIGHT(0, [=] {
-		cd::SetWeight(item, w);
-	});
+	auto f = DYNAMIC_CAST<TESWeightForm *, TESForm *>(item);
+	if (f)
+		f->weight = w;
 }
 
 void ItemType::SetGoldValue(uint32_t v)
 {
 	auto item = pimpl->item;
-	SET_TIMER_LIGHT(0, [=] {
-		cd::SetGoldValue(item, v);
-	});
+	auto f = DYNAMIC_CAST<TESValueForm *, TESForm *>(item);
+	if (f)
+		f->value = v;
 }
 
 void ItemType::SetArmorRating(float v)
