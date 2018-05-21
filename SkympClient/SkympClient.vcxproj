@@ -234,6 +234,7 @@
     <ClCompile Include="Overlay\3DText.cpp" />
     <ClCompile Include="Overlay\Loadscreen.cpp" />
     <ClCompile Include="Overlay\ImGuiManager.cpp" />
+    <ClCompile Include="ScriptDragon\api.cpp" />
     <ClCompile Include="ScriptDragon\plugin.cpp" />
     <ClCompile Include="SKSEOriginal\Utilities.cpp" />
     <ClCompile Include="stdafx.cpp" />

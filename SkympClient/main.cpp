@@ -24,6 +24,21 @@
 #include <Tlhelp32.h>
 #include <shlobj.h>
 
+extern "C" {
+	__declspec(dllexport) void skymp_update_hook()
+	{
+		__asm {
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+		};
+	}
+}
+
 void killProcessByName(const char *filename)
 {
 	HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPALL, NULL);
@@ -149,6 +164,8 @@ public:
 
 				//while (sd::GetKeyPressed(VK_F9))
 				//	sd::QuitToMainMenu();
+
+				skymp_update_hook();
 
 				sd::Wait(0);
 

@@ -4,6 +4,8 @@
 #include "../SKSEOriginal/Utilities.h"
 
 
+void RunBeforeRender(std::function<void()> f); // only to call hooks
+
 extern "C" {
 	__declspec(dllexport) uint8_t skymp_keyboard_hook(uint8_t code, const char *type)
 	{
@@ -102,13 +104,23 @@ void InputHook::ProcessKeyboardData(uint8_t* apData)
 
 			if (keydown)
 			{
+				RunBeforeRender([=] {
+					skymp_keyboard_hook(idx, "press");
+				});
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnPress(skymp_keyboard_hook(idx, "press"));
+				{
+					(*it)->OnPress(idx);
+				}
 			}
 			else
 			{
+				RunBeforeRender([=] {
+					skymp_keyboard_hook(idx, "release");
+				});
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnRelease(skymp_keyboard_hook(idx, "release"));
+				{
+					(*it)->OnRelease(idx);
+				}
 			}
 		}
 	}
@@ -139,13 +151,21 @@ void InputHook::ProcessMouseData(DIMOUSESTATE2* apMouseState)
 			m_mouseBuffer[i] = state;
 			if (state & 0x80)
 			{
+				RunBeforeRender([=] {
+					skymp_mouse_hook(i, "press", pos.x, pos.y, 0);
+				});
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnMousePress(skymp_mouse_hook(i, "press", pos.x, pos.y, 0));
+				{
+					(*it)->OnMousePress(i);
+				}
 			}
 			else
 			{
+				RunBeforeRender([=] {
+					skymp_mouse_hook(i, "release", pos.x, pos.y, 0);
+				});
 				for (auto it = mListeners.begin(); it != mListeners.end(); ++it)
-					(*it)->OnMouseRelease(skymp_mouse_hook(i, "release", pos.x, pos.y, 0));
+					(*it)->OnMouseRelease(i);
 			}
 		}
 	}

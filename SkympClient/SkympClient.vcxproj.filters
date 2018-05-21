@@ -388,6 +388,9 @@
     <ClCompile Include="ImGui\cimgui.cpp">
       <Filter>core\ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="ScriptDragon\api.cpp">
+      <Filter>core\ScriptDragon</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">

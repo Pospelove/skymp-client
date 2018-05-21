@@ -69,8 +69,16 @@ void ClientLogic::ProcessPacket(RakNet::Packet *packet)
 	const auto messageID = (packet->data[0]);
 	try {
 		//ci::Chat::AddMessage(StringToWstring(GetPacketName(messageID)), false);
-		if (GetPacketName(messageID) != std::string()) 
-			skymp_packet_hook(GetPacketName(messageID), packet->data + 1, packet->length);
+		if (GetPacketName(messageID) != std::string(""))
+		{
+			auto length = packet->length;
+			auto data = new char[length];
+			memcpy(data, packet->data + 1, length);
+			RunBeforeRender([messageID, data, length] {
+				skymp_packet_hook(GetPacketName(messageID), data + 1, length);
+				delete[] data;
+			});
+		}
 		this->packetHandlers.at(messageID)(bsIn, packet);
 	}
 	catch (...) {
@@ -482,8 +490,10 @@ void ClientLogic::UpdateCombat()
 
 void ClientLogic::UpdateActorValues()
 {
-	if (allowUpdateAVs == false)
-		return;
+	//if (allowUpdateAVs == false)
+	//	return;
+	// TODO: find out if we need this check to be here
+
 	static clock_t lastUpd = 0;
 	if (lastUpd + 550 < clock())
 	{
@@ -508,6 +518,7 @@ void ClientLogic::UpdateActorValues()
 				bsOut.Write(p);
 				currentAVsOnServer[avID] = p;
 				net.peer->Send(&bsOut, MEDIUM_PRIORITY, unreliable, NULL, net.remote, false);
+				ci::Log("ID_AV_CHANGED out");
 			}
 		}
 	}

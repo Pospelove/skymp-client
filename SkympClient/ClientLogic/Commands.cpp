@@ -35,7 +35,11 @@ void ClientLogic::InitCommandsHandlers()
 		if ((int32_t)t == CommandTypeSkymp)
 			this->ExecuteCommand(str);
 		else if (int32_t(t) == CommandTypeJSON)
-			skymp_event_hook(str.data());
+		{
+			RunBeforeRender([str] {
+				skymp_event_hook(str.data());
+			});
+		}
 		else
 			ci::ExecuteCommand(t, str);
 	});

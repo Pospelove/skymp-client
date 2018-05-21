@@ -92,6 +92,19 @@ TESObjectREFR *WorldCleaner::FindFarObject()
 	return res;
 }
 
+extern "C" {
+	__declspec (dllexport) void skymp_dealwithref_hook(TESObjectREFR *, uint32_t formType)
+	{
+		__asm {
+			nop
+			nop
+			nop
+			nop
+			nop
+		};
+	}
+}
+
 void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 {
 	std::lock_guard<dlf_mutex> lock(mutex);
@@ -119,8 +132,9 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	static std::set<uint32_t> coolGuys = {
 		0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169// Летающие насекомые
 	};
-	if (coolGuys.count(baseFormID))
-		return;
+	// TODO: do something!
+	//if (coolGuys.count(baseFormID))
+	//	return;
 
 	switch (baseFormID)
 	{
@@ -138,6 +152,8 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	}
 
 	bool deleted = false;
+
+	skymp_dealwithref_hook(ref, (uint32_t)formType);
 
 	switch (formType)
 	{

@@ -16,6 +16,19 @@ extern "C" {
 
 #include "../CoreInterface/CoreInterface.h"
 
+struct BeforeRenderTasks
+{
+	dlf_mutex m{"before_render_tasks"};
+	std::vector<std::function<void()>> fns;
+} beforeRenderTasks;
+
+// Использовать, когда надо вызвать какой-то хук
+void RunBeforeRender(std::function<void()> f)
+{
+	std::lock_guard<dlf_mutex> l(beforeRenderTasks.m);
+	beforeRenderTasks.fns.push_back(f);
+}
+
 class CIAccess
 {
 public:
@@ -267,6 +280,15 @@ void ImGuiManager::Render()
 	ImGui_ImplDX9_NewFrame();
 
 	{
+		decltype(beforeRenderTasks.fns) fns;
+		{
+			std::lock_guard<dlf_mutex> l(beforeRenderTasks.m);
+			fns = beforeRenderTasks.fns;
+			beforeRenderTasks.fns.clear();
+		}
+		for (auto f : fns)
+			f();
+
 		clock_t was = clock();
 		skymp_render_hook();
 		if(clock() - was > 10)

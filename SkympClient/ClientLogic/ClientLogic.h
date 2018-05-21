@@ -23,6 +23,8 @@
 
 #define version "1.1.1"
 
+void RunBeforeRender(std::function<void()> f); // only to call hooks
+
 class ClientLogic : public ci::IClientLogic
 {
 public:
