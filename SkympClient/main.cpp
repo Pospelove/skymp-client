@@ -141,16 +141,18 @@ public:
 		PlayerControls_::SetEnabled(Control::FastTravel, false);
 		PlayerControls_::SetEnabled(Control::Console, false);
 
-		sd::ExecuteConsoleCommand("player.aps Costile _PlaceAtMe_", 0);
-		sd::ExecuteConsoleCommand("player.aps Costile _SetPosition_", 0);
-		sd::ExecuteConsoleCommand("player.aps Costile _SendAnimationEvent_", 0);
-		sd::ExecuteConsoleCommand("player.aps Costile _ShowList_", 0);
-		for (SInt32 i = 0; i != 10; ++i)
-			sd::ExecuteConsoleCommand("player.aps Costile _KeepOffsetFromActor_", 0);
-		for (SInt32 i = 0; i != 10; ++i)
-			sd::ExecuteConsoleCommand("player.aps Costile _TranslateTo_", 0);
+		SET_TIMER(4800, [] {
+			sd::ExecuteConsoleCommand("player.aps Costile _PlaceAtMe_", 0);
+			sd::ExecuteConsoleCommand("player.aps Costile _SetPosition_", 0);
+			sd::ExecuteConsoleCommand("player.aps Costile _SendAnimationEvent_", 0);
+			sd::ExecuteConsoleCommand("player.aps Costile _ShowList_", 0);
+			for (SInt32 i = 0; i != 10; ++i)
+				sd::ExecuteConsoleCommand("player.aps Costile _KeepOffsetFromActor_", 0);
+			for (SInt32 i = 0; i != 10; ++i)
+				sd::ExecuteConsoleCommand("player.aps Costile _TranslateTo_", 0);
+		});
 
-		SET_TIMER(0, [this] {
+		SET_TIMER(5000, [this] {
 			sd::ExecuteConsoleCommand("player.aps Costile PostLoad", 0);
 			sd::FadeOutGame(0, 1, 0.3, 0.5);
 			dummyLs.reset(nullptr);
