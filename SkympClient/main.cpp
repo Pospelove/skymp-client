@@ -141,8 +141,10 @@ public:
 		PlayerControls_::SetEnabled(Control::FastTravel, false);
 		PlayerControls_::SetEnabled(Control::Console, false);
 
+
+		// TODO: всё равно не работают скрипты после создания перса
 		SET_TIMER(4800, [] {
-			sd::ExecuteConsoleCommand("player.aps Costile _PlaceAtMe_", 0);
+			sd::ExecuteConsoleCommand("player.aps Costile _PlaceAtMe_", 0); 
 			sd::ExecuteConsoleCommand("player.aps Costile _SetPosition_", 0);
 			sd::ExecuteConsoleCommand("player.aps Costile _SendAnimationEvent_", 0);
 			sd::ExecuteConsoleCommand("player.aps Costile _ShowList_", 0);
@@ -154,6 +156,8 @@ public:
 
 		SET_TIMER(5000, [this] {
 			sd::ExecuteConsoleCommand("player.aps Costile PostLoad", 0);
+		});
+		SET_TIMER(0, [this] {
 			sd::FadeOutGame(0, 1, 0.3, 0.5);
 			dummyLs.reset(nullptr);
 			needDummy = false;
