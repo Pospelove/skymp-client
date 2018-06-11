@@ -101,7 +101,7 @@ void ClientLogic::SendEvent(const std::string &eventName, const std::string &eve
 			bsOut.Write(ch);
 		net.peer->Send(&bsOut, LOW_PRIORITY, RELIABLE, NULL, net.remote, false);
 
-		ci::Log((StringToWstring(str.data())));
+		//ci::Log((StringToWstring(str.data())));
 	}
 	catch (const std::exception &e) {
 		ci::Log("ERROR:ClientLogic SendEvent(%s, %s) %s", eventName.data(), eventData.data(), e.what());

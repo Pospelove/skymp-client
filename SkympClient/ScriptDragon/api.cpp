@@ -6,6 +6,8 @@ http://Alexander.SannyBuilder.com
 
 #pragma once
 
+#include "../stdafx.h"
+
 #include "types.h"
 #include "invoke.h"
 #include "plugin.h"
@@ -111,7 +113,8 @@ extern "C" {
 		}
 
 		__declspec(dllexport) TESForm * GetFormById(uint aiFormID) {
-			return NativeInvoke::Invoke<TESForm *>("Game", "GetForm", BSScript_StaticFunctionTag, aiFormID);
+			//return NativeInvoke::Invoke<TESForm *>("Game", "GetForm", BSScript_StaticFunctionTag, aiFormID);
+			return LookupFormByID(aiFormID);
 		}
 
 		__declspec(dllexport) float GetGameSettingFloat(char * asGameSetting) {
@@ -136,7 +139,8 @@ extern "C" {
 		}
 
 		__declspec(dllexport) CActor * GetPlayer() {
-			return NativeInvoke::Invoke<CActor *>("Game", "GetPlayer", BSScript_StaticFunctionTag);
+			//return NativeInvoke::Invoke<CActor *>("Game", "GetPlayer", BSScript_StaticFunctionTag);
+			return g_thePlayer;
 		}
 
 		__declspec(dllexport) TESObjectREFR * GetPlayerGrabbedRef() {
@@ -1092,6 +1096,39 @@ extern "C" {
 
 		__declspec(dllexport) uint GetItemCount(TESObjectREFR * self, TESForm * akItem) {
 			return NativeInvoke::Invoke<uint>("ObjectReference", "GetItemCount", self, akItem);
+		}
+
+		__declspec(dllexport) TESForm* GetNthItem(TESObjectREFR* pContainerRef, UInt32 n)
+		{
+			try {
+				if (!pContainerRef)
+					return NULL;
+
+				TESContainer* pContainer = NULL;
+				TESForm* pBaseForm = pContainerRef->baseForm;
+				if (pBaseForm) {
+					pContainer = pContainerRef->GetContainer();
+				}
+				if (!pContainer)
+					return NULL;
+
+				UInt32 count = 0;
+
+				ExtraContainerChanges* pXContainerChanges = static_cast<ExtraContainerChanges*>(pContainerRef->extraData.GetByType(ExtraDataType::ContainerChanges));
+				auto entryList = (pXContainerChanges ? pXContainerChanges->changes->entryList : NULL);
+
+				if (!entryList) return nullptr;
+
+				if (entryList->size() <= n) return nullptr;
+
+				auto it = entryList->begin();
+				for (size_t i = 0; i < n; ++i) ++it;
+
+				return (*it)->baseForm;
+			}
+			catch (...) { // access violation ? 
+				return NULL;
+			}
 		}
 
 		__declspec(dllexport) float GetItemHealthPercent(TESObjectREFR * self) {

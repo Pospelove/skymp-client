@@ -2031,7 +2031,7 @@ void ci::LocalPlayer::Update()
 				sd::SetActorValue(g_thePlayer, "MagickaRate", 0);
 				sd::SetActorValue(g_thePlayer, "StaminaRate", 0);
 				cd::SetGameSettingFloat("fSprintStaminaDrainMult", 0.0f);
-				cd::SetGameSettingFloat("fDifficultyDamageMultiplier", 0.0f);
+				//cd::SetGameSettingFloat("fDifficultyDamageMultiplier", 0.0f); // MIROSLAV DEMO
 				cd::SetGameSettingFloat("fVATSSkillFactor", 0.0f);
 				cd::SetGameSettingFloat("fVATSChanceHitMult", 0.0f);
 				cd::SetGameSettingFloat("fVATSMaxChance", 0.0f);

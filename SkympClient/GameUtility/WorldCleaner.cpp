@@ -93,7 +93,7 @@ TESObjectREFR *WorldCleaner::FindFarObject()
 }
 
 extern "C" {
-	__declspec (dllexport) void skymp_dealwithref_hook(TESObjectREFR *, uint32_t formType)
+	__declspec (dllexport) void skymp_dealwithref_hook(const char *formIDStrDecimal, uint32_t formType)
 	{
 		__asm {
 			nop
@@ -110,6 +110,11 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 	std::lock_guard<dlf_mutex> lock(mutex);
 	if (ref == nullptr)
 		return;
+
+	if (ref->formType == FormType::Character)
+	{
+		if(!sd::IsUnique(((TESNPC *)ref->baseForm))) return; //mirdemo
+	}
 
 	auto refID = ref->formID;
 	auto baseForm = ref->baseForm;
@@ -133,8 +138,8 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 		0xd95c5, 0xd95c7, 0xc2d3f,  0xddf4c, 0x22219, 0x2221e, 0xb97af,  0xa9169// Летающие насекомые
 	};
 	// TODO: do something!
-	//if (coolGuys.count(baseFormID))
-	//	return;
+	if (coolGuys.count(baseFormID))
+		return;
 
 	switch (baseFormID)
 	{
@@ -153,7 +158,21 @@ void WorldCleaner::DealWithReference(TESObjectREFR *ref)
 
 	bool deleted = false;
 
-	skymp_dealwithref_hook(ref, (uint32_t)formType);
+	if (ref->formID < 0xFF000000 
+		&& formType != FormType::Static && formType != FormType::MovableStatic)
+	{
+		static std::set<uint32_t> seen;
+
+		if (seen.count(ref->formID) == 0)
+		{
+			static std::string str;
+			str = std::to_string(ref->formID);
+
+			seen.insert(ref->formID);
+			const auto time = clock();
+			skymp_dealwithref_hook(str.data(), (uint32_t)formType);
+		}
+	}
 
 	switch (formType)
 	{
@@ -310,6 +329,7 @@ void WorldCleaner::Update()
 
 			const UInt32 formID = currentCell->formID;
 			const auto deepth = CELL_SEARCH_DEEPTH;
+			ci::Log(std::to_string(clock()));
 			for (UInt32 tmpFormID = (formID > deepth) ? formID - deepth : 0; tmpFormID != formID + deepth; ++tmpFormID)
 			{
 				TESObjectCELL *tmpCell = (TESObjectCELL *)LookupFormByID(tmpFormID);

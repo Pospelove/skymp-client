@@ -193,6 +193,7 @@ void ClientLogic::InitObjectsHandlers()
 	});
 
 	this->SetPacketHandler(ID_OBJECT_BEHAVIOR, [this](RakNet::BitStream &bsIn) {
+
 		uint32_t id = 0;
 		Type type;
 		bool isOpen;

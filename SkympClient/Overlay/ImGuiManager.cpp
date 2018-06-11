@@ -41,15 +41,19 @@ public:
 extern "C" {
 	__declspec(dllexport) void skymp_render_hook()
 	{
-		uint64_t g = 100;
-		std::vector<int32_t> v;
-		std::map<size_t, int32_t> m;
-		for (int32_t i = (int32_t)g; i != 1000; ++i)
+		__asm
 		{
-			v.push_back(i);
-			m[i] = i;
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
 		}
-		v.resize(10000);
 	}
 }
 
@@ -290,8 +294,29 @@ void ImGuiManager::Render()
 			f();
 
 		clock_t was = clock();
+		auto &style = ImGui::GetStyle();
+		style.Colors[ImGuiCol_::ImGuiCol_ResizeGrip] = ImVec4(0, 0, 0, 1);
+		style.Colors[ImGuiCol_::ImGuiCol_ResizeGripActive] = ImVec4(10 / 256.0, 10 / 256.0, 10 / 256.0, 1);
+		style.Colors[ImGuiCol_::ImGuiCol_ResizeGripHovered] = ImVec4(12 / 256.0, 12 / 256.0, 12 / 256.0, 1);
+
+		style.Colors[ImGuiCol_::ImGuiCol_Border] = ImVec4(0, 0, 0, 0);
+
+		style.Colors[ImGuiCol_::ImGuiCol_Button] = ImVec4(5 / 256.0, 5 / 256.0, 5 / 256.0, 1);
+		style.Colors[ImGuiCol_::ImGuiCol_ButtonActive] = ImVec4(10 / 256.0, 10 / 256.0, 10 / 256.0, 1);
+		style.Colors[ImGuiCol_::ImGuiCol_ButtonHovered] = ImVec4(12 / 256.0, 12 / 256.0, 12 / 256.0, 1);
+
+		style.Colors[ImGuiCol_::ImGuiCol_TitleBg] = ImVec4(6 / 256.0, 6 / 256.0, 6 / 256.0, 1);
+		style.Colors[ImGuiCol_::ImGuiCol_TitleBgActive] = ImVec4(10 / 256.0, 10 / 256.0, 10 / 256.0, 1);
+		style.Colors[ImGuiCol_::ImGuiCol_TitleBgCollapsed] = ImVec4(6 / 256.0, 6 / 256.0, 6 / 256.0, 1);
+
+		style.Colors[ImGuiCol_::ImGuiCol_FrameBg] = ImVec4(3 / 256.0, 3 / 256.0, 3 / 256.0, 0.75);
+		style.Colors[ImGuiCol_::ImGuiCol_FrameBgHovered] = ImVec4(3 / 256.0, 3 / 256.0, 3 / 256.0, 0.75);
+		style.Colors[ImGuiCol_::ImGuiCol_FrameBgActive] = ImVec4(3 / 256.0, 3 / 256.0, 3 / 256.0, 0.75);
+
+		style.ScrollbarRounding = 15;
+
 		skymp_render_hook();
-		if(clock() - was > 10)
+		if(clock() - was > 40)
 			ci::Log("TIME" + std::to_string(clock() - was));
 		std::lock_guard<dlf_mutex> l(renderHookMutex);
 		renderHook();

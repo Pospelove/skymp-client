@@ -171,7 +171,12 @@ public:
 				//while (sd::GetKeyPressed(VK_F9))
 				//	sd::QuitToMainMenu();
 
-				skymp_update_hook();
+				static clock_t lastUpdateHook = 0;
+				if (clock() - lastUpdateHook > 200)
+				{
+					lastUpdateHook = clock();
+					skymp_update_hook();
+				}
 
 				sd::Wait(0);
 

@@ -604,6 +604,12 @@ CIMGUI_API void igNewFrame();
 CIMGUI_API void igRender();
 CIMGUI_API void igEndFrame();
 
+CIMGUI_API void igCustomSetAlpha(float alpha)
+{
+	igGetStyle()->Alpha = alpha;
+}
+
+
 
 // Demo/Debug/Info
 CIMGUI_API void igShowDemoWindow(bool *opened);

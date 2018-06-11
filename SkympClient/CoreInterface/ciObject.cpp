@@ -563,6 +563,7 @@ void ci::Object::Lock(bool lock)
 
 void ci::Object::SetMotionType(int32_t type)
 {
+	type = Object::Motion_Fixed; // mirdemo
 	std::lock_guard<dlf_mutex> l(pimpl->mutex);
 
 	auto task = ObjectTask{ [=](TESObjectREFR *ref) {
@@ -889,6 +890,12 @@ void ci::Object::Update()
 		auto ref = (TESObjectREFR *)LookupFormByID(pimpl->refID);
 		if (ref && ref->formType == FormType::Reference)
 		{
+			if (sd::GetParentCell(ref) && sd::IsInterior(sd::GetParentCell(ref)))
+			{
+				sd::SetDestroyed(ref, true);
+				sd::SetMotionType(ref, Object::Motion_Fixed, false);
+			}
+
 			auto f = [&] {
 				const NiPoint3 pos = { sd::GetPositionX(ref), sd::GetPositionY(ref), sd::GetPositionZ(ref) },
 					rot = { sd::GetAngleX(ref), sd::GetAngleY(ref), sd::GetAngleZ(ref) };
